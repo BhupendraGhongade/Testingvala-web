@@ -1,139 +1,114 @@
-import React from 'react';
-import { Mail, Globe, MapPin, Instagram, Youtube, Twitter, Linkedin } from 'lucide-react';
-import Logo from './Logo';
+import React from 'react'
+import { useWebsiteData } from '../hooks/useWebsiteData'
+import { Mail, Globe, Instagram, Youtube, Twitter, Linkedin, Phone, Shield, FileText } from 'lucide-react'
 
 const Footer = () => {
+  const { data } = useWebsiteData()
+  const footer = data.footer || {}
+
   return (
-    <footer className="bg-gray-900 text-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-          {/* Company Info */}
-          <div className="space-y-4">
-            <Logo size="large" className="text-white" />
-            <p className="text-gray-300 leading-relaxed">
-              Empowering QA engineers with daily tips, monthly contests, and professional development resources.
-            </p>
-            <div className="flex space-x-4">
-              <a 
-                href="https://www.instagram.com/testingvala" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-gray-400 hover:text-white transition-colors"
-              >
-                <Instagram className="w-5 h-5" />
-              </a>
-              <a 
-                href="https://www.youtube.com/@TestingvalaOfficial" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-gray-400 hover:text-white transition-colors"
-              >
-                <Youtube className="w-5 h-5" />
-              </a>
-              <a 
-                href="https://twitter.com/testingvala" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-gray-400 hover:text-white transition-colors"
-              >
-                <Twitter className="w-5 h-5" />
-              </a>
-              <a 
-                href="https://www.linkedin.com/company/testingvala" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-gray-400 hover:text-white transition-colors"
-              >
-                <Linkedin className="w-5 h-5" />
-              </a>
+    <footer className="bg-gray-950 text-white">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="md:col-span-1">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-primary to-[#E55A00] rounded-xl flex items-center justify-center">
+                <span className="text-white font-bold text-xl">{footer.brand?.logoLetter || 'T'}</span>
+              </div>
+              <div>
+                <h3 className="text-2xl font-bold">{footer.brand?.name || 'TestingVala'}</h3>
+                <p className="text-gray-400 text-sm">{footer.brand?.tagline || 'QA Excellence Platform'}</p>
+              </div>
             </div>
-          </div>
 
-          {/* Quick Links */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-white">Quick Links</h3>
-            <div className="space-y-2">
-              <a href="#home" className="block text-gray-300 hover:text-white transition-colors">
-                Home
-              </a>
-              <a href="#contest" className="block text-gray-300 hover:text-white transition-colors">
-                Contest
-              </a>
-              <a href="#winners" className="block text-gray-300 hover:text-white transition-colors">
-                Winners
-              </a>
-              <a href="#about" className="block text-gray-300 hover:text-white transition-colors">
-                About
-              </a>
-              <a href="#contact" className="block text-gray-300 hover:text-white transition-colors">
-                Contact
-              </a>
+            <p className="text-gray-300 mb-6 leading-relaxed">{footer.description}</p>
+
+            <div className="space-y-3 mb-6">
+              {footer.contact?.email && (
+                <div className="flex items-center gap-3">
+                  <Mail className="w-5 h-5 text-primary" />
+                  <a href={`mailto:${footer.contact.email}`} className="text-gray-200">{footer.contact.email}</a>
+                </div>
+              )}
+              {footer.contact?.phone && (
+                <div className="flex items-center gap-3">
+                  <Phone className="w-5 h-5 text-primary" />
+                  <span className="text-gray-200">{footer.contact.phone}</span>
+                </div>
+              )}
+              {footer.contact?.website && (
+                <div className="flex items-center gap-3">
+                  <Globe className="w-5 h-5 text-primary" />
+                  <a href={footer.contact.website} className="text-gray-200">{footer.contact.website.replace(/^https?:\/\//, '')}</a>
+                </div>
+              )}
             </div>
-          </div>
 
-          {/* Resources */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-white">Resources</h3>
-            <div className="space-y-2">
-              <a href="#" className="block text-gray-300 hover:text-white transition-colors">
-                QA Tips & Tricks
-              </a>
-              <a href="#" className="block text-gray-300 hover:text-white transition-colors">
-                Interview Prep
-              </a>
-              <a href="#" className="block text-gray-300 hover:text-white transition-colors">
-                Best Practices
-              </a>
-              <a href="#" className="block text-gray-300 hover:text-white transition-colors">
-                Community Forum
-              </a>
-            </div>
-          </div>
-
-          {/* Contact Info */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-white">Contact</h3>
-            <div className="space-y-3">
-              <div className="flex items-center space-x-3">
-                <Mail className="w-4 h-4 text-gray-400" />
-                <a href="mailto:info@testingvala.com" className="text-gray-300 hover:text-white transition-colors">
-                  info@testingvala.com
+            <div className="flex space-x-3">
+              {footer.socialMedia?.twitter && (
+                <a href={footer.socialMedia.twitter} className="text-gray-200 hover:text-primary transition-colors p-2 bg-gray-800 rounded-lg hover:bg-gray-700" aria-label="Twitter">
+                  <Twitter className="w-5 h-5" />
                 </a>
-              </div>
-              <div className="flex items-center space-x-3">
-                <Globe className="w-4 h-4 text-gray-400" />
-                <a href="https://www.testingvala.com" className="text-gray-300 hover:text-white transition-colors">
-                  www.testingvala.com
+              )}
+              {footer.socialMedia?.linkedin && (
+                <a href={footer.socialMedia.linkedin} className="text-gray-200 hover:text-primary transition-colors p-2 bg-gray-800 rounded-lg hover:bg-gray-700" aria-label="LinkedIn">
+                  <Linkedin className="w-5 h-5" />
                 </a>
-              </div>
-              <div className="flex items-center space-x-3">
-                <MapPin className="w-4 h-4 text-gray-400" />
-                <span className="text-gray-300">Global QA Community</span>
-              </div>
+              )}
+              {footer.socialMedia?.youtube && (
+                <a href={footer.socialMedia.youtube} className="text-gray-200 hover:text-primary transition-colors p-2 bg-gray-800 rounded-lg hover:bg-gray-700" aria-label="YouTube">
+                  <Youtube className="w-5 h-5" />
+                </a>
+              )}
+              {footer.socialMedia?.instagram && (
+                <a href={footer.socialMedia.instagram} className="text-gray-200 hover:text-primary transition-colors p-2 bg-gray-800 rounded-lg hover:bg-gray-700" aria-label="Instagram">
+                  <Instagram className="w-5 h-5" />
+                </a>
+              )}
             </div>
+          </div>
+
+          <div>
+            <h4 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <Globe className="w-5 h-5 text-[#FF6600]" />
+              Quick Links
+            </h4>
+            <ul className="space-y-3">
+              {(footer.quickLinks || []).map((l, i) => (
+                <li key={i}><a href={l.href || '#'} className="text-gray-300 hover:text-[#FF6600] transition-colors flex items-center gap-2">{l.label}</a></li>
+              ))}
+            </ul>
+          </div>
+
+          <div>
+            <h4 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <FileText className="w-5 h-5 text-[#FF6600]" />
+              Resources & Legal
+            </h4>
+            <ul className="space-y-3">
+              {(footer.resources || []).map((r, i) => (
+                <li key={i}><a href={r.href || '#'} className="text-gray-300 hover:text-[#FF6600] transition-colors flex items-center gap-2">{r.label}</a></li>
+              ))}
+            </ul>
           </div>
         </div>
 
-        {/* Bottom Bar */}
-        <div className="border-t border-gray-800 mt-8 pt-8 flex flex-col md:flex-row justify-between items-center">
-          <p className="text-gray-400 text-sm">
-            &copy; 2025 TestingVala.com. All rights reserved.
-          </p>
-          <div className="flex space-x-6 mt-4 md:mt-0">
-            <a href="#" className="text-gray-400 hover:text-white text-sm transition-colors">
-              Privacy Policy
-            </a>
-            <a href="#" className="text-gray-400 hover:text-white text-sm transition-colors">
-              Terms of Service
-            </a>
-            <a href="#" className="text-gray-400 hover:text-white text-sm transition-colors">
-              Cookie Policy
-            </a>
+        <div className="border-t border-gray-800 mt-8 pt-6 flex flex-col md:flex-row justify-between items-center">
+          <p className="text-gray-400 text-sm">{footer.copyright || `© ${new Date().getFullYear()} TestingVala. All rights reserved.`} <span className="hidden sm:inline">| Built with ❤️ for the QA community</span></p>
+          <div className="flex items-center gap-4 mt-4 md:mt-0">
+            <div className="flex items-center gap-2 text-gray-400 text-sm">
+              <Shield className="w-4 h-4" />
+              <span>Secure & Reliable</span>
+            </div>
+            <div className="flex items-center gap-2 text-gray-400 text-sm">
+              <Globe className="w-4 h-4" />
+              <span>Global Community</span>
+            </div>
           </div>
         </div>
       </div>
     </footer>
-  );
-};
+  )
+}
 
-export default Footer;
+export default Footer

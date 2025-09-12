@@ -1,79 +1,71 @@
 import React from 'react';
-import { ArrowRight, Users, Trophy, Clock } from 'lucide-react';
+import { ArrowRight, Star, Users, Award, Clock, MessageSquare } from 'lucide-react';
 
 const Hero = ({ data }) => {
-  if (!data) return null;
+  // Default fallback data
+  const defaultData = {
+    badge: '🚀 Test Your QA Skills. Win Rewards. Build Your Career',
+    headline: 'TestingVala QA – Ask, Share & Learn Software Testing',
+    subtitle: 'Join the premier QA community where professionals connect, share knowledge, and compete for recognition. Build your career through our monthly contests, workshops, and expert discussions.',
+    stats: {
+      participants: '500+',
+      prizes: '$2,000+',
+      support: '24/7'
+    }
+  };
+
+  // Use provided data or fallback to defaults
+  const safeData = data || defaultData;
 
   const openContestForm = () => {
     const contestUrl = 'https://docs.google.com/forms/d/e/1FAIpQLSdVsoGqy4FaSV5bHaCAQN4oCxxhG36NoiG4eGdNp8mjQMsJzw/viewform?usp=header';
     window.open(contestUrl, '_blank');
   };
 
-  return (
-    <section id="home" className="relative bg-gradient-to-br from-blue-50 via-white to-purple-50 py-20 lg:py-32">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center">
-          {/* Badge */}
-          <div className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-full text-sm font-medium mb-8 shadow-lg">
-            {data.badge}
-          </div>
+  const openCommunityDiscussion = () => {
+    // Scroll to community section
+    const communitySection = document.getElementById('community');
+    if (communitySection) {
+      communitySection.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
 
+  return (
+    <section id="home" className="relative bg-gradient-to-br from-white via-gray-50 to-gray-100 min-h-[55vh] flex items-center pt-6 md:pt-10 lg:pt-12 pb-3 md:pb-5 lg:pb-6">
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center">
           {/* Main Headline */}
-          <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold text-gray-900 mb-6 leading-tight">
-            {data.headline}
+          <h1 className="font-extrabold text-gray-900 mb-4 leading-tight text-3xl sm:text-4xl md:text-5xl lg:text-6xl">
+            {safeData.headline || 'TestingVala'}
           </h1>
 
           {/* Subtitle */}
-          <p className="text-xl md:text-2xl text-gray-600 mb-12 max-w-4xl mx-auto leading-relaxed">
-            {data.subtitle}
+          <p className="text-base sm:text-lg md:text-xl text-gray-700 max-w-md sm:max-w-2xl mx-auto mb-6 leading-relaxed px-2">
+            {safeData.subtitle || 'The leading enterprise platform for software testing professionals. Connect, collaborate, and advance your testing expertise through expert-led events, comprehensive training, and industry-leading tools.'}
           </p>
 
           {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
-            <button 
-              onClick={openContestForm}
-              className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-4 rounded-lg font-semibold text-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2 group"
+          <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 justify-center items-center mb-4 px-2">
+            <button
+              onClick={openCommunityDiscussion}
+              className="btn-secondary text-white w-full sm:w-auto px-6 sm:px-10 py-3 sm:py-4 rounded-lg font-semibold text-base sm:text-lg hover:shadow-2xl hover:scale-105 transition-all duration-300 flex items-center justify-center gap-3 shadow-lg border border-secondary"
             >
-              Join Contest Now
-              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              <MessageSquare className="w-5 h-5" />
+              <span>Start Discussion</span>
+              <ArrowRight className="w-5 h-5 transition-transform" />
             </button>
-            <button className="border-2 border-gray-300 text-gray-700 px-8 py-4 rounded-lg font-semibold text-lg hover:border-blue-600 hover:text-blue-600 transition-all duration-200">
-              Learn More
+
+            <button
+              onClick={openContestForm}
+              className="bg-transparent border-2 border-gray-300 text-gray-900 w-full sm:w-auto px-6 sm:px-10 py-3 sm:py-4 rounded-lg font-semibold text-base sm:text-lg hover:bg-gray-100 hover:text-black hover:shadow-md hover:scale-105 transition-all duration-300 flex items-center justify-center gap-3"
+            >
+              <Award className="w-5 h-5" />
+              <span>Join Contest</span>
+              <ArrowRight className="w-5 h-5 transition-transform" />
             </button>
           </div>
 
-          {/* Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Users className="w-8 h-8 text-white" />
-              </div>
-              <div className="text-3xl font-bold text-gray-900 mb-2">{data.stats.participants}</div>
-              <div className="text-gray-600">Active Participants</div>
-            </div>
-            <div className="text-center">
-              <div className="w-16 h-16 bg-gradient-to-br from-green-600 to-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Trophy className="w-8 h-8 text-white" />
-              </div>
-              <div className="text-3xl font-bold text-gray-900 mb-2">{data.stats.prizes}</div>
-              <div className="text-gray-600">Total Prizes</div>
-            </div>
-            <div className="text-center">
-              <div className="w-16 h-16 bg-gradient-to-br from-purple-600 to-pink-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Clock className="w-8 h-8 text-white" />
-              </div>
-              <div className="text-3xl font-bold text-gray-900 mb-2">{data.stats.support}</div>
-              <div className="text-gray-600">Support Available</div>
-            </div>
-          </div>
         </div>
-      </div>
-
-      {/* Background Elements */}
-      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
-        <div className="absolute top-20 left-10 w-72 h-72 bg-blue-200 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob"></div>
-        <div className="absolute top-40 right-10 w-72 h-72 bg-purple-200 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-2000"></div>
-        <div className="absolute -bottom-8 left-20 w-72 h-72 bg-pink-200 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-4000"></div>
       </div>
     </section>
   );

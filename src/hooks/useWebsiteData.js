@@ -1,186 +1,153 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase, TABLES } from '../lib/supabase'
 import toast from 'react-hot-toast'
 
 export const useWebsiteData = () => {
-  const [data, setData] = useState({
-    contest: {
-      title: 'January 2025 QA Contest',
-      theme: 'Testing Hacks & Smart Techniques',
-      prizes: '1st Place: $500 | 2nd Place: $300 | 3rd Place: $200',
-      submission: 'Share your QA trick with detailed explanation and impact',
-      deadline: '2025-01-31',
-      status: 'Active Now'
-    },
-    hero: {
-      headline: 'Win Big with Your Testing Expertise',
-      subtitle: 'Show off your QA skills in our monthly contest! Share your best testing hacks, automation tricks, and innovative approaches.',
-      badge: '🚀 Test Your QA Skills. Win Rewards. Build Your Career',
-      stats: {
-        participants: '500+',
-        prizes: '$2,000+',
-        support: '24/7'
-      }
-    },
-    winners: [
-      {
-        name: 'Sarah Chen',
-        title: 'December 2024 Winner',
-        trick: 'AI-Powered Test Case Generation',
-        avatar: '👑'
-      },
-      {
-        name: 'Mike Rodriguez',
-        title: 'November 2024 Winner',
-        trick: 'Cross-Browser Testing Automation',
-        avatar: '🥈'
-      },
-      {
-        name: 'Emma Thompson',
-        title: 'October 2024 Winner',
-        trick: 'Performance Testing Optimization',
-        avatar: '🥉'
-      }
-    ],
-    about: {
-      description: 'TestingVala.com is your go-to platform for daily QA tricks, hacks, and interview preparation tips.',
-      features: [
-        'Daily QA tips and best practices',
-        'Interview preparation resources',
-        'Process improvement techniques',
-        'Monthly QA contests with prizes'
+  const defaultData = useMemo(() => ({
+    hero: { headline: 'Win Big with Your Testing Expertise', subtitle: 'Show off your QA skills in our monthly contest!', stats: { participants: '500+', prizes: '$2,000+', support: '24/7' } },
+    contest: { title: 'January 2025 QA Contest', theme: 'Testing Hacks & Smart Techniques', prizes: '', submission: '', deadline: '', status: 'Coming Soon' },
+    winners: [],
+    about: { description: '', features: [], stats: {} },
+    contact: { email: 'info@testingvala.com', website: 'www.testingvala.com', location: 'Global QA Community', socialMedia: {} },
+    footer: {
+      brand: { name: 'TestingVala', logoLetter: 'T', tagline: 'QA Excellence Platform' },
+      description: 'Empowering QA professionals worldwide through knowledge sharing, skill development, and competitive excellence.',
+      contact: { email: 'info@testingvala.com', phone: '+1 (555) 123-4567', website: 'https://www.testingvala.com' },
+      quickLinks: [
+        { label: 'Home', href: '#home' },
+        { label: 'Events', href: '#events' },
+        { label: 'Winners', href: '#winners' },
+        { label: 'Community', href: '#community' },
+        { label: 'About', href: '#about' },
+        { label: 'Contact', href: '#contact' }
       ],
-      stats: {
-        members: '10,000+',
-        tips: '500+',
-        contests: '12+',
-        countries: '50+'
-      }
+      resources: [
+        { label: 'QA Tips & Tricks', href: '/resources/tips' },
+        { label: 'Interview Preparation', href: '/resources/interview' },
+        { label: 'Privacy Policy', href: '/privacy' }
+      ],
+      socialMedia: { twitter: '', linkedin: '', youtube: '', instagram: '' },
+      copyright: '© 2025 TestingVala. All rights reserved.'
     },
-    contact: {
-      email: 'info@testingvala.com',
-      website: 'www.testingvala.com',
-      location: 'Global QA Community',
-      socialMedia: {
-        instagram: 'https://www.instagram.com/testingvala',
-        youtube: 'https://www.youtube.com/@TestingvalaOfficial',
-        twitter: 'https://twitter.com/testingvala',
-        linkedin: 'https://www.linkedin.com/company/testingvala'
-      }
-    }
-  })
+    messages: []
+  }), [])
+
+  const [data, setData] = useState(defaultData)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [isOnline, setIsOnline] = useState(false)
 
-  // Load data from Supabase
-  const loadData = async () => {
+  const mergeDataWithDefaults = (base, backend = {}) => {
+    const merged = { ...base }
+    Object.keys(base).forEach((k) => {
+      if (backend[k] !== undefined) {
+        if (Array.isArray(base[k])) merged[k] = Array.isArray(backend[k]) ? backend[k] : base[k]
+        else if (typeof base[k] === 'object' && base[k] !== null) merged[k] = { ...base[k], ...backend[k] }
+        else merged[k] = backend[k]
+      }
+    })
+    return merged
+  }
+
+  const loadData = useCallback(async () => {
     try {
       setLoading(true)
-      
-      // Check if Supabase is configured
       if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
-        console.warn('Supabase not configured, using fallback data')
+        const raw = localStorage.getItem('local_website_content')
+        if (raw) setData(mergeDataWithDefaults(defaultData, JSON.parse(raw)))
+        else setData(defaultData)
         setIsOnline(false)
         setLoading(false)
         return
       }
 
-      const { data: websiteData, error } = await supabase
-        .from(TABLES.WEBSITE_CONTENT)
-        .select('*')
-        .single()
-
-      if (error && error.code !== 'PGRST116') {
-        throw error
-      }
-
-      if (websiteData) {
-        setData(websiteData.content)
+      const { data: websiteData, error: fetchErr } = await supabase.from(TABLES.WEBSITE_CONTENT).select('*').single()
+      if (fetchErr && fetchErr.code !== 'PGRST116') throw fetchErr
+      if (websiteData && websiteData.content) {
+        setData(mergeDataWithDefaults(defaultData, websiteData.content))
         setIsOnline(true)
       } else {
-        // If no data exists, initialize it
-        await initializeData()
+        await supabase.from(TABLES.WEBSITE_CONTENT).insert({ id: 1, content: defaultData })
         setIsOnline(true)
       }
     } catch (err) {
       console.error('Error loading website data:', err)
-      setError(err.message)
+      setError(err?.message || String(err))
       setIsOnline(false)
-      // Don't show error toast for fallback mode
-      if (import.meta.env.VITE_SUPABASE_URL) {
-        toast.error('Failed to load website data, using fallback mode')
-      }
     } finally {
       setLoading(false)
     }
+  }, [defaultData])
+
+  const validateSectionData = (section, val) => {
+    try {
+      switch (section) {
+        case 'hero': return val && val.headline !== undefined
+        case 'contest': return val && val.title !== undefined
+  case 'winners': return Array.isArray(val)
+        case 'about': return val && val.description !== undefined
+  case 'contact': return val && val.email !== undefined
+  case 'footer': return val && typeof val === 'object'
+  case 'messages': return Array.isArray(val)
+        default: return true
+      }
+    } catch (e) { console.error('Validation error', e); return false }
   }
 
-  // Save data to Supabase
   const saveData = async (section, newData) => {
     try {
-      if (!isOnline) {
-        toast.error('Backend not connected. Changes will not be saved.')
-        return false
+      if (!validateSectionData(section, newData)) { toast.error('Invalid data'); return false }
+      const updated = { ...data, [section]: newData }
+      if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
+        localStorage.setItem('local_website_content', JSON.stringify(updated))
+        setData(updated)
+        toast.success(`${section} updated locally`)
+        return true
       }
-
-      const updatedData = { ...data, [section]: newData }
-      
-      const { error } = await supabase
-        .from(TABLES.WEBSITE_CONTENT)
-        .upsert({
-          id: 1,
-          content: updatedData,
-          updated_at: new Date().toISOString()
-        })
-
+      const { error } = await supabase.from(TABLES.WEBSITE_CONTENT).upsert({ id: 1, content: updated, updated_at: new Date().toISOString() })
       if (error) throw error
-
-      setData(updatedData)
-      toast.success(`${section} updated successfully!`)
+      setData(updated)
+      toast.success(`${section} updated successfully`)
       return true
     } catch (err) {
-      console.error('Error saving data:', err)
-      toast.error('Failed to save changes')
+      console.error('Error saving data', err)
+      toast.error('Failed to save')
       return false
     }
   }
 
-  // Initialize data if not exists
-  const initializeData = async () => {
+  const saveMultipleSections = async (sectionsData) => {
     try {
-      const { data: existingData } = await supabase
-        .from(TABLES.WEBSITE_CONTENT)
-        .select('*')
-        .single()
-
-      if (!existingData) {
-        const { error } = await supabase
-          .from(TABLES.WEBSITE_CONTENT)
-          .insert({
-            id: 1,
-            content: data,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          })
-
-        if (error) throw error
+      const updated = { ...data, ...sectionsData }
+      if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
+        localStorage.setItem('local_website_content', JSON.stringify(updated))
+        setData(updated)
+        toast.success('Saved locally')
+        return true
       }
+      const { error } = await supabase.from(TABLES.WEBSITE_CONTENT).upsert({ id: 1, content: updated, updated_at: new Date().toISOString() })
+      if (error) throw error
+      setData(updated)
+      toast.success('Saved successfully')
+      return true
     } catch (err) {
-      console.error('Error initializing data:', err)
+      console.error('Error saving multiple', err)
+      toast.error('Failed to save')
+      return false
     }
   }
 
-  useEffect(() => {
-    loadData()
-  }, [])
-
-  return {
-    data,
-    loading,
-    error,
-    isOnline,
-    saveData,
-    refreshData: loadData
+  const addMessage = async (messageObj) => {
+    try {
+      const newMessage = { id: Date.now(), name: messageObj.name || 'Anonymous', email: messageObj.email || '', subject: messageObj.subject || '', message: messageObj.message || '', read: false, created_at: new Date().toISOString() }
+      const existing = Array.isArray(data.messages) ? data.messages : []
+      return await saveData('messages', [newMessage, ...existing])
+    } catch (err) { console.error('Error adding message', err); return false }
   }
+
+  useEffect(() => { loadData() }, [loadData])
+
+  const getSectionData = (section) => data[section] || null
+  const updateSectionLocally = (section, newData) => setData(prev => ({ ...prev, [section]: newData }))
+  return { data, loading, error, isOnline, saveData, saveMultipleSections, refreshData: loadData, getSectionData, updateSectionLocally, mergeDataWithDefaults, addMessage }
 }

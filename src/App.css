@@ -6,13 +6,15 @@
 }
 
 :root {
-  /* Modern Color Palette */
-  --primary: #6366f1;
-  --primary-light: #818cf8;
-  --primary-dark: #4f46e5;
-  --secondary: #f59e0b;
-  --secondary-light: #fbbf24;
-  --secondary-dark: #d97706;
+  /* Brand Color Palette: orange, white, blue */
+  --brand-orange: #FF6600;
+  --brand-orange-light: #FF8C33;
+  --brand-orange-dark: #E55A00;
+  --brand-blue: #0057B7;
+  --brand-blue-light: #2a7ee0;
+  --brand-blue-dark: #004494;
+  --white: #ffffff;
+  --shine: rgba(255,255,255,0.12);
   
   /* Neutral Colors */
   --white: #ffffff;
@@ -38,9 +40,9 @@
   --info-light: #60a5fa;
   
   /* Gradients */
-  --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  --gradient-secondary: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-  --gradient-hero: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+  --gradient-primary: linear-gradient(135deg, var(--brand-orange) 0%, var(--brand-blue) 100%);
+  --gradient-secondary: linear-gradient(135deg, var(--brand-blue-light) 0%, var(--brand-orange-light) 100%);
+  --gradient-hero: linear-gradient(135deg, var(--brand-orange) 0%, var(--brand-blue) 50%, #ffffff 100%);
   --gradient-accent: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
   --gradient-success: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
   

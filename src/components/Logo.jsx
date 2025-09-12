@@ -1,27 +1,38 @@
 import React from 'react';
-import { Bug, TestTube } from 'lucide-react';
 
-const Logo = ({ size = 'default', className = '' }) => {
-  const sizeClasses = {
-    small: 'w-8 h-8',
-    default: 'w-10 h-10',
-    large: 'w-12 h-12'
-  };
+// Single clean Logo component. Uses inline SVG in user colors and supports size/className props.
+const Logo = ({ size = 'default', className = '', showWordmark = true }) => {
+  const sizeMap = { small: 24, default: 40, large: 64 };
+  const px = typeof size === 'number' ? size : (sizeMap[size] || sizeMap.default);
+
+  const wordmarkSize = Math.max(12, Math.round(px * 0.5));
 
   return (
-    <div className={`flex items-center gap-2 ${className}`}>
-      <div className={`${sizeClasses[size]} bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center text-white shadow-lg`}>
-        <div className="relative">
-          <TestTube className="w-5 h-5" />
-          <Bug className="w-2 h-2 absolute -top-1 -right-1 text-yellow-300" />
+    <div className={`flex items-center gap-3 ${className}`}>
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width={px}
+        height={px}
+        viewBox="0 0 200 200"
+        role="img"
+        aria-label="TestingVala logo"
+        className="flex-shrink-0"
+      >
+        <circle cx="90" cy="80" r="50" stroke="#0073e6" strokeWidth="8" fill="#ffffff" />
+        <circle cx="90" cy="80" r="40" stroke="#0073e6" strokeWidth="3" fill="#ffffff" />
+        <rect x="125" y="115" width="40" height="12" rx="6" ry="6" transform="rotate(45 125 115)" fill="#0073e6" />
+        <path d="M65 80 L85 100 L125 50" stroke="#f97316" strokeWidth="10" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+
+      {showWordmark && (
+        <div className="flex flex-col leading-tight">
+          <div style={{ fontWeight: 700, fontSize: wordmarkSize, lineHeight: 1 }}>
+            <span style={{ color: '#0073e6' }}>Testing</span>
+            <span style={{ color: '#f97316', marginLeft: 6 }}>Vala</span>
+            <span style={{ color: '#f97316', marginLeft: 6, fontSize: Math.round(wordmarkSize * 0.6) }}>.com</span>
+          </div>
         </div>
-      </div>
-      <div className="flex flex-col">
-        <span className="font-bold text-lg leading-tight bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-          TestingVala
-        </span>
-        <span className="text-xs text-gray-500 leading-tight">QA Excellence</span>
-      </div>
+      )}
     </div>
   );
 };
