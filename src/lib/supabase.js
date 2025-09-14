@@ -23,6 +23,13 @@ export { supabase }
 // 4. admin_sessions - stores admin authentication sessions
 // 5. upcoming_events - stores upcoming events with dates, times, and registration links
 // 6. event_images - stores event image metadata and storage references
+// 7. resume_templates - stores resume template definitions
+// 8. user_resumes - stores user resumes with full data
+// 9. resume_versions - stores version history for resumes
+// 10. resume_shares - stores sharing and collaboration settings
+// 11. resume_analytics - stores usage tracking and analytics
+// 12. resume_comments - stores comments and feedback on resumes
+// 13. resume_exports - stores export history and download tracking
 
 export const TABLES = {
   WEBSITE_CONTENT: 'website_content',
@@ -30,7 +37,21 @@ export const TABLES = {
   CONTEST_SUBMISSIONS: 'contest_submissions',
   ADMIN_SESSIONS: 'admin_sessions',
   UPCOMING_EVENTS: 'upcoming_events',
-  EVENT_IMAGES: 'event_images'
+  EVENT_IMAGES: 'event_images',
+  FORUM_POSTS: 'forum_posts',
+  FORUM_COMMENTS: 'forum_comments',
+  FORUM_LIKES: 'forum_likes',
+  POST_COMMENTS: 'post_comments',
+  POST_LIKES: 'post_likes',
+  USER_BOARDS: 'user_boards',
+  BOARD_PINS: 'board_pins',
+  RESUME_TEMPLATES: 'resume_templates',
+  USER_RESUMES: 'user_resumes',
+  RESUME_VERSIONS: 'resume_versions',
+  RESUME_SHARES: 'resume_shares',
+  RESUME_ANALYTICS: 'resume_analytics',
+  RESUME_COMMENTS: 'resume_comments',
+  RESUME_EXPORTS: 'resume_exports'
 }
 
 // Storage bucket names
@@ -350,4 +371,779 @@ export const getAllEvents = async () => {
     console.error('Error fetching all events:', error);
     throw error;
   }
+};
+
+// Post Comments and Likes Functions
+export const getPostComments = async (postId) => {
+  try {
+    if (!supabase) return [];
+    const { data, error } = await supabase
+      .from('post_comments')
+      .select('*')
+      .eq('post_id', postId)
+      .order('created_at', { ascending: true });
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching comments:', error);
+    return [];
+  }
+};
+
+export const addPostComment = async (postId, content, userEmail) => {
+  try {
+    if (!supabase) throw new Error('Supabase not configured');
+    const { data, error } = await supabase
+      .from('post_comments')
+      .insert({ 
+        post_id: postId, 
+        content, 
+        user_email: userEmail,
+        author_name: userEmail.split('@')[0]
+      })
+      .select().single();
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error adding comment:', error);
+    throw error;
+  }
+};
+
+export const getPostLikes = async (postId) => {
+  try {
+    if (!supabase) return 0;
+    const { count, error } = await supabase
+      .from('post_likes')
+      .select('*', { count: 'exact', head: true })
+      .eq('post_id', postId);
+    if (error) throw error;
+    return count || 0;
+  } catch (error) {
+    console.error('Error fetching likes:', error);
+    return 0;
+  }
+};
+
+export const getBulkPostData = async (postIds) => {
+  try {
+    if (!supabase || !postIds.length) return { comments: {}, likes: {} };
+    
+    const [commentsResult, likesResult] = await Promise.all([
+      supabase.from('post_comments').select('*').in('post_id', postIds),
+      supabase.from('post_likes').select('post_id').in('post_id', postIds)
+    ]);
+    
+    const commentsByPost = {};
+    const likesByPost = {};
+    
+    (commentsResult.data || []).forEach(comment => {
+      if (!commentsByPost[comment.post_id]) commentsByPost[comment.post_id] = [];
+      commentsByPost[comment.post_id].push(comment);
+    });
+    
+    (likesResult.data || []).forEach(like => {
+      likesByPost[like.post_id] = (likesByPost[like.post_id] || 0) + 1;
+    });
+    
+    return { comments: commentsByPost, likes: likesByPost };
+  } catch (error) {
+    console.error('Error fetching bulk post data:', error);
+    return { comments: {}, likes: {} };
+  }
+};
+
+export const togglePostLike = async (postId, userEmail) => {
+  try {
+    if (!supabase) return false;
+    const { data: existing, error: selectError } = await supabase
+      .from('post_likes')
+      .select('*')
+      .eq('post_id', postId)
+      .eq('user_email', userEmail)
+      .maybeSingle();
+    
+    if (selectError) throw selectError;
+    
+    if (existing) {
+      const { error: deleteError } = await supabase
+        .from('post_likes')
+        .delete()
+        .eq('id', existing.id);
+      if (deleteError) throw deleteError;
+      return false;
+    } else {
+      const { error: insertError } = await supabase
+        .from('post_likes')
+        .insert({ 
+          post_id: postId, 
+          user_email: userEmail
+        });
+      if (insertError) throw insertError;
+      return true;
+    }
+  } catch (error) {
+    console.error('Error toggling like:', error);
+    throw error;
+  }
+};
+
+// Board Functions
+export const getUserBoards = async (userId) => {
+  try {
+    if (!supabase) return [];
+    const { data, error } = await supabase
+      .from(TABLES.USER_BOARDS)
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching user boards:', error);
+    return [];
+  }
+};
+
+export const createUserBoard = async (boardData) => {
+  try {
+    if (!supabase) throw new Error('Supabase not configured');
+    const { data, error } = await supabase
+      .from(TABLES.USER_BOARDS)
+      .insert(boardData)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error creating board:', error);
+    throw error;
+  }
+};
+
+export const updateUserBoard = async (boardId, boardData) => {
+  try {
+    if (!supabase) throw new Error('Supabase not configured');
+    const { data, error } = await supabase
+      .from(TABLES.USER_BOARDS)
+      .update({ ...boardData, updated_at: new Date().toISOString() })
+      .eq('id', boardId)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error updating board:', error);
+    throw error;
+  }
+};
+
+export const deleteUserBoard = async (boardId) => {
+  try {
+    if (!supabase) throw new Error('Supabase not configured');
+    const { error } = await supabase
+      .from(TABLES.USER_BOARDS)
+      .delete()
+      .eq('id', boardId);
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error('Error deleting board:', error);
+    throw error;
+  }
+};
+
+export const savePostToBoard = async (saveData) => {
+  try {
+    if (!supabase) throw new Error('Supabase not configured');
+    const { data, error } = await supabase
+      .from(TABLES.BOARD_PINS)
+      .insert([saveData])
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error saving post:', error);
+    throw error;
+  }
+};
+
+export const getBoardSaves = async (boardId) => {
+  try {
+    if (!supabase) return [];
+    const { data, error } = await supabase
+      .from(TABLES.BOARD_PINS)
+      .select('*')
+      .eq('board_id', boardId)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching board saves:', error);
+    return [];
+  }
+};
+
+export const removeSaveFromBoard = async (saveId) => {
+  try {
+    if (!supabase) throw new Error('Supabase not configured');
+    const { error } = await supabase
+      .from(TABLES.BOARD_PINS)
+      .delete()
+      .eq('id', saveId);
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error('Error removing save:', error);
+    throw error;
+  }
+};
+
+export const checkIfPostSaved = async (boardId, postId) => {
+  try {
+    if (!supabase) return false;
+    const { data, error } = await supabase
+      .from(TABLES.BOARD_PINS)
+      .select('id')
+      .eq('board_id', boardId)
+      .eq('post_id', postId)
+      .single();
+    if (error && error.code !== 'PGRST116') throw error;
+    return !!data;
+  } catch (error) {
+    console.error('Error checking if post is saved:', error);
+    return false;
+  }
+};
+
+// ============================================================================
+// RESUME MANAGEMENT FUNCTIONS
+// ============================================================================
+
+// Resume Templates
+export const getResumeTemplates = async () => {
+  try {
+    if (!supabase) {
+      console.warn('getResumeTemplates: Supabase not configured — returning default templates');
+      return [
+        { id: 'modern', name: 'Modern Professional', description: 'Enterprise-grade design', category: 'professional' },
+        { id: 'executive', name: 'Executive Premium', description: 'Sophisticated serif layout', category: 'executive' },
+        { id: 'ats', name: 'ATS Optimized', description: 'Clean formatting for ATS', category: 'ats-friendly' },
+        { id: 'creative', name: 'Creative Tech', description: 'Modern gradient design', category: 'creative' }
+      ];
+    }
+    const { data, error } = await supabase
+      .from(TABLES.RESUME_TEMPLATES)
+      .select('*')
+      .eq('is_active', true)
+      .order('category', { ascending: true });
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching resume templates:', error);
+    return [];
+  }
+};
+
+// User Resumes CRUD
+export const getUserResumes = async (userEmail) => {
+  try {
+    if (!supabase || !userEmail) return [];
+    const { data, error } = await supabase
+      .from(TABLES.USER_RESUMES)
+      .select(`
+        *,
+        template:resume_templates(name, description),
+        stats:resume_stats(*)
+      `)
+      .eq('user_email', userEmail)
+      .order('updated_at', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching user resumes:', error);
+    return [];
+  }
+};
+
+export const getResumeById = async (resumeId) => {
+  try {
+    if (!supabase || !resumeId) return null;
+    const { data, error } = await supabase
+      .from(TABLES.USER_RESUMES)
+      .select(`
+        *,
+        template:resume_templates(name, description, template_data)
+      `)
+      .eq('id', resumeId)
+      .single();
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error fetching resume:', error);
+    return null;
+  }
+};
+
+export const createResume = async (resumeData) => {
+  try {
+    if (!supabase) throw new Error('Supabase not configured');
+    
+    // Generate public slug if making public
+    if (resumeData.is_public && resumeData.user_email) {
+      const { data: slugData } = await supabase
+        .rpc('generate_public_slug', {
+          resume_title: resumeData.title || 'My Resume',
+          user_email: resumeData.user_email
+        });
+      if (slugData) {
+        resumeData.public_slug = slugData;
+      }
+    }
+    
+    const { data, error } = await supabase
+      .from(TABLES.USER_RESUMES)
+      .insert([resumeData])
+      .select()
+      .single();
+    if (error) throw error;
+    
+    // Track creation analytics
+    await trackResumeEvent(data.id, 'create', { template_id: resumeData.template_id });
+    
+    return data;
+  } catch (error) {
+    console.error('Error creating resume:', error);
+    throw error;
+  }
+};
+
+export const updateResume = async (resumeId, resumeData) => {
+  try {
+    if (!supabase) throw new Error('Supabase not configured');
+    
+    const updateData = {
+      ...resumeData,
+      updated_at: new Date().toISOString()
+    };
+    
+    const { data, error } = await supabase
+      .from(TABLES.USER_RESUMES)
+      .update(updateData)
+      .eq('id', resumeId)
+      .select()
+      .single();
+    if (error) throw error;
+    
+    // Track update analytics
+    await trackResumeEvent(resumeId, 'update');
+    
+    return data;
+  } catch (error) {
+    console.error('Error updating resume:', error);
+    throw error;
+  }
+};
+
+export const deleteResume = async (resumeId) => {
+  try {
+    if (!supabase) throw new Error('Supabase not configured');
+    
+    // Track deletion before deleting
+    await trackResumeEvent(resumeId, 'delete');
+    
+    const { error } = await supabase
+      .from(TABLES.USER_RESUMES)
+      .delete()
+      .eq('id', resumeId);
+    if (error) throw error;
+    
+    return true;
+  } catch (error) {
+    console.error('Error deleting resume:', error);
+    throw error;
+  }
+};
+
+// Resume Versions
+export const getResumeVersions = async (resumeId) => {
+  try {
+    if (!supabase) return [];
+    const { data, error } = await supabase
+      .from(TABLES.RESUME_VERSIONS)
+      .select('*')
+      .eq('resume_id', resumeId)
+      .order('version_number', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching resume versions:', error);
+    return [];
+  }
+};
+
+export const restoreResumeVersion = async (resumeId, versionId) => {
+  try {
+    if (!supabase) throw new Error('Supabase not configured');
+    
+    // Get the version data
+    const { data: version, error: versionError } = await supabase
+      .from(TABLES.RESUME_VERSIONS)
+      .select('resume_data, template_id')
+      .eq('id', versionId)
+      .single();
+    if (versionError) throw versionError;
+    
+    // Update the main resume with version data
+    const { data, error } = await supabase
+      .from(TABLES.USER_RESUMES)
+      .update({
+        resume_data: version.resume_data,
+        template_id: version.template_id,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', resumeId)
+      .select()
+      .single();
+    if (error) throw error;
+    
+    // Track restoration
+    await trackResumeEvent(resumeId, 'restore_version', { version_id: versionId });
+    
+    return data;
+  } catch (error) {
+    console.error('Error restoring resume version:', error);
+    throw error;
+  }
+};
+
+// Resume Sharing
+export const shareResume = async (resumeId, shareData) => {
+  try {
+    if (!supabase) throw new Error('Supabase not configured');
+    
+    // Generate access token
+    const accessToken = Math.random().toString(36).substring(2, 15) + 
+                       Math.random().toString(36).substring(2, 15);
+    
+    const { data, error } = await supabase
+      .from(TABLES.RESUME_SHARES)
+      .insert([{
+        ...shareData,
+        resume_id: resumeId,
+        access_token: accessToken
+      }])
+      .select()
+      .single();
+    if (error) throw error;
+    
+    // Track sharing
+    await trackResumeEvent(resumeId, 'share', { share_type: shareData.share_type });
+    
+    return data;
+  } catch (error) {
+    console.error('Error sharing resume:', error);
+    throw error;
+  }
+};
+
+export const getResumeShares = async (resumeId) => {
+  try {
+    if (!supabase) return [];
+    const { data, error } = await supabase
+      .from(TABLES.RESUME_SHARES)
+      .select('*')
+      .eq('resume_id', resumeId)
+      .eq('is_active', true)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching resume shares:', error);
+    return [];
+  }
+};
+
+export const revokeResumeShare = async (shareId) => {
+  try {
+    if (!supabase) throw new Error('Supabase not configured');
+    const { error } = await supabase
+      .from(TABLES.RESUME_SHARES)
+      .update({ is_active: false })
+      .eq('id', shareId);
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error('Error revoking resume share:', error);
+    throw error;
+  }
+};
+
+// Resume Analytics
+export const trackResumeEvent = async (resumeId, eventType, metadata = {}) => {
+  try {
+    if (!supabase || !resumeId) return;
+    
+    const { error } = await supabase
+      .from(TABLES.RESUME_ANALYTICS)
+      .insert([{
+        resume_id: resumeId,
+        event_type: eventType,
+        user_agent: navigator?.userAgent || 'Unknown',
+        metadata: metadata
+      }]);
+    
+    if (error) {
+      console.warn('Analytics tracking failed:', error);
+    }
+  } catch (error) {
+    console.warn('Analytics tracking error:', error);
+  }
+};
+
+export const getResumeAnalytics = async (resumeId, days = 30) => {
+  try {
+    if (!supabase) return [];
+    const { data, error } = await supabase
+      .from(TABLES.RESUME_ANALYTICS)
+      .select('*')
+      .eq('resume_id', resumeId)
+      .gte('created_at', new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString())
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching resume analytics:', error);
+    return [];
+  }
+};
+
+// Resume Comments
+export const addResumeComment = async (resumeId, commentData) => {
+  try {
+    if (!supabase) throw new Error('Supabase not configured');
+    const { data, error } = await supabase
+      .from(TABLES.RESUME_COMMENTS)
+      .insert([{
+        ...commentData,
+        resume_id: resumeId
+      }])
+      .select()
+      .single();
+    if (error) throw error;
+    
+    // Track comment
+    await trackResumeEvent(resumeId, 'comment');
+    
+    return data;
+  } catch (error) {
+    console.error('Error adding resume comment:', error);
+    throw error;
+  }
+};
+
+export const getResumeComments = async (resumeId) => {
+  try {
+    if (!supabase) return [];
+    const { data, error } = await supabase
+      .from(TABLES.RESUME_COMMENTS)
+      .select('*')
+      .eq('resume_id', resumeId)
+      .order('created_at', { ascending: true });
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching resume comments:', error);
+    return [];
+  }
+};
+
+// Resume Export Tracking
+export const trackResumeExport = async (resumeId, exportFormat, exportSettings = {}) => {
+  try {
+    if (!supabase) return;
+    
+    const { data, error } = await supabase
+      .from(TABLES.RESUME_EXPORTS)
+      .insert([{
+        resume_id: resumeId,
+        export_format: exportFormat,
+        export_settings: exportSettings
+      }])
+      .select()
+      .single();
+    
+    if (error) throw error;
+    
+    // Track download event
+    await trackResumeEvent(resumeId, 'download', { format: exportFormat });
+    
+    return data;
+  } catch (error) {
+    console.error('Error tracking resume export:', error);
+  }
+};
+
+// Draft Management
+export const saveDraft = async (userEmail, draftData) => {
+  try {
+    if (!supabase) {
+      // Fallback to localStorage for offline mode
+      const draftKey = `resume_draft_${userEmail || 'anonymous'}`;
+      localStorage.setItem(draftKey, JSON.stringify({
+        ...draftData,
+        timestamp: Date.now()
+      }));
+      return { id: 'local_draft', ...draftData };
+    }
+    
+    // Check if draft already exists
+    const { data: existing } = await supabase
+      .from(TABLES.USER_RESUMES)
+      .select('id')
+      .eq('user_email', userEmail)
+      .eq('status', 'draft')
+      .eq('title', 'Auto-saved Draft')
+      .single();
+    
+    if (existing) {
+      // Update existing draft
+      return await updateResume(existing.id, draftData);
+    } else {
+      // Create new draft
+      return await createResume({
+        ...draftData,
+        user_email: userEmail,
+        title: 'Auto-saved Draft',
+        status: 'draft'
+      });
+    }
+  } catch (error) {
+    console.error('Error saving draft:', error);
+    // Fallback to localStorage
+    const draftKey = `resume_draft_${userEmail || 'anonymous'}`;
+    localStorage.setItem(draftKey, JSON.stringify({
+      ...draftData,
+      timestamp: Date.now()
+    }));
+    return { id: 'local_draft', ...draftData };
+  }
+};
+
+export const loadDraft = async (userEmail) => {
+  try {
+    if (!supabase) {
+      // Load from localStorage
+      const draftKey = `resume_draft_${userEmail || 'anonymous'}`;
+      const saved = localStorage.getItem(draftKey);
+      return saved ? JSON.parse(saved) : null;
+    }
+    
+    const { data, error } = await supabase
+      .from(TABLES.USER_RESUMES)
+      .select('*')
+      .eq('user_email', userEmail)
+      .eq('status', 'draft')
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .single();
+    
+    if (error && error.code !== 'PGRST116') throw error;
+    return data;
+  } catch (error) {
+    console.error('Error loading draft:', error);
+    return null;
+  }
+};
+
+export const deleteDraft = async (userEmail, draftId = null) => {
+  try {
+    if (!supabase) {
+      // Remove from localStorage
+      const draftKey = `resume_draft_${userEmail || 'anonymous'}`;
+      localStorage.removeItem(draftKey);
+      return true;
+    }
+    
+    if (draftId) {
+      return await deleteResume(draftId);
+    } else {
+      // Delete all drafts for user
+      const { error } = await supabase
+        .from(TABLES.USER_RESUMES)
+        .delete()
+        .eq('user_email', userEmail)
+        .eq('status', 'draft');
+      if (error) throw error;
+      return true;
+    }
+  } catch (error) {
+    console.error('Error deleting draft:', error);
+    return false;
+  }
+};
+
+// Public Resume Access
+export const getPublicResume = async (publicSlug) => {
+  try {
+    if (!supabase) return null;
+    const { data, error } = await supabase
+      .from(TABLES.USER_RESUMES)
+      .select(`
+        *,
+        template:resume_templates(name, description, template_data)
+      `)
+      .eq('public_slug', publicSlug)
+      .eq('is_public', true)
+      .single();
+    if (error) throw error;
+    
+    // Track public view
+    if (data) {
+      await trackResumeEvent(data.id, 'public_view');
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Error fetching public resume:', error);
+    return null;
+  }
+};
+
+// Utility Functions
+export const calculateResumeCompleteness = (resumeData) => {
+  if (!resumeData || typeof resumeData !== 'object') return 0;
+  
+  const sections = {
+    personal: resumeData.personal?.name && resumeData.personal?.email ? 20 : 0,
+    summary: resumeData.summary?.trim() ? 15 : 0,
+    experience: resumeData.experience?.some(exp => exp.company && exp.role) ? 25 : 0,
+    skills: Object.values(resumeData.technicalSkills || {}).some(arr => arr.length > 0) ? 15 : 0,
+    education: resumeData.education?.some(edu => edu.degree && edu.university) ? 10 : 0,
+    projects: resumeData.projects?.some(proj => proj.title && proj.description) ? 10 : 0,
+    certifications: resumeData.certifications?.some(cert => cert.name) ? 5 : 0
+  };
+  
+  return Object.values(sections).reduce((sum, score) => sum + score, 0);
+};
+
+export const generateResumePreview = (resumeData) => {
+  if (!resumeData) return '';
+  
+  const name = resumeData.personal?.name || 'Unnamed Resume';
+  const title = resumeData.personal?.jobTitle || 'Professional';
+  const completeness = calculateResumeCompleteness(resumeData);
+  
+  return {
+    title: `${name} - ${title}`,
+    completeness,
+    lastModified: new Date().toISOString(),
+    sections: Object.keys(resumeData).filter(key => 
+      resumeData[key] && 
+      (Array.isArray(resumeData[key]) ? resumeData[key].length > 0 : 
+       typeof resumeData[key] === 'object' ? Object.keys(resumeData[key]).length > 0 : 
+       resumeData[key].toString().trim())
+    ).length
+  };
 };

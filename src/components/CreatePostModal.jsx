@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
 
 const CreatePostModal = ({ isOpen, onClose, categories = [], onPostCreated }) => {
-  const [formData, setFormData] = useState({ title: '', content: '', category_id: '', image_url: '' });
+  const [formData, setFormData] = useState({ title: '', content: '', category_id: '', image_url: '', is_anonymous: false, author_name: '' });
   const [loading, setLoading] = useState(false);
   const [imageUploading, setImageUploading] = useState(false);
 
@@ -25,10 +25,26 @@ const CreatePostModal = ({ isOpen, onClose, categories = [], onPostCreated }) =>
 
       try {
         const { data } = await supabase.auth.getUser();
-        if (mounted) setAuthUser(data?.user || null);
+        if (mounted) {
+          setAuthUser(data?.user || null);
+          // Set default author name when user is loaded
+          if (data?.user && !formData.author_name) {
+            setFormData(prev => ({
+              ...prev,
+              author_name: data.user.email?.split('@')[0] || ''
+            }));
+          }
+        }
 
         const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
           setAuthUser(session?.user || null);
+          // Update author name when auth state changes
+          if (session?.user && !formData.author_name) {
+            setFormData(prev => ({
+              ...prev,
+              author_name: session.user.email?.split('@')[0] || ''
+            }));
+          }
         });
 
         // store subscription to unsubscribe later
@@ -83,34 +99,42 @@ const CreatePostModal = ({ isOpen, onClose, categories = [], onPostCreated }) =>
     console.log('Selected category_id:', formData.category_id);
     console.log('Available categories:', categories);
 
-    // If supabase isn't available, save locally to localStorage so the UI can show demo/local posts.
-    const supabaseAvailable = !!supabase;
-    if (!supabaseAvailable) {
-      try {
-        const local = JSON.parse(localStorage.getItem('local_forum_posts') || '[]');
-        const newPost = {
-          id: `local-${Date.now()}`,
-          title: formData.title.trim(),
-          content: formData.content.trim(),
-          category_id: formData.category_id,
-          category_name: categories.find(c => c.id === formData.category_id)?.name || 'General',
-          created_at: new Date().toISOString(),
-          user_profiles: { username: 'local-user', full_name: 'Local User', avatar_url: null },
-          replies_count: 0,
-          likes_count: 0,
-          image_url: formData.image_url || null,
-          status: 'active'
-        };
-        local.unshift(newPost);
-        localStorage.setItem('local_forum_posts', JSON.stringify(local));
-        toast.success('Post saved locally for demo purposes');
-        setFormData({ title: '', content: '', category_id: '', image_url: '' });
-        onPostCreated && onPostCreated();
+    // Always try to save locally first (works with or without Supabase)
+    try {
+      const local = JSON.parse(localStorage.getItem('local_forum_posts') || '[]');
+      const displayName = formData.is_anonymous ? 'Anonymous' : (formData.author_name || authUser?.email?.split('@')[0] || 'User');
+      const newPost = {
+        id: `local-${Date.now()}`,
+        title: formData.title.trim(),
+        content: formData.content.trim(),
+        category_id: formData.category_id,
+        category_name: categories.find(c => c.id === formData.category_id)?.name || 'General',
+        author_name: displayName,
+        created_at: new Date().toISOString(),
+        user_profiles: { username: displayName.toLowerCase().replace(/\s+/g, '_'), full_name: displayName, avatar_url: null, email: authUser?.email || 'local@testingvala.com' },
+        replies_count: 0,
+        likes_count: 0,
+        image_url: formData.image_url || null,
+        status: 'active',
+        is_anonymous: formData.is_anonymous
+      };
+      local.unshift(newPost);
+      localStorage.setItem('local_forum_posts', JSON.stringify(local));
+      
+      // If no Supabase, just save locally and finish
+      if (!supabase) {
+        toast.success('Post created successfully!');
+        setFormData({ title: '', content: '', category_id: '', image_url: '', is_anonymous: false, author_name: authUser?.email?.split('@')[0] || '' });
         onClose && onClose();
+        if (onPostCreated) {
+          setTimeout(() => onPostCreated(), 100);
+        }
         return;
-      } catch (err) {
-        console.error('Failed to save post locally:', err);
-        toast.error('Failed to save post locally');
+      }
+    } catch (err) {
+      console.error('Failed to save post locally:', err);
+      if (!supabase) {
+        toast.error('Failed to create post');
         return;
       }
     }
@@ -160,15 +184,26 @@ const CreatePostModal = ({ isOpen, onClose, categories = [], onPostCreated }) =>
 
       const { data: _inserted, error } = await supabase
         .from('forum_posts')
-        .insert([{ title: formData.title.trim(), content: formData.content.trim(), category_id: resolvedCategoryId, user_id: user.id, image_url: formData.image_url || null, status: 'pending_approval' }])
+        .insert([{ 
+          title: formData.title.trim(), 
+          content: formData.content.trim(), 
+          category_id: resolvedCategoryId, 
+          user_id: user.id, 
+          author_name: formData.is_anonymous ? 'Anonymous' : (formData.author_name || user.email?.split('@')[0] || 'User'),
+          image_url: formData.image_url || null, 
+          status: 'active'
+        }])
         .select();
 
       if (error) throw error;
 
-      toast.success('Post submitted successfully! It will be reviewed by admin before publishing.');
-      setFormData({ title: '', content: '', category_id: '', image_url: '' });
-      onPostCreated && onPostCreated();
+      toast.success('Post created successfully!');
+      setFormData({ title: '', content: '', category_id: '', image_url: '', is_anonymous: false, author_name: authUser?.email?.split('@')[0] || '' });
       onClose && onClose();
+      // Force immediate refresh
+      if (onPostCreated) {
+        setTimeout(() => onPostCreated(), 100);
+      }
     } catch (err) {
       console.error('Error creating post:', err);
       // Save last raw error to localStorage for developer debugging in local/dev
@@ -248,24 +283,19 @@ const CreatePostModal = ({ isOpen, onClose, categories = [], onPostCreated }) =>
 
   if (!isOpen) return null;
 
-  if (!supabase) {
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-8 text-center">
-          <h3 className="text-lg font-semibold mb-4">Create Post (Local Dev)</h3>
-          <p className="text-gray-700 mb-6">Supabase is not configured. Post creation is disabled in local dev mode.</p>
-          <button onClick={onClose} className="px-4 py-2 bg-[#FF6600] text-white rounded-lg">Close</button>
-        </div>
-      </div>
-    );
-  }
+  // Remove the Supabase check - allow local posting
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start sm:items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-lg max-w-xl w-full max-h-[90vh] sm:max-h-[85vh] flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between p-4 border-b border-gray-200">
-          <h3 className="text-xl font-bold text-gray-900">Create New Post</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors"><X className="w-6 h-6" /></button>
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-[#FF6600] to-[#E55A00]">
+          <div>
+            <h3 className="text-xl font-bold text-white">Share Your QA Expertise</h3>
+            <p className="text-orange-100 text-sm mt-1">Help the community learn from your experience</p>
+          </div>
+          <button onClick={onClose} className="text-orange-200 hover:text-white transition-colors p-1 rounded-full hover:bg-white/10">
+            <X className="w-6 h-6" />
+          </button>
         </div>
 
         <div className="p-4 overflow-y-auto flex-1">
@@ -274,7 +304,7 @@ const CreatePostModal = ({ isOpen, onClose, categories = [], onPostCreated }) =>
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand mx-auto mb-4"></div>
               <div className="text-gray-600">Checking authentication...</div>
             </div>
-          ) : (!authUser || showLoginPrompt) && !!supabase ? (
+          ) : (!authUser || showLoginPrompt) && supabase ? (
             <div>
               {!magicLinkSent ? (
                 <>
@@ -308,6 +338,51 @@ const CreatePostModal = ({ isOpen, onClose, categories = [], onPostCreated }) =>
           ) : (
             <>
               <form id="create-post-form" onSubmit={handleSubmit} className="space-y-6">
+                {/* Author Identity Section */}
+                <div className="bg-gradient-to-r from-blue-50 to-orange-50 p-4 rounded-xl border border-blue-200">
+                  <h4 className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                    Author Identity
+                  </h4>
+                  
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        id="anonymous"
+                        checked={formData.is_anonymous}
+                        onChange={(e) => setFormData(prev => ({ ...prev, is_anonymous: e.target.checked }))}
+                        className="w-4 h-4 text-[#FF6600] bg-gray-100 border-gray-300 rounded focus:ring-[#FF6600] focus:ring-2"
+                      />
+                      <label htmlFor="anonymous" className="text-sm font-medium text-gray-700">
+                        Post anonymously
+                      </label>
+                    </div>
+                    
+                    {!formData.is_anonymous && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Display Name</label>
+                        <input
+                          type="text"
+                          value={formData.author_name}
+                          onChange={(e) => setFormData(prev => ({ ...prev, author_name: e.target.value }))}
+                          placeholder="How should your name appear?"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF6600] focus:border-transparent text-sm"
+                          maxLength={50}
+                        />
+                      </div>
+                    )}
+                    
+                    <div className="text-xs text-gray-600 bg-white p-2 rounded border">
+                      {formData.is_anonymous ? (
+                        <span className="text-orange-600">📝 Your post will appear as "Anonymous" - your identity will be completely hidden</span>
+                      ) : (
+                        <span className="text-blue-600">👤 Your post will show as "{formData.author_name || authUser?.email?.split('@')[0] || 'Your Name'}"</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Category *</label>
                   {categories.length === 0 ? (
@@ -315,7 +390,7 @@ const CreatePostModal = ({ isOpen, onClose, categories = [], onPostCreated }) =>
                       No categories available. Please contact an administrator to set up forum categories.
                     </div>
                   ) : (
-                    <select value={formData.category_id} onChange={(e) => setFormData(prev => ({ ...prev, category_id: e.target.value }))} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand focus:border-transparent" required>
+                    <select value={formData.category_id} onChange={(e) => setFormData(prev => ({ ...prev, category_id: e.target.value }))} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF6600] focus:border-transparent" required>
                       <option value="">Select a category</option>
                       {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
@@ -324,13 +399,21 @@ const CreatePostModal = ({ isOpen, onClose, categories = [], onPostCreated }) =>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Post Title *</label>
-                  <input type="text" value={formData.title} onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))} placeholder="Enter your post title..." className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand focus:border-transparent" maxLength={100} required />
+                  <input type="text" value={formData.title} onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))} placeholder="What's your QA insight or question?" className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF6600] focus:border-transparent" maxLength={100} required />
                   <div className="text-xs text-gray-500 mt-1">{formData.title.length}/100 characters</div>
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Post Content *</label>
-                  <textarea value={formData.content} onChange={(e) => setFormData(prev => ({ ...prev, content: e.target.value }))} rows={6} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand focus:border-transparent resize-none" maxLength={2000} required />
+                  <textarea 
+                    value={formData.content} 
+                    onChange={(e) => setFormData(prev => ({ ...prev, content: e.target.value }))} 
+                    rows={6} 
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF6600] focus:border-transparent resize-none" 
+                    maxLength={2000} 
+                    placeholder="Share your testing experience, ask questions, or discuss QA best practices...\n\nTips:\n• Be specific and detailed\n• Include examples when possible\n• Ask clear, focused questions\n• Share what you've tried"
+                    required 
+                  />
                   <div className="text-xs text-gray-500 mt-1">{formData.content.length}/2000 characters</div>
                 </div>
 
@@ -346,22 +429,30 @@ const CreatePostModal = ({ isOpen, onClose, categories = [], onPostCreated }) =>
 
                     <div className="flex items-center gap-3">
                       <label className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors bg-white">
-                        <ImageIcon className="w-4 h-4 text-brand" />
+                        <ImageIcon className="w-4 h-4 text-[#FF6600]" />
                         <span className="text-sm font-medium">Choose Image</span>
                         <input type="file" accept="image/*" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleImageUpload(file); }} className="hidden" />
                       </label>
-                      {imageUploading && <div className="flex items-center gap-2 text-sm text-gray-600"><div className="animate-spin rounded-full h-4 w-4 border-b-2 border-brand"></div>Uploading...</div>}
+                      {imageUploading && <div className="flex items-center gap-2 text-sm text-gray-600"><div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#FF6600]"></div>Uploading...</div>}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      📸 Screenshots, diagrams, or code examples help illustrate your point
                     </div>
                   </div>
                 </div>
               </form>
 
               {/* Sticky footer inside scrollable area so actions remain visible on small screens */}
-              <div className="sticky bottom-0 left-0 right-0 bg-white p-4 border-t border-gray-200 flex items-center justify-end gap-3">
-                <button type="button" onClick={onClose} className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg font-medium hover:bg-gray-200 transition-colors">Cancel</button>
-                <button type="submit" form="create-post-form" disabled={loading || categories.length === 0} className="px-4 py-2 bg-brand text-white rounded-lg font-medium hover:bg-brand-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
-                  {loading ? (<><div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>Creating...</>) : (<><Send className="w-4 h-4" />Create Post</>)}
-                </button>
+              <div className="sticky bottom-0 left-0 right-0 bg-white p-4 border-t border-gray-200 flex items-center justify-between">
+                <div className="text-xs text-gray-500">
+                  💡 Posts are reviewed before publishing
+                </div>
+                <div className="flex items-center gap-3">
+                  <button type="button" onClick={onClose} className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg font-medium hover:bg-gray-200 transition-colors">Cancel</button>
+                  <button type="submit" form="create-post-form" disabled={loading || categories.length === 0} className="px-6 py-2 bg-[#FF6600] text-white rounded-lg font-medium hover:bg-[#E55A00] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm">
+                    {loading ? (<><div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>Creating...</>) : (<><Send className="w-4 h-4" />Publish Post</>)}
+                  </button>
+                </div>
               </div>
             </>
           )}

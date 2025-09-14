@@ -56,99 +56,96 @@ const Contact = ({ data }) => {
   };
 
   return (
-    <section id="contact" className="site-section bg-gradient-to-br from-gray-50 to-orange-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                  <div className="text-center mb-8">
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">
+    <section id="contact" className="py-20 bg-gradient-to-br from-blue-50 via-white to-orange-50">
+      <div className="max-w-7xl mx-auto px-6">
+        <div className="text-center mb-16">
+          <div className="inline-flex items-center gap-2 bg-[#FF6600] text-white px-4 py-2 rounded-full text-sm font-semibold mb-6">
+            <Mail className="w-4 h-4" />
+            Contact Us
+          </div>
+          <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
             Get in Touch
           </h2>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            Have questions about our contests or want to learn more? We'd love to hear from you!
+          <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
+            Ready to elevate your QA career? Have questions about our platform? We're here to help you succeed.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-12">
           {/* Contact Information */}
-          <div className="lg:col-span-1 space-y-6">
-            {/* Quick Stats */}
-            <div className="bg-white rounded-xl p-5 shadow-lg border border-gray-100">
-              <h3 className="text-xl font-bold text-gray-900 mb-3 flex items-center gap-2">
-                <Users className="w-5 h-5 text-primary" />
-                Quick Stats
-              </h3>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-600">Active Members</span>
-                  <span className="font-semibold text-primary">10,000+</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-600">Countries</span>
-                  <span className="font-semibold text-[#0057B7]">50+</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-600">Support</span>
-                  <span className="font-semibold text-primary">24/7</span>
-                </div>
-              </div>
-            </div>
-
+          <div className="lg:col-span-2 space-y-8">
             {/* Contact Details */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-primary to-[#E55A00] rounded-xl flex items-center justify-center">
-                  <Mail className="w-6 h-6 text-white" />
+            <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100">
+              <h3 className="text-2xl font-bold text-gray-900 mb-8">Contact Information</h3>
+              <div className="space-y-6">
+                <div className="flex items-start gap-4">
+                  <div className="w-14 h-14 bg-gradient-to-br from-[#FF6600] to-[#E55A00] rounded-2xl flex items-center justify-center shadow-lg">
+                    <Mail className="w-7 h-7 text-white" />
+                  </div>
+                  <div>
+                    <h4 className="text-lg font-semibold text-gray-900 mb-1">Email Address</h4>
+                    <p className="text-gray-600">{safeData.email || defaultData.email}</p>
+                    <p className="text-sm text-gray-500 mt-1">We'll respond within 24 hours</p>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="font-semibold text-gray-900">Email</h4>
-                  <p className="text-gray-600">{safeData.email || defaultData.email}</p>
-                </div>
-              </div>
 
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-[#0057B7] to-[#004494] rounded-xl flex items-center justify-center">
-                  <MapPin className="w-6 h-6 text-white" />
+                <div className="flex items-start gap-4">
+                  <div className="w-14 h-14 bg-gradient-to-br from-[#0057B7] to-[#004494] rounded-2xl flex items-center justify-center shadow-lg">
+                    <MapPin className="w-7 h-7 text-white" />
+                  </div>
+                  <div>
+                    <h4 className="text-lg font-semibold text-gray-900 mb-1">Global Presence</h4>
+                    <p className="text-gray-600">{safeData.location || defaultData.location}</p>
+                    <p className="text-sm text-gray-500 mt-1">Serving 85+ countries worldwide</p>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="font-semibold text-gray-900">Location</h4>
-                  <p className="text-gray-600">{safeData.location || defaultData.location}</p>
-                </div>
-              </div>
 
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-primary to-[#E55A00] rounded-xl flex items-center justify-center">
-                  <Clock className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h4 className="font-semibold text-gray-900">Response Time</h4>
-                  <p className="text-gray-600">Within 24 hours</p>
+                <div className="flex items-start gap-4">
+                  <div className="w-14 h-14 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg">
+                    <Clock className="w-7 h-7 text-white" />
+                  </div>
+                  <div>
+                    <h4 className="text-lg font-semibold text-gray-900 mb-1">Support Hours</h4>
+                    <p className="text-gray-600">24/7 Community Support</p>
+                    <p className="text-sm text-gray-500 mt-1">Professional support available</p>
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Additional Info */}
-              <div className="bg-gradient-to-br from-orange-50 to-blue-50 rounded-xl p-5 border border-orange-200">
-              <div className="flex items-center gap-3 mb-3">
-                <MessageCircle className="w-5 h-5 text-primary" />
-                <h4 className="font-semibold text-gray-900">Need Immediate Help?</h4>
+            {/* Quick Stats */}
+            <div className="bg-gradient-to-br from-[#0057B7] to-[#FF6600] rounded-2xl p-8 text-white">
+              <h3 className="text-xl font-bold mb-6">Join Our Community</h3>
+              <div className="grid grid-cols-2 gap-6">
+                <div className="text-center">
+                  <div className="text-3xl font-bold mb-1">25,000+</div>
+                  <div className="text-sm text-white/80">Active Members</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-3xl font-bold mb-1">85+</div>
+                  <div className="text-sm text-white/80">Countries</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-3xl font-bold mb-1">50+</div>
+                  <div className="text-sm text-white/80">Contests Held</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-3xl font-bold mb-1">1,200+</div>
+                  <div className="text-sm text-white/80">Companies</div>
+                </div>
               </div>
-              <p className="text-gray-600 text-sm mb-3">
-                For urgent contest-related questions, check our FAQ section or join our community discussions.
-              </p>
-              <button className="text-primary font-medium text-sm hover:underline">
-                View FAQ →
-              </button>
             </div>
           </div>
 
           {/* Contact Form */}
-          <div className="lg:col-span-2">
-            <div className="bg-white rounded-xl shadow-xl p-6 border border-gray-100">
-              <h3 className="text-2xl font-bold text-gray-900 mb-4">Send us a Message</h3>
+          <div className="lg:col-span-3">
+            <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
+              <h3 className="text-2xl font-bold text-gray-900 mb-6">Send us a Message</h3>
               
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+                    <label htmlFor="name" className="block text-sm font-semibold text-gray-700 mb-2">
                       Full Name *
                     </label>
                     <input
@@ -158,13 +155,13 @@ const Contact = ({ data }) => {
                       value={formData.name}
                       onChange={handleInputChange}
                       required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#FF6600] focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white"
                       placeholder="Enter your full name"
                     />
                   </div>
 
                   <div>
-                    <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                    <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">
                       Email Address *
                     </label>
                     <input
@@ -174,14 +171,14 @@ const Contact = ({ data }) => {
                       value={formData.email}
                       onChange={handleInputChange}
                       required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200"
-                      placeholder="Enter your email"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#FF6600] focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white"
+                      placeholder="Enter your email address"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label htmlFor="subject" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="subject" className="block text-sm font-semibold text-gray-700 mb-2">
                     Subject *
                   </label>
                   <input
@@ -191,13 +188,13 @@ const Contact = ({ data }) => {
                     value={formData.subject}
                     onChange={handleInputChange}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200"
-                    placeholder="What is this about?"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#FF6600] focus:border-transparent transition-all duration-200 bg-gray-50 focus:bg-white"
+                    placeholder="What can we help you with?"
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="message" className="block text-sm font-semibold text-gray-700 mb-2">
                     Message *
                   </label>
                   <textarea
@@ -206,27 +203,27 @@ const Contact = ({ data }) => {
                     value={formData.message}
                     onChange={handleInputChange}
                     required
-                    rows={5}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200 resize-none"
-                    placeholder="Tell us more about your inquiry..."
+                    rows={6}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#FF6600] focus:border-transparent transition-all duration-200 resize-none bg-gray-50 focus:bg-white"
+                    placeholder="Tell us more about your inquiry or how we can assist you..."
                   />
                 </div>
 
                 <button
                   type="submit"
                   disabled={sending}
-                  className={`w-full btn-primary py-3 px-6 rounded-lg hover:shadow-lg transition-all duration-200 hover:scale-105 font-medium ${sending ? 'opacity-60 cursor-not-allowed' : ''}`}
+                  className={`w-full bg-gradient-to-r from-[#FF6600] to-[#E55A00] text-white py-4 px-8 rounded-xl font-semibold text-lg hover:shadow-lg transition-all duration-200 ${sending ? 'opacity-60 cursor-not-allowed' : 'hover:scale-105'}`}
                 >
-                  {sending ? 'Sending…' : 'Send Message'}
+                  {sending ? 'Sending Message...' : 'Send Message'}
                 </button>
               </form>
 
-              <div className="mt-4 text-center">
+              <div className="mt-6 text-center">
                 <p className="text-sm text-gray-500">
                   By submitting this form, you agree to our{' '}
-                  <a href="#" className="text-primary hover:underline">Privacy Policy</a>
+                  <a href="#" className="text-[#FF6600] hover:underline font-medium">Privacy Policy</a>
                   {' '}and{' '}
-                  <a href="#" className="text-primary hover:underline">Terms of Service</a>
+                  <a href="#" className="text-[#FF6600] hover:underline font-medium">Terms of Service</a>
                 </p>
               </div>
             </div>

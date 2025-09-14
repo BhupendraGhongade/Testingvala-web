@@ -61,12 +61,7 @@ const UpcomingEvents = () => {
 
       if (!data || data.length === 0) {
         console.log('No upcoming events found')
-        if (import.meta.env.MODE !== 'production') {
-          setEvents(DEMO_EVENTS)
-          setUsingDemo(true)
-        } else {
-          setEvents([])
-        }
+        setEvents([])
       } else {
         setEvents(data || [])
       }
@@ -75,12 +70,8 @@ const UpcomingEvents = () => {
       setError('Failed to load upcoming events');
       toast.error('Failed to load upcoming events');
 
-      // On fetch error (likely Supabase / env problem), show demo events in non-production so you can continue working locally
-      if (import.meta.env.MODE !== 'production') {
-        setEvents(DEMO_EVENTS);
-        setUsingDemo(true);
-        setError(null);
-      }
+      // On fetch error, show empty events
+      setEvents([]);
     } finally {
       setLoading(false);
     }
@@ -174,66 +165,38 @@ const UpcomingEvents = () => {
     );
   }
 
-  // Error state
+  // Error state - Minimal display
   if (error) {
     return (
-      <section className="bg-gradient-to-br from-gray-50 via-white to-blue-50 pt-4 pb-8">
+      <section>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-6">
-            <div className="inline-flex items-center gap-2 bg-red-100 text-red-800 px-4 py-2 rounded-full text-sm font-semibold mb-4">
+          <div className="text-center">
+            <div className="inline-flex items-center gap-2 bg-gradient-to-r from-red-500 to-orange-500 text-white px-4 py-2 rounded-full text-sm font-medium shadow-sm">
               <AlertCircle className="w-4 h-4" />
-              Events Unavailable
+              <span>Events temporarily unavailable</span>
+              <button
+                onClick={fetchEvents}
+                className="ml-2 text-xs underline hover:no-underline"
+              >
+                Retry
+              </button>
             </div>
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-              Upcoming Professional Events
-            </h2>
-          </div>
-          <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-12 text-center">
-            <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">Unable to Load Events</h3>
-            <p className="text-gray-600 mb-6">{error}</p>
-            <button
-              onClick={fetchEvents}
-              className="bg-[#FF6600] text-white px-6 py-3 rounded-lg hover:bg-[#E55A00] transition-colors"
-            >
-              Try Again
-            </button>
           </div>
         </div>
       </section>
     );
   }
 
-  // No events state
+  // No events state - Minimal professional display
   if (events.length === 0) {
     return (
-      <section className="bg-gradient-to-br from-gray-50 via-white to-blue-50 pt-4 pb-8">
+      <section className="py-1">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-6">
-            <div className="inline-flex items-center gap-2 bg-yellow-100 text-yellow-800 px-4 py-2 rounded-full text-sm font-semibold mb-4">
+          <div className="text-center">
+            <div className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-2 rounded-full text-sm font-medium shadow-sm">
               <Calendar className="w-4 h-4" />
-              No Upcoming Events
+              <span>Upcoming Events Coming Soon - Stay Tuned!</span>
             </div>
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-              Upcoming Professional Events
-            </h2>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              No upcoming events yet! <span className="font-semibold text-[#FF6600]">Join our contest</span> and win prizes. More events coming soon!
-            </p>
-          </div>
-          <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-12 text-center">
-            <Calendar className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">Stay Engaged!</h3>
-            <p className="text-gray-600 mb-6">
-              Participate in our contests and be the first to know about new events. Exciting opportunities and prizes await!
-            </p>
-            <a
-              href="#contest"
-              className="inline-flex items-center gap-2 bg-[#FF6600] text-white px-6 py-3 rounded-lg hover:bg-[#E55A00] transition-colors"
-            >
-              <span>Join Contest</span>
-              <ChevronRight className="w-4 h-4" />
-            </a>
           </div>
         </div>
       </section>

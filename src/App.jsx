@@ -1,29 +1,58 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Toaster } from 'react-hot-toast';
 import Header from './components/Header';
 import Hero from './components/Hero';
 import UpcomingEvents from './components/UpcomingEvents';
 import ContestSection from './components/ContestSection';
-// Winners displayed under the forum; removed from App top-level to avoid duplication
-import CategoryNavigation from './components/CategoryNavigation';
+
 import CommunityHub from './components/CommunityHub';
 import AboutUs from './components/AboutUs';
 import Contact from './components/Contact';
 import Footer from './components/Footer';
-import AdminPanel from './components/AdminPanel';
 import EventsPage from './components/EventsPage';
-import { useWebsiteData } from './hooks/useWebsiteData';
-import { Settings, Wifi, WifiOff, AlertCircle } from 'lucide-react';
+import BoardsPage from './components/BoardsPage';
+import BoardDetailPage from './components/BoardDetailPage';
+import PublicBoardsPage from './components/PublicBoardsPage';
 
-function App() {
-  const [showAdminPanel, setShowAdminPanel] = useState(false);
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { useWebsiteData } from './hooks/useWebsiteData';
+import { Wifi, WifiOff, AlertCircle } from 'lucide-react';
+
+const AppContent = () => {
   const [currentPath, setCurrentPath] = useState(typeof window !== 'undefined' ? window.location.pathname : '/');
+  const [boardView, setBoardView] = useState({ type: 'list', boardId: null });
+
+  const { user, isVerified } = useAuth();
   const { data, loading, error, isOnline } = useWebsiteData();
 
   React.useEffect(() => {
-    const handler = () => setCurrentPath(window.location.pathname);
+    const handler = () => {
+      setCurrentPath(window.location.pathname);
+      // Check for post hash in URL
+      const hash = window.location.hash;
+      if (hash.startsWith('#community-post-')) {
+        // Scroll to community section and highlight post
+        setTimeout(() => {
+          const communitySection = document.getElementById('community');
+          if (communitySection) {
+            communitySection.scrollIntoView({ behavior: 'smooth' });
+            // Trigger post highlighting in CommunityHub
+            const postId = hash.replace('#community-post-', '');
+            window.dispatchEvent(new CustomEvent('highlightPost', { detail: { postId } }));
+          }
+        }, 500);
+      }
+    };
+    
+    // Check initial URL
+    handler();
+    
     window.addEventListener('popstate', handler);
-    return () => window.removeEventListener('popstate', handler);
+    window.addEventListener('hashchange', handler);
+    return () => {
+      window.removeEventListener('popstate', handler);
+      window.removeEventListener('hashchange', handler);
+    };
   }, []);
 
   // Default fallback data to prevent crashes
@@ -141,25 +170,35 @@ function App() {
   return (
     <div className="min-h-screen bg-white">
       <Toaster 
-        position="top-right"
+        position="bottom-left"
         toastOptions={{
           duration: 4000,
           style: {
             background: '#0057B7',
             color: '#fff',
+            marginBottom: '20px',
+            marginLeft: '20px'
           },
           success: {
             duration: 3000,
+            style: {
+              background: '#10B981',
+              color: '#fff'
+            },
             iconTheme: {
-              primary: '#FF6600',
-              secondary: '#fff',
+              primary: '#fff',
+              secondary: '#10B981',
             },
           },
           error: {
             duration: 4000,
+            style: {
+              background: '#EF4444',
+              color: '#fff'
+            },
             iconTheme: {
-              primary: '#ef4444',
-              secondary: '#fff',
+              primary: '#fff',
+              secondary: '#EF4444',
             },
           },
         }}
@@ -177,53 +216,58 @@ function App() {
       
       <Header />
       
-      <main>
+      <main style={{ paddingTop: '80px' }}>
         {currentPath === '/events' ? (
           <EventsPage />
+        ) : currentPath === '/boards' ? (
+          boardView.type === 'detail' ? (
+            <BoardDetailPage
+              boardId={boardView.boardId}
+              user={user}
+              onBack={() => setBoardView({ type: 'list', boardId: null })}
+            />
+          ) : boardView.type === 'public' ? (
+            <PublicBoardsPage
+              user={user}
+              onBack={() => setBoardView({ type: 'list', boardId: null })}
+              onViewBoard={(boardId) => setBoardView({ type: 'detail', boardId })}
+            />
+          ) : isVerified ? (
+            <BoardsPage 
+              user={user} 
+              onBack={() => window.history.back()}
+              onViewBoard={(boardId) => setBoardView({ type: 'detail', boardId })}
+              onViewPublic={() => setBoardView({ type: 'public', boardId: null })}
+            />
+          ) : (
+            <PublicBoardsPage
+              user={user}
+              onBack={() => window.history.back()}
+              onViewBoard={(boardId) => setBoardView({ type: 'detail', boardId })}
+            />
+          )
         ) : (
           <>
-            {/* 1. Hero Section - First impression and main value proposition */}
             <Hero data={validatedData.hero} />
-
-            {/* 2. Upcoming Events - Professional development opportunities */}
             <UpcomingEvents key={`events-${Date.now()}`} />
-
-            {/* 3. Community Hub - Forum / Interactive discussions (showing as 3rd priority) */}
             <CommunityHub />
-
-            {/* 4. Contest Section - Most engaging, immediate action */}
             <ContestSection data={validatedData.contest} />
-
-            {/* 5. Winners - Social proof and motivation (rendered below forum to avoid duplication) */}
-
-            {/* 6. Category Navigation - Content discovery */}
-            <CategoryNavigation />
-
-            {/* 7. About Us - Trust building */}
             <AboutUs data={validatedData.about} />
-
-            {/* 8. Contact - Final call to action */}
             <Contact data={validatedData.contact} />
           </>
         )}
       </main>
       
       <Footer />
-      
-      {/* Admin Panel Toggle Button */}
-      <button
-        onClick={() => setShowAdminPanel(true)}
-        className="fixed bottom-6 right-6 bg-[#FF6600] text-white p-3 rounded-full shadow-lg hover:shadow-xl hover:bg-[#E55A00] transition-all duration-200 z-40"
-        title="Admin Panel"
-      >
-        <Settings className="w-6 h-6" />
-      </button>
-      
-      <AdminPanel 
-        isOpen={showAdminPanel} 
-        onClose={() => setShowAdminPanel(false)} 
-      />
     </div>
+  );
+};
+
+function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }
 

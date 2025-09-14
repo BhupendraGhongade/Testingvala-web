@@ -1,7 +1,9 @@
-import React from 'react';
-import { ArrowRight, Star, Users, Award, Clock, MessageSquare } from 'lucide-react';
+import React, { useState } from 'react';
+import { ArrowRight, Star, Users, Award, Clock, MessageSquare, FileText, Sparkles, Trophy, Zap } from 'lucide-react';
+import ResumeBuilder from './ResumeBuilder';
 
 const Hero = ({ data }) => {
+  const [showResumeBuilder, setShowResumeBuilder] = useState(false);
   // Default fallback data
   const defaultData = {
     badge: '🚀 Test Your QA Skills. Win Rewards. Build Your Career',
@@ -30,8 +32,12 @@ const Hero = ({ data }) => {
     }
   };
 
+  const openResumeBuilder = () => {
+    setShowResumeBuilder(true);
+  };
+
   return (
-    <section id="home" className="relative bg-gradient-to-br from-white via-gray-50 to-gray-100 min-h-[55vh] flex items-center pt-6 md:pt-10 lg:pt-12 pb-3 md:pb-5 lg:pb-6">
+    <section id="home" className="relative bg-gradient-to-br from-white via-gray-50 to-gray-100 min-h-[50vh] flex items-center pt-6 md:pt-10 lg:pt-12 pb-4 md:pb-6">
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center">
           {/* Main Headline */}
@@ -45,28 +51,58 @@ const Hero = ({ data }) => {
           </p>
 
           {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 justify-center items-center mb-4 px-2">
+          <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 justify-center items-center px-2 mt-8">
+            {/* Primary CTA - AI Resume Builder */}
             <button
-              onClick={openCommunityDiscussion}
-              className="btn-secondary text-white w-full sm:w-auto px-6 sm:px-10 py-3 sm:py-4 rounded-lg font-semibold text-base sm:text-lg hover:shadow-2xl hover:scale-105 transition-all duration-300 flex items-center justify-center gap-3 shadow-lg border border-secondary"
+              onClick={openResumeBuilder}
+              className="group relative bg-gradient-to-r from-[#0057B7] via-[#0066CC] to-[#004494] text-white px-8 py-4 rounded-2xl font-bold text-lg shadow-2xl hover:shadow-blue-500/25 transform hover:scale-110 hover:-translate-y-1 transition-all duration-300 overflow-hidden w-full sm:w-auto min-w-[220px]"
             >
-              <MessageSquare className="w-5 h-5" />
-              <span>Start Discussion</span>
-              <ArrowRight className="w-5 h-5 transition-transform" />
+              <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              <div className="relative flex items-center justify-center gap-3">
+                <div className="relative">
+                  <Sparkles className="w-6 h-6 animate-pulse" />
+                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-300 rounded-full animate-ping"></div>
+                </div>
+                <span className="font-extrabold tracking-wide">AI Resume Builder</span>
+                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform duration-300" />
+              </div>
+              <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-300 to-blue-400 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300"></div>
             </button>
 
+            {/* Secondary CTA - Join Contest */}
             <button
               onClick={openContestForm}
-              className="bg-transparent border-2 border-gray-300 text-gray-900 w-full sm:w-auto px-6 sm:px-10 py-3 sm:py-4 rounded-lg font-semibold text-base sm:text-lg hover:bg-gray-100 hover:text-black hover:shadow-md hover:scale-105 transition-all duration-300 flex items-center justify-center gap-3"
+              className="group relative bg-gradient-to-r from-[#0057B7] to-[#004494] text-white px-7 py-4 rounded-2xl font-semibold text-lg shadow-xl hover:shadow-blue-500/25 transform hover:scale-105 hover:-translate-y-0.5 transition-all duration-300 w-full sm:w-auto min-w-[200px]"
             >
-              <Award className="w-5 h-5" />
-              <span>Join Contest</span>
-              <ArrowRight className="w-5 h-5 transition-transform" />
+              <div className="flex items-center justify-center gap-3">
+                <Trophy className="w-5 h-5 group-hover:rotate-12 transition-transform duration-300" />
+                <span className="font-bold">Join Contest</span>
+                <div className="w-2 h-2 bg-yellow-400 rounded-full animate-bounce"></div>
+              </div>
+            </button>
+
+            {/* Tertiary CTA - Start Discussion */}
+            <button
+              onClick={openCommunityDiscussion}
+              className="group relative bg-white border-2 border-gray-200 text-gray-800 px-7 py-4 rounded-2xl font-semibold text-lg shadow-lg hover:shadow-xl hover:border-[#FF6600] transform hover:scale-105 transition-all duration-300 w-full sm:w-auto min-w-[200px]"
+            >
+              <div className="flex items-center justify-center gap-3">
+                <MessageSquare className="w-5 h-5 group-hover:text-[#FF6600] transition-colors duration-300" />
+                <span className="group-hover:text-[#FF6600] transition-colors duration-300 font-bold">Start Discussion</span>
+                <Zap className="w-4 h-4 opacity-0 group-hover:opacity-100 text-[#FF6600] transition-all duration-300" />
+              </div>
             </button>
           </div>
 
+
+
         </div>
       </div>
+      
+      <ResumeBuilder 
+        isOpen={showResumeBuilder} 
+        onClose={() => setShowResumeBuilder(false)} 
+      />
     </section>
   );
 };

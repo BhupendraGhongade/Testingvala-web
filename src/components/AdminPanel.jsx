@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useWebsiteData } from '../hooks/useWebsiteData';
-import { Shield, Save, LogOut, X, Settings, Trophy, Users, Info, Mail, Calendar, MessageSquare, BookOpen } from 'lucide-react';
+import { Shield, Save, LogOut, X, Settings, Trophy, Users, Info, Mail, Calendar, MessageSquare, BookOpen, Bookmark, Crown } from 'lucide-react';
 import EventsManagement from './EventsManagement';
-import ForumModeration from './ForumModeration';
+import BoardsManagement from './BoardsManagement';
+import PremiumManagement from './PremiumManagement';
 import toast from 'react-hot-toast';
 
 const AdminPanel = ({ isOpen, onClose }) => {
@@ -331,15 +332,7 @@ const AdminPanel = ({ isOpen, onClose }) => {
               <Mail className="w-4 h-4" />
               Contact
             </button>
-            <button 
-              className={`flex items-center gap-2 px-6 py-4 font-medium transition-colors whitespace-nowrap ${
-                activeTab === 'forum' ? 'text-[#FF6600] border-b-2 border-[#FF6600] bg-white' : 'text-gray-600 hover:text-[#FF6600]'
-              }`}
-              onClick={() => setActiveTab('forum')}
-            >
-              <MessageSquare className="w-4 h-4" />
-              Forum
-            </button>
+
             <button 
               className={`flex items-center gap-2 px-6 py-4 font-medium transition-colors whitespace-nowrap ${
                 activeTab === 'categories' ? 'text-[#FF6600] border-b-2 border-[#FF6600] bg-white' : 'text-gray-600 hover:text-[#FF6600]'
@@ -360,6 +353,15 @@ const AdminPanel = ({ isOpen, onClose }) => {
             </button>
             <button 
               className={`flex items-center gap-2 px-6 py-4 font-medium transition-colors whitespace-nowrap ${
+                activeTab === 'boards' ? 'text-[#FF6600] border-b-2 border-[#FF6600] bg-white' : 'text-gray-600 hover:text-[#FF6600]'
+              }`}
+              onClick={() => setActiveTab('boards')}
+            >
+              <Bookmark className="w-4 h-4" />
+              Boards
+            </button>
+            <button 
+              className={`flex items-center gap-2 px-6 py-4 font-medium transition-colors whitespace-nowrap ${
                 activeTab === 'footer' ? 'text-[#FF6600] border-b-2 border-[#FF6600] bg-white' : 'text-gray-600 hover:text-[#FF6600]'
               }`}
               onClick={() => setActiveTab('footer')}
@@ -367,7 +369,15 @@ const AdminPanel = ({ isOpen, onClose }) => {
               <Info className="w-4 h-4" />
               Footer
             </button>
-            {/* sponsors tab removed */}
+            <button 
+              className={`flex items-center gap-2 px-6 py-4 font-medium transition-colors whitespace-nowrap ${
+                activeTab === 'premium' ? 'text-[#FF6600] border-b-2 border-[#FF6600] bg-white' : 'text-gray-600 hover:text-[#FF6600]'
+              }`}
+              onClick={() => setActiveTab('premium')}
+            >
+              <Crown className="w-4 h-4" />
+              Premium
+            </button>
           </div>
         </div>
 
@@ -645,10 +655,7 @@ const AdminPanel = ({ isOpen, onClose }) => {
             <EventsManagement />
           )}
 
-          {/* Forum Tab */}
-          {activeTab === 'forum' && (
-            <ForumModeration />
-          )}
+
 
           {/* Categories Tab */}
           {activeTab === 'categories' && (
@@ -1356,6 +1363,11 @@ const AdminPanel = ({ isOpen, onClose }) => {
             </div>
           )}
 
+          {/* Boards Tab */}
+          {activeTab === 'boards' && (
+            <BoardsManagement />
+          )}
+
           {/* Messages Tab */}
           {activeTab === 'messages' && (
             <div className="space-y-6">
@@ -1438,7 +1450,10 @@ const AdminPanel = ({ isOpen, onClose }) => {
             </div>
           )}
 
-          {/* Messages tab removed for a cleaner admin experience */}
+          {/* Premium Tab */}
+          {activeTab === 'premium' && (
+            <PremiumManagement />
+          )}
         </div>
 
         {/* Footer */}
