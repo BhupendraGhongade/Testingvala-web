@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { FileText, User, Target, Zap, Briefcase, FolderOpen, Award, GraduationCap, Globe, Heart, Download, X, ChevronRight, ChevronLeft, Eye, Shield, Plus, Trash2, CheckCircle2, Crown, Star, TrendingUp, Code, Settings, BookOpen, GitBranch, Users, ExternalLink, Lightbulb, ChevronDown, ChevronUp } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { calculateResumeCompleteness } from '../lib/supabase';
-import PremiumResumeBuilder from './PremiumResumeBuilder';
+
 
 const ResumeBuilder = ({ isOpen, onClose }) => {
   // Error boundary state
@@ -125,8 +125,6 @@ const ResumeBuilder = ({ isOpen, onClose }) => {
     patents: false
   });
   const [showPreview, setShowPreview] = useState(false);
-  const [showPremiumBuilder, setShowPremiumBuilder] = useState(false);
-  const [builderType, setBuilderType] = useState(''); // 'ai' or 'static'
 
   const steps = [
     { id: 'personal', title: 'Personal Info', icon: User },
@@ -1458,151 +1456,42 @@ const ResumeBuilder = ({ isOpen, onClose }) => {
   try {
 
     return (
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-[95vw] lg:max-w-6xl h-[90vh] flex flex-col overflow-hidden">
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-2 sm:p-4 pt-20">
+      <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl w-full max-w-[98vw] sm:max-w-[95vw] lg:max-w-6xl h-[85vh] sm:h-[80vh] flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="bg-gradient-to-r from-blue-900 via-blue-800 to-blue-900 text-white p-3">
+        <div className="bg-gradient-to-r from-blue-900 via-blue-800 to-blue-900 text-white p-3 sm:p-4">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-2 sm:gap-4">
               <div className="w-10 h-10 sm:w-14 sm:h-14 bg-white/20 rounded-lg sm:rounded-xl flex items-center justify-center">
                 <FileText className="w-5 h-5 sm:w-8 sm:h-8" />
               </div>
               <div>
-                <h2 className="text-lg sm:text-2xl font-bold flex items-center gap-1 sm:gap-2">
+                <h2 className="text-base sm:text-lg lg:text-2xl font-bold flex items-center gap-1 sm:gap-2">
                   <span className="hidden sm:inline">World's #1 QA Resume Builder</span>
-                  <span className="sm:hidden">QA Resume Builder</span>
-                  <Crown className="w-4 h-4 sm:w-6 sm:h-6 text-yellow-300" />
+                  <span className="sm:hidden">Resume Builder</span>
+                  <Crown className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-yellow-300" />
                 </h2>
                 <p className="text-xs sm:text-sm text-blue-100">Professional • ATS-Optimized • Industry-Leading Quality</p>
               </div>
             </div>
-            <button onClick={onClose} className="p-2 hover:bg-white/20 rounded-lg transition-colors">
-              <X className="w-6 h-6" />
+            <button onClick={onClose} className="p-1.5 sm:p-2 hover:bg-white/20 rounded-lg transition-colors">
+              <X className="w-5 h-5 sm:w-6 sm:h-6" />
             </button>
           </div>
         </div>
 
-        {/* Builder Selection */}
-        {!isValidated && builderType === '' && (
-          <div className="p-8 bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-50">
-            <div className="max-w-6xl mx-auto">
-              <div className="text-center mb-12">
-                <div className="w-20 h-20 bg-gradient-to-br from-purple-600 to-blue-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-xl">
-                  <Zap className="w-10 h-10 text-white" />
-                </div>
-                <h3 className="text-4xl font-bold text-gray-900 mb-4">📄 Professional Resume Builder</h3>
-                <p className="text-xl text-gray-600 mb-2">Choose your perfect resume solution</p>
-                <p className="text-gray-500">Trusted by professionals worldwide</p>
-              </div>
 
-              <div className="grid md:grid-cols-2 gap-8">
-                {/* AI Resume Builder */}
-                <div className="bg-white rounded-2xl shadow-xl p-8 border-2 border-purple-200 relative overflow-hidden">
-                  <div className="absolute top-0 right-0 bg-gradient-to-l from-purple-600 to-pink-600 text-white px-4 py-1 text-sm font-bold">
-                    🤖 AI POWERED
-                  </div>
-                  <div className="flex items-center gap-4 mb-6">
-                    <div className="w-16 h-16 bg-gradient-to-br from-purple-600 to-pink-600 rounded-xl flex items-center justify-center">
-                      <Zap className="w-8 h-8 text-white" />
-                    </div>
-                    <div>
-                      <h4 className="text-2xl font-bold text-gray-900">AI Resume Builder</h4>
-                      <p className="text-purple-600 font-semibold">ChatGPT-4.1 Powered • ₹99/month</p>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-4 mb-8">
-                    <div className="flex items-center gap-3">
-                      <CheckCircle2 className="w-5 h-5 text-green-500" />
-                      <span className="text-gray-700">Paste job description → Get tailored resume</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <CheckCircle2 className="w-5 h-5 text-green-500" />
-                      <span className="text-gray-700">AI content generation</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <CheckCircle2 className="w-5 h-5 text-green-500" />
-                      <span className="text-gray-700">ATS optimization</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <CheckCircle2 className="w-5 h-5 text-green-500" />
-                      <span className="text-gray-700">Industry keywords</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <CheckCircle2 className="w-5 h-5 text-green-500" />
-                      <span className="text-gray-700">Unlimited generations</span>
-                    </div>
-                  </div>
-                  
-                  <button
-                    onClick={() => setShowPremiumBuilder(true)}
-                    className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-4 rounded-xl font-bold text-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-300 shadow-lg flex items-center justify-center gap-3"
-                  >
-                    <Zap className="w-6 h-6" />
-                    Try AI Builder
-                  </button>
-                  <p className="text-center text-sm text-gray-500 mt-3">UPI payment • Instant access</p>
-                </div>
-
-                {/* Static QA Builder */}
-                <div className="bg-white rounded-2xl shadow-xl p-8 border-2 border-blue-200">
-                  <div className="flex items-center gap-4 mb-6">
-                    <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl flex items-center justify-center">
-                      <Shield className="w-8 h-8 text-white" />
-                    </div>
-                    <div>
-                      <h4 className="text-2xl font-bold text-gray-900">QA Resume Builder</h4>
-                      <p className="text-blue-600 font-semibold">QA Professionals • Free</p>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-4 mb-8">
-                    <div className="flex items-center gap-3">
-                      <CheckCircle2 className="w-5 h-5 text-green-500" />
-                      <span className="text-gray-700">QA-specific templates</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <CheckCircle2 className="w-5 h-5 text-green-500" />
-                      <span className="text-gray-700">Testing skills database</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <CheckCircle2 className="w-5 h-5 text-green-500" />
-                      <span className="text-gray-700">Automation frameworks</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <CheckCircle2 className="w-5 h-5 text-green-500" />
-                      <span className="text-gray-700">QA tools & technologies</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <CheckCircle2 className="w-5 h-5 text-green-500" />
-                      <span className="text-gray-700">Step-by-step builder</span>
-                    </div>
-                  </div>
-                  
-                  <button
-                    onClick={() => setBuilderType('static')}
-                    className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-4 rounded-xl font-bold text-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-300 shadow-lg flex items-center justify-center gap-3"
-                  >
-                    <Shield className="w-6 h-6" />
-                    Access QA Builder
-                  </button>
-                  <p className="text-center text-sm text-gray-500 mt-3">Role verification required</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* QA Role Validation */}
         {!isValidated && builderType === 'static' && (
-          <div className="p-12 text-center bg-gradient-to-br from-blue-50 to-white">
-            <div className="w-24 h-24 bg-gradient-to-br from-blue-600 to-blue-700 rounded-full flex items-center justify-center mx-auto mb-8 shadow-xl">
-              <Shield className="w-12 h-12 text-white" />
+          <div className="p-4 sm:p-8 lg:p-12 text-center bg-gradient-to-br from-blue-50 to-white flex-1 overflow-y-auto">
+            <div className="w-20 h-20 sm:w-24 sm:h-24 bg-gradient-to-br from-blue-600 to-blue-700 rounded-full flex items-center justify-center mx-auto mb-6 sm:mb-8 shadow-xl">
+              <Shield className="w-10 h-10 sm:w-12 sm:h-12 text-white" />
             </div>
             <div className="max-w-2xl mx-auto">
-              <h3 className="text-3xl font-bold text-gray-900 mb-4">🚀 Welcome to QA Resume Builder</h3>
-              <p className="text-lg text-gray-600 mb-2">Professional resume builder designed for QA professionals</p>
-              <p className="text-gray-500 mb-8">Join thousands of QA engineers who've built their careers with us</p>
+              <h3 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3 sm:mb-4">🚀 Welcome to QA Resume Builder</h3>
+              <p className="text-base sm:text-lg text-gray-600 mb-1 sm:mb-2">Professional resume builder designed for QA professionals</p>
+              <p className="text-sm sm:text-base text-gray-500 mb-6 sm:mb-8">Join thousands of QA engineers who've built their careers with us</p>
               
               <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 lg:p-8 mb-4 sm:mb-8">
                 <h4 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 sm:mb-6">Verify Your QA Role</h4>
@@ -1614,7 +1503,7 @@ const ResumeBuilder = ({ isOpen, onClose }) => {
                   className="w-full px-3 sm:px-4 lg:px-6 py-3 sm:py-4 border-2 border-blue-200 rounded-lg sm:rounded-xl text-sm sm:text-base lg:text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-4 sm:mb-6"
                 />
 
-                <div className="flex gap-3">
+                <div className="flex flex-col sm:flex-row gap-3">
                   <button
                     onClick={() => setBuilderType('')}
                     className="flex-1 bg-gray-200 text-gray-700 py-3 sm:py-4 rounded-lg sm:rounded-xl font-semibold text-sm sm:text-base lg:text-lg hover:bg-gray-300 transition-all duration-300"
@@ -1626,15 +1515,15 @@ const ResumeBuilder = ({ isOpen, onClose }) => {
                     disabled={!userRole.trim()}
                     className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 sm:py-4 rounded-lg sm:rounded-xl font-semibold text-sm sm:text-base lg:text-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-300 disabled:opacity-50 flex items-center justify-center gap-2 sm:gap-3"
                   >
-                    <CheckCircle2 className="w-5 h-5 sm:w-6 sm:h-6" />
+                    <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6" />
                     Validate & Start
                   </button>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-4">
                 {validQARoles.slice(0, 8).map(role => (
-                  <div key={role} className="bg-blue-50 text-blue-700 px-4 py-2 rounded-full text-sm font-medium text-center">
+                  <div key={role} className="bg-blue-50 text-blue-700 px-2 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-medium text-center">
                     {role}
                   </div>
                 ))}
@@ -1647,7 +1536,7 @@ const ResumeBuilder = ({ isOpen, onClose }) => {
         {isValidated && (
           <div className="flex flex-col lg:flex-row flex-1 overflow-hidden">
             {/* Left Sidebar */}
-            <div className="w-full lg:w-80 bg-gray-50 border-b lg:border-b-0 lg:border-r border-gray-200 p-3 overflow-y-auto flex-shrink-0">
+            <div className="w-full lg:w-80 bg-gray-50 border-b lg:border-b-0 lg:border-r border-gray-200 p-2 sm:p-3 overflow-y-auto flex-shrink-0">
               <div className="mb-6">
                 <h3 className="font-bold text-gray-900 mb-2">Resume Sections</h3>
                 <div className="text-xs text-gray-500">Step {currentStep + 1} of {steps.length}</div>
@@ -1740,7 +1629,7 @@ const ResumeBuilder = ({ isOpen, onClose }) => {
             </div>
 
             {/* Main Form Area */}
-            <div className="flex-1 p-4 overflow-y-auto min-h-0">
+            <div className="flex-1 p-3 sm:p-4 overflow-y-auto min-h-0">
               {/* Personal Info */}
               {currentStep === 0 && (
                 <div className="space-y-6">
@@ -3313,12 +3202,7 @@ const ResumeBuilder = ({ isOpen, onClose }) => {
           </div>
         )}
         
-        {/* Premium AI Resume Builder */}
-        <PremiumResumeBuilder 
-          isOpen={showPremiumBuilder}
-          onClose={() => setShowPremiumBuilder(false)}
-          userEmail={formData.personal?.email || 'user@example.com'}
-        />
+
         </div>
       </div>
     );

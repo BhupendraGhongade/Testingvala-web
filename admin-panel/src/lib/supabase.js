@@ -3,7 +3,20 @@ import { createClient } from '@supabase/supabase-js'
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-export const supabase = supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : null
+let supabase = null
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.warn('Supabase environment variables are missing. Running in fallback/dev mode.')
+} else {
+  supabase = createClient(supabaseUrl, supabaseAnonKey)
+}
+
+export { supabase }
+
+// Storage bucket names
+export const STORAGE_BUCKETS = {
+  PAYMENTS: 'payments',
+  EVENT_IMAGES: 'event-images'
+}
 
 // Table names
 export const TABLES = {
@@ -14,7 +27,14 @@ export const TABLES = {
   FORUM_CATEGORIES: 'forum_categories',
   JOB_POSTINGS: 'job_postings',
   CANDIDATES: 'candidates',
-  AUDIT_LOGS: 'audit_logs'
+  AUDIT_LOGS: 'audit_logs',
+  USER_RESUMES: 'user_resumes',
+  AI_RESUME_GENERATIONS: 'ai_resume_generations',
+  RESUME_ANALYTICS: 'resume_analytics',
+  RESUME_TEMPLATES: 'resume_templates',
+  PAYMENT_CONFIG: 'payment_config',
+  PREMIUM_SUBSCRIPTIONS: 'premium_subscriptions',
+  PREMIUM_ACTIVITY_LOGS: 'premium_activity_logs'
 }
 
 // Events functions
@@ -22,13 +42,14 @@ export const getUpcomingEvents = async () => {
   try {
     if (!supabase) return []
     const { data, error } = await supabase
-      .from(TABLES.EVENTS)
+      .from('upcoming_events')
       .select('*')
-      .eq('is_active', true)
-      .gte('event_date', new Date().toISOString().split('T')[0])
-      .order('event_date', { ascending: true })
+      .order('event_date', { ascending: false })
     
-    if (error) throw error
+    if (error) {
+      console.error('Error fetching events:', error)
+      return []
+    }
     return data || []
   } catch (error) {
     console.error('Error fetching events:', error)
@@ -39,13 +60,42 @@ export const getUpcomingEvents = async () => {
 export const createEvent = async (eventData) => {
   try {
     if (!supabase) throw new Error('Supabase not configured')
+    
+    // Ensure all required fields are present
+    const completeEventData = {
+      title: eventData.title,
+      description: eventData.description || '',
+      short_description: eventData.short_description || '',
+      event_date: eventData.event_date,
+      event_time: eventData.event_time,
+      duration_minutes: eventData.duration_minutes || 120,
+      registration_link: eventData.registration_link || '',
+      image_url: eventData.image_url || null,
+      event_type: eventData.event_type || 'workshop',
+      difficulty_level: eventData.difficulty_level || 'beginner',
+      max_participants: eventData.max_participants || null,
+      is_featured: eventData.is_featured || false,
+      is_active: eventData.is_active !== false,
+      price: eventData.price || '$99',
+      capacity: eventData.capacity || 50,
+      registered_count: 0,
+      speaker: eventData.speaker || 'QA Expert',
+      speaker_title: eventData.speaker_title || 'Senior QA Professional',
+      company: eventData.company || 'TestingVala',
+      location: eventData.location || 'Online',
+      featured: eventData.featured || eventData.is_featured || false
+    }
+    
     const { data, error } = await supabase
-      .from(TABLES.EVENTS)
-      .insert([eventData])
+      .from('upcoming_events')
+      .insert([completeEventData])
       .select()
       .single()
     
-    if (error) throw error
+    if (error) {
+      console.error('Supabase error:', error)
+      throw new Error(`Database error: ${error.message}`)
+    }
     return data
   } catch (error) {
     console.error('Error creating event:', error)
@@ -57,7 +107,7 @@ export const updateEvent = async (id, eventData) => {
   try {
     if (!supabase) throw new Error('Supabase not configured')
     const { data, error } = await supabase
-      .from(TABLES.EVENTS)
+      .from('upcoming_events')
       .update(eventData)
       .eq('id', id)
       .select()
@@ -75,7 +125,7 @@ export const deleteEvent = async (id) => {
   try {
     if (!supabase) throw new Error('Supabase not configured')
     const { error } = await supabase
-      .from(TABLES.EVENTS)
+      .from('upcoming_events')
       .delete()
       .eq('id', id)
     
@@ -500,6 +550,234 @@ export const updateCandidateStatus = async (candidateId, status) => {
     return data
   } catch (error) {
     console.error('Error updating candidate status:', error)
+    throw error
+  }
+}
+
+// Resume Analytics Functions
+export const getResumeAnalytics = async (dateRange = '30d') => {
+  try {
+    if (!supabase) return null
+    
+    // Calculate date filter based on range
+    const now = new Date()
+    let startDate
+    switch (dateRange) {
+      case '1d':
+        startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+        break
+      case '7d':
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+        break
+      case '30d':
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+        break
+      case '90d':
+        startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000)
+        break
+      default:
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+    }
+    
+    const [resumesResult, usersResult, aiGenerationsResult] = await Promise.all([
+      supabase.from(TABLES.USER_RESUMES)
+        .select('*')
+        .gte('created_at', startDate.toISOString())
+        .neq('status', 'draft'),
+      supabase.from(TABLES.USERS)
+        .select('*')
+        .gte('created_at', startDate.toISOString()),
+      supabase.from(TABLES.AI_RESUME_GENERATIONS)
+        .select('*')
+        .gte('created_at', startDate.toISOString())
+    ])
+    
+    return {
+      resumes: resumesResult.data || [],
+      users: usersResult.data || [],
+      aiGenerations: aiGenerationsResult.data || []
+    }
+  } catch (error) {
+    console.error('Error fetching resume analytics:', error)
+    return null
+  }
+}
+
+export const getAllResumes = async (limit = 100) => {
+  try {
+    if (!supabase) return []
+    
+    const { data, error } = await supabase
+      .from(TABLES.USER_RESUMES)
+      .select('*')
+      .neq('status', 'draft')
+      .order('created_at', { ascending: false })
+      .limit(limit)
+    
+    if (error) throw error
+    return data || []
+  } catch (error) {
+    console.error('Error fetching resumes:', error)
+    return []
+  }
+}
+
+export const getAllUsers = async (limit = 100) => {
+  try {
+    if (!supabase) return []
+    
+    const { data, error } = await supabase
+      .from(TABLES.USERS)
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(limit)
+    
+    if (error) throw error
+    return data || []
+  } catch (error) {
+    console.error('Error fetching users:', error)
+    return []
+  }
+}
+
+export const getAIGenerations = async (limit = 100) => {
+  try {
+    if (!supabase) return []
+    
+    const { data, error } = await supabase
+      .from(TABLES.AI_RESUME_GENERATIONS)
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(limit)
+    
+    if (error) throw error
+    return data || []
+  } catch (error) {
+    console.error('Error fetching AI generations:', error)
+    return []
+  }
+}
+
+// Premium Management Functions
+export const getPremiumSubscriptions = async (filters = {}) => {
+  try {
+    if (!supabase) return []
+    
+    let query = supabase
+      .from(TABLES.PREMIUM_SUBSCRIPTIONS)
+      .select('*')
+      .order('created_at', { ascending: false })
+    
+    if (filters.status) {
+      query = query.eq('status', filters.status)
+    }
+    
+    if (filters.limit) {
+      query = query.limit(filters.limit)
+    }
+    
+    const { data, error } = await query
+    if (error) throw error
+    return data || []
+  } catch (error) {
+    console.error('Error fetching premium subscriptions:', error)
+    return []
+  }
+}
+
+export const updateSubscriptionStatus = async (subscriptionId, status, adminNotes = '') => {
+  try {
+    if (!supabase) throw new Error('Supabase not configured')
+    
+    const updateData = {
+      status,
+      updated_at: new Date().toISOString(),
+      notes: adminNotes
+    }
+    
+    if (status === 'active') {
+      updateData.starts_at = new Date().toISOString()
+      updateData.expires_at = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+      updateData.approved_by = 'admin'
+      updateData.approved_at = new Date().toISOString()
+    }
+    
+    const { data, error } = await supabase
+      .from(TABLES.PREMIUM_SUBSCRIPTIONS)
+      .update(updateData)
+      .eq('id', subscriptionId)
+      .select()
+      .single()
+    
+    if (error) throw error
+    
+    // Log activity
+    await supabase.from(TABLES.PREMIUM_ACTIVITY_LOGS).insert({
+      subscription_id: subscriptionId,
+      action: `status_changed_to_${status}`,
+      performed_by: 'admin',
+      details: { notes: adminNotes, timestamp: new Date().toISOString() }
+    })
+    
+    return data
+  } catch (error) {
+    console.error('Error updating subscription status:', error)
+    throw error
+  }
+}
+
+export const checkPremiumAccess = async (userEmail) => {
+  try {
+    if (!supabase || !userEmail) return false
+    
+    const { data, error } = await supabase
+      .from(TABLES.PREMIUM_SUBSCRIPTIONS)
+      .select('*')
+      .eq('user_email', userEmail)
+      .eq('status', 'active')
+      .gt('expires_at', new Date().toISOString())
+      .single()
+    
+    if (error && error.code !== 'PGRST116') throw error
+    return !!data
+  } catch (error) {
+    console.error('Error checking premium access:', error)
+    return false
+  }
+}
+
+export const getPaymentConfig = async () => {
+  try {
+    if (!supabase) return null
+    
+    const { data, error } = await supabase
+      .from(TABLES.PAYMENT_CONFIG)
+      .select('*')
+      .single()
+    
+    if (error) throw error
+    return data
+  } catch (error) {
+    console.error('Error fetching payment config:', error)
+    return null
+  }
+}
+
+export const updatePaymentConfig = async (config) => {
+  try {
+    if (!supabase) throw new Error('Supabase not configured')
+    
+    const { data, error } = await supabase
+      .from(TABLES.PAYMENT_CONFIG)
+      .update({ ...config, updated_at: new Date().toISOString() })
+      .eq('id', 1)
+      .select()
+      .single()
+    
+    if (error) throw error
+    return data
+  } catch (error) {
+    console.error('Error updating payment config:', error)
     throw error
   }
 }

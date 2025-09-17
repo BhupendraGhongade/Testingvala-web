@@ -51,12 +51,16 @@ export const TABLES = {
   RESUME_SHARES: 'resume_shares',
   RESUME_ANALYTICS: 'resume_analytics',
   RESUME_COMMENTS: 'resume_comments',
-  RESUME_EXPORTS: 'resume_exports'
+  RESUME_EXPORTS: 'resume_exports',
+  PREMIUM_SUBSCRIPTIONS: 'premium_subscriptions',
+  PAYMENT_CONFIG: 'payment_config',
+  AI_RESUME_GENERATIONS: 'ai_resume_generations'
 }
 
 // Storage bucket names
 export const STORAGE_BUCKETS = {
-  EVENT_IMAGES: 'testingvala-bucket'
+  EVENT_IMAGES: 'testingvala-bucket',
+  PAYMENTS: 'payments'
 }
 
 // Helper functions for events

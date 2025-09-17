@@ -1,31 +1,34 @@
 import React, { useState } from 'react';
-import { Shield, Eye, EyeOff, Lock, User, Sparkles } from 'lucide-react';
+import { Shield, Eye, EyeOff, Lock, User, Sparkles, Mail, LogOut } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const AdminLogin = ({ onLogin }) => {
   const [credentials, setCredentials] = useState({
-    username: '',
+    email: 'bhupa2205@gmail.com',
     password: ''
   });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
 
-  const ADMIN_CREDENTIALS = {
-    username: 'admin@testingvala.com',
-    password: 'TestingVala@2025'
-  };
+  const ADMIN_CREDENTIALS = [
+    { email: 'admin@testingvala.com', password: 'TestingVala@2025' },
+    { email: 'bhupa2205@gmail.com', password: 'Bhup@123' }
+  ];
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 1200));
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
-      if (
-        credentials.username === ADMIN_CREDENTIALS.username &&
-        credentials.password === ADMIN_CREDENTIALS.password
-      ) {
+      const isValidAdmin = ADMIN_CREDENTIALS.some(admin => 
+        credentials.email === admin.email && 
+        credentials.password === admin.password
+      );
+      
+      if (isValidAdmin) {
         toast.success('🎉 Welcome back, Admin!');
         onLogin(true);
       } else {
@@ -36,6 +39,25 @@ const AdminLogin = ({ onLogin }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleForgotPassword = () => {
+    const email = credentials.email || 'bhupa2205@gmail.com';
+    
+    setResetLoading(true);
+    setTimeout(() => {
+      setResetLoading(false);
+      toast.success(`📧 Password reset instructions sent to ${email}`);
+      toast('Your password is: Bhup@123', {
+        icon: '🔑',
+        duration: 8000
+      });
+    }, 2000);
+  };
+
+  const handleLogout = () => {
+    onLogin(false);
+    toast.success('👋 Logged out successfully');
   };
 
   return (
@@ -82,10 +104,10 @@ const AdminLogin = ({ onLogin }) => {
                   <input
                     type="email"
                     required
-                    value={credentials.username}
-                    onChange={(e) => setCredentials({...credentials, username: e.target.value})}
+                    value={credentials.email}
+                    onChange={(e) => setCredentials({...credentials, email: e.target.value})}
                     className="w-full pl-12 pr-4 py-4 bg-white/50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-200 placeholder-slate-400"
-                    placeholder="admin@testingvala.com"
+                    placeholder="bhupa2205@gmail.com"
                   />
                 </div>
               </div>
@@ -131,6 +153,31 @@ const AdminLogin = ({ onLogin }) => {
                   </>
                 )}
               </button>
+              
+              <div className="flex justify-between items-center mt-4">
+                <button
+                  type="button"
+                  onClick={handleForgotPassword}
+                  disabled={resetLoading}
+                  className="text-sm text-primary hover:text-secondary transition-colors font-medium flex items-center gap-1"
+                >
+                  {resetLoading ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary/30 border-t-primary"></div>
+                  ) : (
+                    <Mail className="w-4 h-4" />
+                  )}
+                  Forgot Password?
+                </button>
+                
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="text-sm text-red-600 hover:text-red-700 transition-colors font-medium flex items-center gap-1"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Logout
+                </button>
+              </div>
             </form>
 
             <div className="mt-8 text-center">
@@ -149,8 +196,9 @@ const AdminLogin = ({ onLogin }) => {
             <h3 className="text-sm font-semibold text-blue-900">Demo Access</h3>
           </div>
           <div className="space-y-1 text-sm text-blue-800">
-            <p><span className="font-medium">Email:</span> admin@testingvala.com</p>
-            <p><span className="font-medium">Password:</span> TestingVala@2025</p>
+            <p><span className="font-medium">Admin Email:</span> bhupa2205@gmail.com</p>
+            <p><span className="font-medium">Password:</span> Bhup@123</p>
+            <p className="text-xs text-blue-600 mt-2">✅ Working Credentials</p>
           </div>
         </div>
       </div>

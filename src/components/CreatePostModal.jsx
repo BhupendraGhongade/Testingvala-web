@@ -95,45 +95,46 @@ const CreatePostModal = ({ isOpen, onClose, categories = [], onPostCreated }) =>
       return;
     }
 
-    // Debug: Log the selected category and available categories
-    console.log('Selected category_id:', formData.category_id);
-    console.log('Available categories:', categories);
 
-    // Always try to save locally first (works with or without Supabase)
-    try {
-      const local = JSON.parse(localStorage.getItem('local_forum_posts') || '[]');
-      const displayName = formData.is_anonymous ? 'Anonymous' : (formData.author_name || authUser?.email?.split('@')[0] || 'User');
-      const newPost = {
-        id: `local-${Date.now()}`,
-        title: formData.title.trim(),
-        content: formData.content.trim(),
-        category_id: formData.category_id,
-        category_name: categories.find(c => c.id === formData.category_id)?.name || 'General',
-        author_name: displayName,
-        created_at: new Date().toISOString(),
-        user_profiles: { username: displayName.toLowerCase().replace(/\s+/g, '_'), full_name: displayName, avatar_url: null, email: authUser?.email || 'local@testingvala.com' },
-        replies_count: 0,
-        likes_count: 0,
-        image_url: formData.image_url || null,
-        status: 'active',
-        is_anonymous: formData.is_anonymous
-      };
-      local.unshift(newPost);
-      localStorage.setItem('local_forum_posts', JSON.stringify(local));
-      
-      // If no Supabase, just save locally and finish
-      if (!supabase) {
+
+    // If no Supabase, save locally as fallback
+    if (!supabase) {
+      try {
+        const local = JSON.parse(localStorage.getItem('local_forum_posts') || '[]');
+        const displayName = formData.is_anonymous ? 'Anonymous' : (formData.author_name || 'User');
+        const newPost = {
+          id: `local-${Date.now()}`,
+          title: formData.title.trim(),
+          content: formData.content.trim(),
+          category_id: formData.category_id,
+          category_name: categories.find(c => c.id === formData.category_id)?.name || 'General',
+          author_name: displayName,
+          created_at: new Date().toISOString(),
+          user_profiles: { username: displayName.toLowerCase().replace(/\s+/g, '_'), full_name: displayName, avatar_url: null },
+          replies_count: 0,
+          likes_count: 0,
+          image_url: formData.image_url || null,
+          status: 'active',
+          is_anonymous: formData.is_anonymous
+        };
+        local.unshift(newPost);
+        localStorage.setItem('local_forum_posts', JSON.stringify(local));
+        
         toast.success('Post created successfully!');
-        setFormData({ title: '', content: '', category_id: '', image_url: '', is_anonymous: false, author_name: authUser?.email?.split('@')[0] || '' });
-        onClose && onClose();
+        setFormData({ title: '', content: '', category_id: '', image_url: '', is_anonymous: false, author_name: '' });
+        
+        // Refresh posts immediately
         if (onPostCreated) {
-          setTimeout(() => onPostCreated(), 100);
+          onPostCreated();
         }
+        
+        // Close modal after refresh
+        setTimeout(() => {
+          onClose && onClose();
+        }, 100);
         return;
-      }
-    } catch (err) {
-      console.error('Failed to save post locally:', err);
-      if (!supabase) {
+      } catch (err) {
+        console.error('Failed to save post locally:', err);
         toast.error('Failed to create post');
         return;
       }
@@ -148,12 +149,7 @@ const CreatePostModal = ({ isOpen, onClose, categories = [], onPostCreated }) =>
         return;
       }
 
-      // Only allow verified users to submit posts
-      const verified = isUserVerified(user);
-      if (!verified) {
-        toast.error('Only verified users can create posts. Please verify your account.');
-        return;
-      }
+      // Allow all authenticated users to post
 
       // Simplified category resolution: just use the selected category_id directly
       // The categories passed to this component should already have proper UUIDs
@@ -197,13 +193,20 @@ const CreatePostModal = ({ isOpen, onClose, categories = [], onPostCreated }) =>
 
       if (error) throw error;
 
+      console.log('✅ Post created successfully in database');
       toast.success('Post created successfully!');
       setFormData({ title: '', content: '', category_id: '', image_url: '', is_anonymous: false, author_name: authUser?.email?.split('@')[0] || '' });
-      onClose && onClose();
-      // Force immediate refresh
+      
+      // Refresh posts immediately
       if (onPostCreated) {
-        setTimeout(() => onPostCreated(), 100);
+        console.log('🔄 Triggering post refresh...');
+        onPostCreated();
       }
+      
+      // Close modal after refresh
+      setTimeout(() => {
+        onClose && onClose();
+      }, 100);
     } catch (err) {
       console.error('Error creating post:', err);
       // Save last raw error to localStorage for developer debugging in local/dev
@@ -445,7 +448,7 @@ const CreatePostModal = ({ isOpen, onClose, categories = [], onPostCreated }) =>
               {/* Sticky footer inside scrollable area so actions remain visible on small screens */}
               <div className="sticky bottom-0 left-0 right-0 bg-white p-4 border-t border-gray-200 flex items-center justify-between">
                 <div className="text-xs text-gray-500">
-                  💡 Posts are reviewed before publishing
+                  💡 Posts are published immediately
                 </div>
                 <div className="flex items-center gap-3">
                   <button type="button" onClick={onClose} className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg font-medium hover:bg-gray-200 transition-colors">Cancel</button>

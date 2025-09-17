@@ -1,454 +1,475 @@
 import React, { useState, useEffect } from 'react';
-import { X, Sparkles, FileText, Upload, CreditCard, CheckCircle, Crown, Zap, Clock, Star, AlertCircle } from 'lucide-react';
+import { X, FileText, CreditCard, CheckCircle, Crown, Zap, Clock, AlertCircle, Copy, User, Phone, Mail, ArrowRight, ArrowLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { supabase } from '../lib/supabase';
 
 const PremiumResumeBuilder = ({ isOpen, onClose, userEmail }) => {
-  const [step, setStep] = useState('check'); // check, payment, builder
-  const [subscription, setSubscription] = useState(null);
   const [paymentConfig, setPaymentConfig] = useState(null);
-  const [jobDescription, setJobDescription] = useState('');
-  const [generatedResume, setGeneratedResume] = useState(null);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [paymentScreenshot, setPaymentScreenshot] = useState(null);
-  const [pendingPayment, setPendingPayment] = useState(null);
+  const [paymentStep, setPaymentStep] = useState('card'); // card, details, payment, confirm, success
+  const [formData, setFormData] = useState({
+    name: '',
+    phone: '',
+    transactionId: ''
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errors, setErrors] = useState({});
 
   useEffect(() => {
-    if (isOpen && userEmail) {
-      checkSubscription();
+    if (isOpen) {
       loadPaymentConfig();
+      setPaymentStep('card');
+      setFormData({ name: '', phone: '', transactionId: '' });
+      setErrors({});
     }
-  }, [isOpen, userEmail]);
-
-  const checkSubscription = async () => {
-    try {
-      // Check for active subscription
-      const { data: activeData } = await supabase
-        .from('premium_subscriptions')
-        .select('*')
-        .eq('user_email', userEmail)
-        .eq('status', 'active')
-        .gte('expires_at', new Date().toISOString())
-        .single();
-      
-      if (activeData) {
-        setSubscription(activeData);
-        setStep('builder');
-        return;
-      }
-
-      // Check for pending payment
-      const { data: pendingData } = await supabase
-        .from('premium_subscriptions')
-        .select('*')
-        .eq('user_email', userEmail)
-        .eq('status', 'pending')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
-      
-      if (pendingData) {
-        setPendingPayment(pendingData);
-        setStep('pending');
-      } else {
-        setStep('payment');
-      }
-    } catch (error) {
-      setStep('payment');
-    }
-  };
+  }, [isOpen]);
 
   const loadPaymentConfig = async () => {
-    const { data } = await supabase
-      .from('payment_config')
-      .select('*')
-      .eq('id', 1)
-      .single();
+    try {
+      const { data } = await supabase
+        .from('payment_config')
+        .select('*')
+        .eq('id', 1)
+        .single();
+      if (data) setPaymentConfig(data);
+    } catch (error) {
+      console.error('Error loading payment config:', error);
+    }
+  };
+
+  const validateForm = (step) => {
+    const newErrors = {};
+    if (step === 'details') {
+      if (!formData.name.trim()) newErrors.name = 'Name is required';
+      if (!formData.phone.trim()) newErrors.phone = 'Phone is required';
+    }
+    if (step === 'confirm') {
+      if (!formData.transactionId.trim()) newErrors.transactionId = 'Transaction ID is required';
+    }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = async () => {
+    console.log('handleSubmit called');
+    console.log('Form data:', formData);
     
-    if (data) setPaymentConfig(data);
-  };
-
-  const handlePaymentSubmit = async () => {
-    if (!paymentScreenshot) {
-      toast.error('Please upload payment screenshot');
+    if (!validateForm('confirm')) {
+      console.log('Form validation failed');
       return;
     }
-
+    
+    console.log('Form validation passed, submitting...');
+    setIsSubmitting(true);
+    
     try {
-      const fileExt = paymentScreenshot.name.split('.').pop();
-      const fileName = `payment_${Date.now()}.${fileExt}`;
+      console.log('Using table: premium_requests');
+      const { error } = await supabase.from('premium_requests').insert({
+        user_name: formData.name,
+        user_email: userEmail,
+        user_phone: formData.phone,
+        transaction_id: formData.transactionId,
+        payment_method: 'UPI'
+      });
       
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('payments')
-        .upload(fileName, paymentScreenshot);
-
-      if (uploadError) throw uploadError;
-
-      const { data: urlData } = supabase.storage
-        .from('payments')
-        .getPublicUrl(fileName);
-
-      await supabase.from('premium_subscriptions').insert({
-        user_email: userEmail,
-        payment_screenshot_url: urlData.publicUrl,
-        amount: paymentConfig?.monthly_price || 99,
-        status: 'pending'
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
+      
+      console.log('Payment submitted successfully');
+      toast.success('🎉 Payment submitted! Access within 24 hours.', {
+        duration: 4000,
+        style: { background: '#10b981', color: '#fff', fontWeight: 'bold' }
       });
-
-      toast.success('Payment submitted! Admin will verify within 24 hours.');
-      setStep('pending');
+      
+      setPaymentStep('success');
+      setTimeout(() => {
+        setPaymentStep('card');
+        setFormData({ name: '', phone: '', transactionId: '' });
+      }, 4000);
     } catch (error) {
-      toast.error('Failed to submit payment');
-    }
-  };
-
-  const generateAIResume = async () => {
-    if (!jobDescription.trim()) {
-      toast.error('Please enter job description');
-      return;
-    }
-
-    setIsGenerating(true);
-    try {
-      // AI-powered resume generation
-      const mockResume = {
-        personal: {
-          name: 'Professional Name',
-          email: userEmail,
-          phone: '+91 XXXXXXXXXX',
-          location: 'City, Country'
-        },
-        summary: `Results-driven professional with proven expertise in areas aligned with the role requirements. Demonstrated ability to deliver high-quality solutions and drive organizational success through innovative approaches and strategic thinking.`,
-        skills: ['Strategic Planning', 'Team Leadership', 'Process Optimization', 'Quality Assurance', 'Project Management', 'Data Analysis'],
-        experience: [{
-          company: 'Previous Company',
-          role: 'Senior Position',
-          duration: '2020 - Present',
-          achievements: [
-            'Led cross-functional teams to achieve 25% improvement in efficiency',
-            'Implemented strategic initiatives resulting in significant cost savings',
-            'Developed and executed comprehensive quality improvement programs'
-          ]
-        }],
-        education: [{
-          degree: 'Relevant Degree',
-          institution: 'University Name',
-          year: '2018',
-          details: 'Specialized in relevant field with focus on industry best practices'
-        }]
-      };
-
-      await supabase.from('ai_resume_generations').insert({
-        user_email: userEmail,
-        job_description: jobDescription,
-        generated_resume: mockResume
-      });
-
-      setGeneratedResume(mockResume);
-      toast.success('Professional resume generated successfully!');
-    } catch (error) {
-      toast.error('Failed to generate resume');
+      console.error('Submit error:', error);
+      toast.error('Submission failed. Please try again.');
     } finally {
-      setIsGenerating(false);
+      setIsSubmitting(false);
     }
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-5xl max-h-[85vh] flex flex-col overflow-hidden border border-gray-100">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[10000] flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl h-[80vh] flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="relative bg-gradient-to-r from-slate-900 via-gray-900 to-slate-800 text-white px-6 py-8">
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-600/10 to-purple-600/10"></div>
-          <div className="relative flex justify-between items-start">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
-                <Crown className="w-7 h-7 text-white" />
+        <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white p-6">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
+                <FileText className="w-6 h-6" />
               </div>
               <div>
-                <h2 className="text-2xl font-bold text-white mb-1">
-                  Premium Resume Builder
+                <h2 className="text-xl font-bold flex items-center gap-2">
+                  World's #1 QA Resume Builder
+                  <Crown className="w-5 h-5 text-yellow-300" />
                 </h2>
-                <p className="text-gray-300 text-sm">AI-Powered Professional Resume Generation</p>
+                <p className="text-blue-100 text-sm">Professional • ATS-Optimized • Industry-Leading</p>
               </div>
             </div>
-            <button 
-              onClick={onClose} 
-              className="p-2 hover:bg-white/10 rounded-xl transition-colors"
-            >
+            <button onClick={onClose} className="p-2 hover:bg-white/20 rounded-lg transition-colors">
               <X className="w-6 h-6" />
             </button>
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto">
-          {step === 'payment' && (
-            <div className="p-8">
-              <div className="max-w-lg mx-auto">
-                <div className="text-center mb-8">
-                  <h3 className="text-3xl font-bold text-gray-900 mb-3">Upgrade to Premium</h3>
-                  <p className="text-gray-600">Unlock AI-powered resume generation with advanced features</p>
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-8 bg-gradient-to-br from-purple-50 to-blue-50">
+          <div className="max-w-5xl mx-auto">
+            <div className="text-center mb-8">
+              <div className="w-16 h-16 bg-gradient-to-br from-purple-600 to-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-xl">
+                <Zap className="w-8 h-8 text-white" />
+              </div>
+              <h3 className="text-3xl font-bold text-gray-900 mb-2">📄 Professional Resume Builder</h3>
+              <p className="text-gray-600">Choose your perfect resume solution</p>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-6">
+              {/* AI Resume Builder Card */}
+              <div className="bg-white rounded-xl shadow-xl border-2 border-purple-200 relative overflow-hidden">
+                <div className="absolute top-0 right-0 bg-gradient-to-l from-purple-600 to-pink-600 text-white px-3 py-1 text-xs font-bold">
+                  🤖 AI POWERED
                 </div>
 
-                {/* Pricing Card */}
-                <div className="bg-gradient-to-br from-gray-50 to-blue-50 rounded-2xl p-8 border border-gray-200 mb-8">
-                  <div className="text-center mb-8">
-                    <div className="inline-flex items-baseline">
-                      <span className="text-5xl font-bold text-gray-900">₹{paymentConfig?.monthly_price || 99}</span>
-                      <span className="text-gray-600 ml-2">/month</span>
+                {/* Payment Card View */}
+                {paymentStep === 'card' && (
+                  <div className="p-6">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-12 h-12 bg-gradient-to-br from-purple-600 to-pink-600 rounded-lg flex items-center justify-center">
+                        <Zap className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <h4 className="text-xl font-bold text-gray-900">AI Resume Builder</h4>
+                        <p className="text-purple-600 font-semibold text-sm">AI-Powered • ₹{paymentConfig?.monthly_price || 99}/month</p>
+                      </div>
                     </div>
-                    <p className="text-gray-600 mt-2">Everything you need for professional resumes</p>
-                  </div>
-
-                  {/* Features */}
-                  <div className="space-y-4 mb-8">
-                    {[
-                      'Unlimited AI resume generations',
-                      'Job-specific content optimization', 
-                      'ATS-friendly formatting',
-                      'Professional templates',
-                      'Instant download & editing',
-                      '24/7 premium support'
-                    ].map((feature, index) => (
-                      <div key={index} className="flex items-center gap-3">
-                        <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
-                          <CheckCircle className="w-3 h-3 text-white" />
+                    
+                    <div className="space-y-3 mb-6">
+                      {[
+                        'Paste job description → Get tailored resume',
+                        'AI content generation',
+                        'ATS optimization',
+                        'Industry keywords',
+                        'Unlimited generations'
+                      ].map((feature, index) => (
+                        <div key={index} className="flex items-center gap-2">
+                          <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                          <span className="text-gray-700 text-sm">{feature}</span>
                         </div>
-                        <span className="text-gray-700">{feature}</span>
+                      ))}
+                    </div>
+                    
+                    <div className="border-t border-gray-200 pt-4">
+                      <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg p-4 mb-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="text-lg font-bold text-purple-900">₹{paymentConfig?.monthly_price || 99}</div>
+                            <div className="text-xs text-purple-700">per month</div>
+                          </div>
+                          <div className="text-xs text-purple-600 font-medium">UPI Payment</div>
+                        </div>
                       </div>
-                    ))}
-                  </div>
-
-                  {/* Payment Section */}
-                  {paymentConfig && (
-                    <div className="bg-white rounded-xl p-6 border border-gray-200">
-                      <h4 className="font-semibold text-gray-900 mb-4">Complete Your Payment</h4>
                       
-                      <div className="bg-gray-50 rounded-lg p-4 mb-6">
-                        <div className="flex justify-between items-center mb-2">
-                          <span className="text-gray-600">UPI ID:</span>
-                          <span className="font-mono text-sm font-semibold">{paymentConfig.upi_id}</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-gray-600">Amount:</span>
-                          <span className="font-bold text-lg text-blue-600">₹{paymentConfig.monthly_price}</span>
-                        </div>
-                      </div>
-
-                      {paymentConfig.payment_instructions && (
-                        <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                          <p className="text-sm text-blue-800">{paymentConfig.payment_instructions}</p>
-                        </div>
-                      )}
-
-                      <div className="mb-6">
-                        <label className="block text-sm font-medium text-gray-700 mb-3">
-                          Upload Payment Screenshot
-                        </label>
-                        <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={(e) => setPaymentScreenshot(e.target.files[0])}
-                            className="hidden"
-                            id="payment-upload"
-                          />
-                          <label htmlFor="payment-upload" className="cursor-pointer">
-                            <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                            <p className="text-sm text-gray-600">
-                              {paymentScreenshot ? paymentScreenshot.name : 'Click to upload screenshot'}
-                            </p>
-                          </label>
-                        </div>
-                      </div>
-
                       <button
-                        onClick={handlePaymentSubmit}
-                        disabled={!paymentScreenshot}
-                        className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-4 rounded-xl font-semibold hover:from-blue-700 hover:to-blue-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+                        onClick={() => setPaymentStep('details')}
+                        className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-lg font-semibold hover:from-purple-700 hover:to-pink-700 transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
                       >
-                        Activate Premium Access
+                        <CreditCard className="w-4 h-4" />
+                        Subscribe Now
+                      </button>
+                      
+                      <div className="flex items-center justify-center gap-4 mt-3 text-xs text-gray-500">
+                        <span className="flex items-center gap-1">
+                          <CheckCircle className="w-3 h-3 text-green-500" />
+                          Secure Payment
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <CheckCircle className="w-3 h-3 text-green-500" />
+                          Instant Access
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Details Step */}
+                {paymentStep === 'details' && (
+                  <div className="p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h4 className="text-lg font-bold text-gray-900">Your Details</h4>
+                      <button onClick={() => setPaymentStep('card')} className="text-gray-500 hover:text-gray-700 p-1">
+                        <ArrowLeft className="w-4 h-4" />
                       </button>
                     </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
+                    
+                    <div className="space-y-4">
+                      <div>
+                        <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+                          <User className="w-4 h-4" />
+                          Full Name *
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.name}
+                          onChange={(e) => setFormData({...formData, name: e.target.value})}
+                          className={`w-full px-3 py-2.5 border rounded-lg focus:ring-2 focus:border-transparent text-sm ${
+                            errors.name ? 'border-red-300 focus:ring-red-500' : 'border-gray-300 focus:ring-purple-500'
+                          }`}
+                          placeholder="Enter your full name"
+                        />
+                        {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
+                      </div>
+                      
+                      <div>
+                        <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+                          <Mail className="w-4 h-4" />
+                          Email Address
+                        </label>
+                        <input
+                          type="email"
+                          value={userEmail}
+                          disabled
+                          className="w-full px-3 py-2.5 border border-gray-300 rounded-lg bg-gray-50 text-sm"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+                          <Phone className="w-4 h-4" />
+                          Phone Number *
+                        </label>
+                        <input
+                          type="tel"
+                          value={formData.phone}
+                          onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                          className={`w-full px-3 py-2.5 border rounded-lg focus:ring-2 focus:border-transparent text-sm ${
+                            errors.phone ? 'border-red-300 focus:ring-red-500' : 'border-gray-300 focus:ring-purple-500'
+                          }`}
+                          placeholder="Enter your phone number"
+                        />
+                        {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone}</p>}
+                      </div>
+                    </div>
+                    
+                    <button
+                      onClick={() => {
+                        if (validateForm('details')) {
+                          setPaymentStep('payment');
+                        }
+                      }}
+                      className="w-full mt-6 bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-lg font-bold hover:from-purple-700 hover:to-pink-700 transition-all flex items-center justify-center gap-2"
+                    >
+                      Continue to Payment
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
 
-          {step === 'pending' && (
-            <div className="p-8">
-              <div className="max-w-md mx-auto text-center">
-                <div className="w-20 h-20 bg-gradient-to-br from-amber-500 to-orange-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
-                  <Clock className="w-10 h-10 text-white" />
-                </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-4">Payment Verification in Progress</h3>
-                <p className="text-gray-600 mb-8">
-                  Thank you for your payment! Our team is verifying your transaction and will activate your premium access within 24 hours.
-                </p>
-                
-                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 mb-8">
-                  <div className="flex items-start gap-3 mb-4">
-                    <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                    <div className="text-left">
-                      <h4 className="font-semibold text-amber-800 mb-2">Next Steps</h4>
-                      <ul className="text-amber-700 space-y-2 text-sm">
-                        <li>✓ Payment screenshot received</li>
-                        <li>⏳ Admin verification in progress</li>
-                        <li>🎯 Premium access activation (within 24h)</li>
-                        <li>📧 Email confirmation upon activation</li>
-                      </ul>
+                {/* Payment Step */}
+                {paymentStep === 'payment' && (
+                  <div className="p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h4 className="text-lg font-bold text-gray-900">Payment</h4>
+                      <button onClick={() => setPaymentStep('details')} className="text-gray-500 hover:text-gray-700 p-1">
+                        <ArrowLeft className="w-4 h-4" />
+                      </button>
+                    </div>
+                    
+                    <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg p-4 mb-4">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-purple-900 mb-1">₹{paymentConfig?.monthly_price || 99}</div>
+                        <div className="text-sm text-purple-700">Monthly subscription</div>
+                      </div>
+                    </div>
+                    
+                    <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                      <h5 className="font-medium text-gray-900 mb-3 text-center">Pay via UPI</h5>
+                      <div className="flex items-center justify-center gap-2 mb-3">
+                        <span className="font-mono text-sm">{paymentConfig?.upi_id || 'testingvala@paytm'}</span>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(paymentConfig?.upi_id || 'testingvala@paytm');
+                            toast.success('UPI ID copied!');
+                          }}
+                          className="p-1 text-purple-600 hover:text-purple-800"
+                        >
+                          <Copy className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <div className="flex justify-center">
+                        <img
+                          src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=upi://pay?pa=${paymentConfig?.upi_id || 'testingvala@paytm'}&pn=TestingVala&am=${paymentConfig?.monthly_price || 99}&cu=INR&tn=AI Resume Builder Premium`}
+                          alt="UPI QR Code"
+                          className="w-24 h-24 border rounded-lg"
+                        />
+                      </div>
+                    </div>
+                    
+                    <button
+                      onClick={() => setPaymentStep('confirm')}
+                      className="w-full bg-green-600 text-white py-3 rounded-lg font-bold hover:bg-green-700 transition-all flex items-center justify-center gap-2"
+                    >
+                      <CheckCircle className="w-4 h-4" />
+                      I've Completed Payment
+                    </button>
+                  </div>
+                )}
+
+                {/* Confirmation Step */}
+                {paymentStep === 'confirm' && (
+                  <div className="p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h4 className="text-lg font-bold text-gray-900">Confirm Payment</h4>
+                      <button onClick={() => setPaymentStep('payment')} className="text-gray-500 hover:text-gray-700 p-1">
+                        <ArrowLeft className="w-4 h-4" />
+                      </button>
+                    </div>
+                    
+                    <div className="space-y-4">
+                      <div>
+                        <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+                          <CreditCard className="w-4 h-4" />
+                          Transaction ID *
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.transactionId}
+                          onChange={(e) => setFormData({...formData, transactionId: e.target.value})}
+                          className={`w-full px-3 py-2.5 border rounded-lg focus:ring-2 focus:border-transparent text-sm ${
+                            errors.transactionId ? 'border-red-300 focus:ring-red-500' : 'border-gray-300 focus:ring-purple-500'
+                          }`}
+                          placeholder="Enter UPI transaction ID"
+                        />
+                        {errors.transactionId && <p className="text-red-500 text-xs mt-1">{errors.transactionId}</p>}
+                      </div>
+                      
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                        <div className="flex items-start gap-2">
+                          <AlertCircle className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                          <div className="text-xs text-blue-800">
+                            <p className="font-medium mb-1">Verification Process:</p>
+                            <p>Your payment will be verified within 24 hours and access will be activated automatically.</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="mt-6 relative z-50">
+                      <button
+                        onClick={handleSubmit}
+                        disabled={isSubmitting}
+                        className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-lg font-bold hover:from-purple-700 hover:to-pink-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 relative z-50 cursor-pointer"
+                        style={{ pointerEvents: 'auto' }}
+                      >
+                        {isSubmitting ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                            Submitting...
+                          </>
+                        ) : (
+                          <>
+                            <Zap className="w-4 h-4" />
+                            Submit & Get Access
+                          </>
+                        )}
+                      </button>
                     </div>
                   </div>
+                )}
+
+                {/* Success Step */}
+                {paymentStep === 'success' && (
+                  <div className="p-6 text-center">
+                    <div className="w-20 h-20 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
+                      <CheckCircle className="w-10 h-10 text-white" />
+                    </div>
+                    <h4 className="text-xl font-bold text-gray-900 mb-2">🎉 Payment Submitted Successfully!</h4>
+                    <p className="text-sm text-gray-600 mb-6">
+                      Thank you! Your payment request has been submitted. You'll receive AI Resume Builder access within 24 hours.
+                    </p>
+                    
+                    <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-4 mb-4">
+                      <div className="text-sm text-green-800">
+                        <p className="font-semibold mb-2 flex items-center justify-center gap-2">
+                          <Clock className="w-4 h-4" />
+                          What happens next?
+                        </p>
+                        <ul className="text-left space-y-2">
+                          <li className="flex items-center gap-2">
+                            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                            Admin will verify your payment
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                            Access will be activated automatically
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                            You'll receive an email confirmation
+                          </li>
+                        </ul>
+                      </div>
+                    </div>
+                    
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                      <p className="text-xs text-blue-800">
+                        <strong>Transaction ID:</strong> {formData.transactionId}
+                      </p>
+                    </div>
+                    
+                    <div className="mt-4 text-sm text-gray-500 font-medium">
+                      Redirecting in 4 seconds...
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* QA Resume Builder Card */}
+              <div className="bg-white rounded-xl shadow-xl p-6 border-2 border-blue-200">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center">
+                    <Crown className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h4 className="text-xl font-bold text-gray-900">QA Resume Builder</h4>
+                    <p className="text-blue-600 font-semibold text-sm">QA Professionals • Free</p>
+                  </div>
+                </div>
+                
+                <div className="space-y-3 mb-6">
+                  {[
+                    'QA-specific templates',
+                    'Testing skills database',
+                    'Automation frameworks',
+                    'QA tools & technologies',
+                    'Step-by-step builder'
+                  ].map((feature, index) => (
+                    <div key={index} className="flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                      <span className="text-gray-700 text-sm">{feature}</span>
+                    </div>
+                  ))}
                 </div>
                 
                 <button
                   onClick={onClose}
-                  className="bg-gray-900 text-white px-8 py-3 rounded-xl font-medium hover:bg-gray-800 transition-colors"
+                  className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 rounded-lg font-bold hover:from-blue-700 hover:to-blue-800 transition-all flex items-center justify-center gap-2"
                 >
-                  Got it, thanks!
+                  <Crown className="w-5 h-5" />
+                  Access QA Builder
                 </button>
+                <p className="text-center text-xs text-gray-500 mt-2">Role verification required</p>
               </div>
             </div>
-          )}
-
-          {step === 'builder' && (
-            <div className="p-8">
-              <div className="grid lg:grid-cols-2 gap-8">
-                {/* Input Section */}
-                <div>
-                  <div className="mb-6">
-                    <h3 className="text-2xl font-bold text-gray-900 mb-2">AI Resume Generator</h3>
-                    <p className="text-gray-600">Paste any job description and get a tailored professional resume</p>
-                  </div>
-                  
-                  <div className="mb-6">
-                    <label className="block text-sm font-medium text-gray-700 mb-3">
-                      Job Description
-                    </label>
-                    <textarea
-                      value={jobDescription}
-                      onChange={(e) => setJobDescription(e.target.value)}
-                      rows="12"
-                      className="w-full px-4 py-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm"
-                      placeholder="Paste the complete job description here. Our AI will analyze the requirements, skills, and qualifications to create a perfectly tailored resume that matches the role..."
-                    />
-                  </div>
-
-                  <button
-                    onClick={generateAIResume}
-                    disabled={isGenerating || !jobDescription.trim()}
-                    className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-4 rounded-xl font-semibold hover:from-blue-700 hover:to-blue-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 shadow-lg"
-                  >
-                    {isGenerating ? (
-                      <>
-                        <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
-                        <span>Generating Resume...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="w-5 h-5" />
-                        <span>Generate Professional Resume</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-
-                {/* Preview Section */}
-                <div>
-                  <div className="mb-6">
-                    <h3 className="text-2xl font-bold text-gray-900 mb-2">Resume Preview</h3>
-                    <p className="text-gray-600">Your AI-generated resume will appear here</p>
-                  </div>
-                  
-                  {generatedResume ? (
-                    <div className="bg-white border border-gray-200 rounded-xl p-6 h-[500px] overflow-y-auto shadow-sm">
-                      <div className="space-y-6">
-                        {/* Header */}
-                        <div className="border-b border-gray-200 pb-4">
-                          <h4 className="text-xl font-bold text-gray-900">{generatedResume.personal.name}</h4>
-                          <p className="text-gray-600">{generatedResume.personal.email}</p>
-                          <p className="text-gray-600 text-sm">{generatedResume.personal.phone} • {generatedResume.personal.location}</p>
-                        </div>
-
-                        {/* Summary */}
-                        <div>
-                          <h5 className="font-semibold text-gray-900 mb-2">Professional Summary</h5>
-                          <p className="text-gray-700 text-sm leading-relaxed">{generatedResume.summary}</p>
-                        </div>
-
-                        {/* Skills */}
-                        <div>
-                          <h5 className="font-semibold text-gray-900 mb-3">Core Competencies</h5>
-                          <div className="flex flex-wrap gap-2">
-                            {generatedResume.skills.map((skill, index) => (
-                              <span key={index} className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs font-medium">
-                                {skill}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* Experience */}
-                        <div>
-                          <h5 className="font-semibold text-gray-900 mb-3">Professional Experience</h5>
-                          {generatedResume.experience.map((exp, index) => (
-                            <div key={index} className="mb-4 last:mb-0">
-                              <div className="flex justify-between items-start mb-1">
-                                <h6 className="font-medium text-gray-900">{exp.role}</h6>
-                                <span className="text-xs text-gray-500">{exp.duration}</span>
-                              </div>
-                              <p className="text-sm text-gray-600 mb-2">{exp.company}</p>
-                              <ul className="text-xs text-gray-700 space-y-1">
-                                {exp.achievements.map((achievement, i) => (
-                                  <li key={i} className="flex items-start gap-2">
-                                    <span className="w-1 h-1 bg-gray-400 rounded-full mt-2 flex-shrink-0"></span>
-                                    <span>{achievement}</span>
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          ))}
-                        </div>
-
-                        {/* Education */}
-                        {generatedResume.education && (
-                          <div>
-                            <h5 className="font-semibold text-gray-900 mb-3">Education</h5>
-                            {generatedResume.education.map((edu, index) => (
-                              <div key={index}>
-                                <div className="flex justify-between items-start">
-                                  <h6 className="font-medium text-gray-900">{edu.degree}</h6>
-                                  <span className="text-xs text-gray-500">{edu.year}</span>
-                                </div>
-                                <p className="text-sm text-gray-600">{edu.institution}</p>
-                                <p className="text-xs text-gray-700 mt-1">{edu.details}</p>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      
-                      <div className="mt-6 pt-4 border-t border-gray-200">
-                        <button className="w-full bg-green-600 text-white py-3 rounded-xl hover:bg-green-700 transition-colors font-semibold">
-                          Download Resume PDF
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-xl h-[500px] flex items-center justify-center">
-                      <div className="text-center text-gray-500">
-                        <FileText className="w-16 h-16 mx-auto mb-4 opacity-40" />
-                        <p className="text-lg font-medium mb-2">Ready to Generate</p>
-                        <p className="text-sm">Add a job description to create your tailored resume</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
+          </div>
         </div>
       </div>
     </div>

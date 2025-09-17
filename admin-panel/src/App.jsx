@@ -2,15 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import AdminLogin from './components/AdminLogin';
-import AdminDashboard from './components/AdminDashboard';
 import WebsiteAdminPanel from './components/WebsiteAdminPanel';
-import { Shield, LogOut, BarChart3, Globe, Menu, X } from 'lucide-react';
+import PremiumManagement from './components/PremiumManagement';
+import { Shield, LogOut, Globe, Menu, X, Crown } from 'lucide-react';
 import { supabase } from './lib/supabase';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [activePanel, setActivePanel] = useState('platform');
+  const [activePanel, setActivePanel] = useState('website');
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
@@ -34,7 +34,7 @@ function App() {
   const handleLogout = () => {
     setIsAuthenticated(false);
     sessionStorage.removeItem('adminAuthenticated');
-    setActivePanel('platform');
+    setActivePanel('website');
   };
 
   if (loading) {
@@ -86,17 +86,6 @@ function App() {
                           {/* Desktop Navigation */}
                           <nav className="hidden md:flex ml-8 gap-1">
                             <button
-                              onClick={() => setActivePanel('platform')}
-                              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
-                                activePanel === 'platform'
-                                  ? 'bg-primary text-white shadow-lg shadow-primary/25'
-                                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                              }`}
-                            >
-                              <BarChart3 className="w-4 h-4" />
-                              Platform
-                            </button>
-                            <button
                               onClick={() => setActivePanel('website')}
                               className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
                                 activePanel === 'website'
@@ -106,6 +95,17 @@ function App() {
                             >
                               <Globe className="w-4 h-4" />
                               Website
+                            </button>
+                            <button
+                              onClick={() => setActivePanel('premium')}
+                              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                                activePanel === 'premium'
+                                  ? 'bg-primary text-white shadow-lg shadow-primary/25'
+                                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                              }`}
+                            >
+                              <Crown className="w-4 h-4" />
+                              Premium
                             </button>
                           </nav>
                         </div>
@@ -146,17 +146,6 @@ function App() {
                           
                           <nav className="space-y-2">
                             <button
-                              onClick={() => { setActivePanel('platform'); setSidebarOpen(false); }}
-                              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all ${
-                                activePanel === 'platform'
-                                  ? 'bg-primary text-white'
-                                  : 'text-slate-600 hover:bg-slate-100'
-                              }`}
-                            >
-                              <BarChart3 className="w-5 h-5" />
-                              Platform Management
-                            </button>
-                            <button
                               onClick={() => { setActivePanel('website'); setSidebarOpen(false); }}
                               className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all ${
                                 activePanel === 'website'
@@ -167,6 +156,17 @@ function App() {
                               <Globe className="w-5 h-5" />
                               Website Content
                             </button>
+                            <button
+                              onClick={() => { setActivePanel('premium'); setSidebarOpen(false); }}
+                              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all ${
+                                activePanel === 'premium'
+                                  ? 'bg-primary text-white'
+                                  : 'text-slate-600 hover:bg-slate-100'
+                              }`}
+                            >
+                              <Crown className="w-5 h-5" />
+                              Premium Management
+                            </button>
                           </nav>
                         </div>
                       </div>
@@ -175,13 +175,12 @@ function App() {
 
                   {/* Main Content */}
                   <main className="min-h-[calc(100vh-80px)]">
-                    {activePanel === 'platform' ? (
-                      <AdminDashboard onLogout={handleLogout} />
-                    ) : (
-                      <div className="p-6">
-                        <WebsiteAdminPanel isOpen={true} onClose={() => setActivePanel('platform')} />
-                      </div>
-                    )}
+                    <div className="p-6">
+                      {activePanel === 'website' && (
+                        <WebsiteAdminPanel isOpen={true} onClose={() => setActivePanel('website')} />
+                      )}
+                      {activePanel === 'premium' && <PremiumManagement />}
+                    </div>
                   </main>
                 </div>
               ) : (

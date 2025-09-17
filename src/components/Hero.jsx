@@ -1,9 +1,13 @@
 import React, { useState } from 'react';
-import { ArrowRight, Star, Users, Award, Clock, MessageSquare, FileText, Sparkles, Trophy, Zap } from 'lucide-react';
-import ResumeBuilder from './ResumeBuilder';
+import { ArrowRight, Star, Users, Award, Clock, MessageSquare, FileText, Sparkles, Trophy, Zap, Lock } from 'lucide-react';
+import ResumeBuilderRouter from './ResumeBuilderRouter';
+import AuthModal from './AuthModal';
+import { useAuth } from '../contexts/AuthContext';
 
 const Hero = ({ data }) => {
   const [showResumeBuilder, setShowResumeBuilder] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const { user, isVerified } = useAuth();
   // Default fallback data
   const defaultData = {
     badge: '🚀 Test Your QA Skills. Win Rewards. Build Your Career',
@@ -33,7 +37,18 @@ const Hero = ({ data }) => {
   };
 
   const openResumeBuilder = () => {
+    if (!user || !isVerified) {
+      setShowAuthModal(true);
+      return;
+    }
     setShowResumeBuilder(true);
+  };
+
+  const handleAuthSuccess = () => {
+    setShowAuthModal(false);
+    if (user && isVerified) {
+      setShowResumeBuilder(true);
+    }
   };
 
   return (
@@ -99,9 +114,16 @@ const Hero = ({ data }) => {
         </div>
       </div>
       
-      <ResumeBuilder 
+      <ResumeBuilderRouter 
         isOpen={showResumeBuilder} 
         onClose={() => setShowResumeBuilder(false)} 
+      />
+      
+      <AuthModal 
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        onSuccess={handleAuthSuccess}
+        action="resume"
       />
     </section>
   );

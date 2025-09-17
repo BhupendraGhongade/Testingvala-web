@@ -121,36 +121,7 @@ const Header = () => {
               <a href="/#contact" onClick={(e) => navigateTo('/', 'contact', e)} className="text-gray-300 hover:text-white font-medium transition-colors duration-200">
                 Contact
               </a>
-              <div className="relative group">
-                <button
-                  onClick={() => setShowResumeBuilder(true)}
-                  className="text-gray-300 hover:text-white font-medium transition-all duration-200 flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-800"
-                  title="Build your professional QA resume"
-                >
-                  <FileText className="w-4 h-4" />
-                  AI Resume Builder
-                </button>
-                {isVerified && (
-                  <div className="absolute top-full left-0 mt-1 bg-gray-800 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 min-w-48 z-50">
-                    <div className="py-2">
-                      <button
-                        onClick={() => setShowResumeBuilder(true)}
-                        className="w-full text-left px-4 py-2 text-gray-300 hover:text-white hover:bg-gray-700 transition-colors flex items-center gap-2"
-                      >
-                        <FileText className="w-4 h-4" />
-                        Create New Resume
-                      </button>
-                      <button
-                        onClick={() => setShowResumeManagement(true)}
-                        className="w-full text-left px-4 py-2 text-gray-300 hover:text-white hover:bg-gray-700 transition-colors flex items-center gap-2"
-                      >
-                        <FolderOpen className="w-4 h-4" />
-                        Manage Resumes
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
+
               <a
                 href="/boards"
                 onClick={(e) => {
@@ -194,7 +165,13 @@ const Header = () => {
               <a href="/#about" onClick={(e) => navigateTo('/', 'about', e)} className="text-gray-300 hover:text-white font-medium transition-colors duration-200">About</a>
               <a href="/#contact" onClick={(e) => navigateTo('/', 'contact', e)} className="text-gray-300 hover:text-white font-medium transition-colors duration-200">Contact</a>
               <button
-                onClick={() => setShowResumeBuilder(true)}
+                onClick={() => {
+                  if (!user || !isVerified) {
+                    setShowAuthModal(true);
+                  } else {
+                    setShowResumeBuilder(true);
+                  }
+                }}
                 className="text-gray-300 hover:text-white font-medium transition-all duration-200 flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-800 w-full text-left"
               >
                 <FileText className="w-4 h-4" />
@@ -244,9 +221,17 @@ const Header = () => {
             onClose={() => setShowAuthModal(false)}
             onSuccess={() => {
               setShowAuthModal(false);
-              window.location.href = '/boards';
+              if (user && isVerified) {
+                // Check if this was triggered from resume builder or boards
+                const currentPath = window.location.pathname;
+                if (currentPath === '/boards' || window.location.hash.includes('boards')) {
+                  window.location.href = '/boards';
+                } else {
+                  setShowResumeBuilder(true);
+                }
+              }
             }}
-            action="boards"
+            action={window.location.pathname === '/boards' ? 'boards' : 'resume'}
           />
         )}
         {showResumeBuilder && (

@@ -28,7 +28,6 @@ const ForumManagement = () => {
           user_profiles(username, full_name, email),
           forum_categories(name)
         `)
-        .eq('status', 'active')
         .order('created_at', { ascending: false });
 
       if (error) throw error;

@@ -11,6 +11,33 @@ import { getTimeAgo } from '../utils/timeUtils';
 import toast from 'react-hot-toast';
 
 const CommunityHub = () => {
+  // Immediate cleanup on component initialization
+  React.useMemo(() => {
+    try {
+      const forceClear = localStorage.getItem('force_clear_posts');
+      const adminClearTime = localStorage.getItem('posts_cleared_by_admin');
+      
+      if (forceClear) {
+        localStorage.removeItem('local_forum_posts');
+        localStorage.removeItem('force_clear_posts');
+        console.log('Force cleared localStorage posts');
+      }
+      
+      if (adminClearTime) {
+        const clearTimestamp = parseInt(adminClearTime);
+        const now = Date.now();
+        
+        if (now - clearTimestamp < 24 * 60 * 60 * 1000) {
+          localStorage.removeItem('local_forum_posts');
+          localStorage.removeItem('posts_cleared_by_admin');
+          console.log('Admin cleared localStorage posts');
+        }
+      }
+    } catch (err) {
+      console.warn('Cleanup error:', err);
+    }
+  }, []);
+  
   const { data: siteData } = useWebsiteData();
   const [categories, setCategories] = useState([]);
   const [posts, setPosts] = useState([]);
@@ -39,6 +66,8 @@ const CommunityHub = () => {
   const [editingComment, setEditingComment] = useState(null);
   const [showShareModal, setShowShareModal] = useState(null);
   const [showSaveModal, setShowSaveModal] = useState(null);
+  const [expandedImage, setExpandedImage] = useState(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(null);
 
   const [filterType, setFilterType] = useState('recent');
   const [activeTab, setActiveTab] = useState('feed');
@@ -61,11 +90,41 @@ const CommunityHub = () => {
 
   const loadLocalPosts = () => {
     try {
+      // Check for admin clear timestamp first
+      const adminClearTime = localStorage.getItem('posts_cleared_by_admin');
+      if (adminClearTime) {
+        const clearTimestamp = parseInt(adminClearTime);
+        const now = Date.now();
+        
+        // If admin cleared posts recently (within 24 hours), remove all local posts
+        if (now - clearTimestamp < 24 * 60 * 60 * 1000) {
+          localStorage.removeItem('local_forum_posts');
+          localStorage.removeItem('posts_cleared_by_admin'); // Clean up the flag too
+          return [];
+        }
+      }
+      
+      // Check for force clear flag
+      const forceClear = localStorage.getItem('force_clear_posts');
+      if (forceClear) {
+        localStorage.removeItem('local_forum_posts');
+        localStorage.removeItem('force_clear_posts');
+        localStorage.removeItem('posts_cleared_by_admin');
+        return [];
+      }
+      
       const raw = localStorage.getItem('local_forum_posts');
       if (!raw) return [];
       const parsed = JSON.parse(raw);
       if (!Array.isArray(parsed)) return [];
-      return parsed;
+      
+      // Filter out demo posts and save back to localStorage
+      const cleanPosts = parsed.filter(post => !post.id?.startsWith('demo-'));
+      if (cleanPosts.length !== parsed.length) {
+        localStorage.setItem('local_forum_posts', JSON.stringify(cleanPosts));
+      }
+      
+      return cleanPosts;
     } catch (err) {
       console.warn('Failed to load local posts', err);
       return [];
@@ -73,6 +132,18 @@ const CommunityHub = () => {
   };
 
   useEffect(() => { 
+    // Immediate cleanup check
+    const forceClear = localStorage.getItem('force_clear_posts');
+    const adminClearTime = localStorage.getItem('posts_cleared_by_admin');
+    
+    if (forceClear || (adminClearTime && Date.now() - parseInt(adminClearTime) < 24 * 60 * 60 * 1000)) {
+      localStorage.removeItem('local_forum_posts');
+      localStorage.removeItem('force_clear_posts');
+      if (adminClearTime && Date.now() - parseInt(adminClearTime) < 24 * 60 * 60 * 1000) {
+        localStorage.removeItem('posts_cleared_by_admin');
+      }
+    }
+    
     fetchCategories();
     checkAuthStatus();
     loadCommentsAndLikes();
@@ -102,7 +173,7 @@ const CommunityHub = () => {
     
     const postIds = displayedPosts.map(p => p.id);
     const existingIds = Object.keys(comments);
-    const newPostIds = postIds.filter(id => !existingIds.includes(id));
+    const newPostIds = postIds.filter(id => !existingIds.includes(id) && !id.startsWith('local-'));
     
     if (newPostIds.length === 0) return;
     
@@ -124,24 +195,6 @@ const CommunityHub = () => {
         likesByPost[like.post_id] = (likesByPost[like.post_id] || 0) + 1;
       });
       
-      // Add demo comments for demo posts if no real comments exist
-      newPostIds.forEach(postId => {
-        if (!commentsByPost[postId] && (postId === 'demo-post-1' || postId === 'demo-post-2')) {
-          commentsByPost[postId] = [
-            {
-              id: `demo-comment-${postId}-1`,
-              content: postId === 'demo-post-1' 
-                ? 'Great initiative! Looking forward to participating in discussions here.' 
-                : 'I use retry mechanisms and better wait strategies to handle flaky tests.',
-              author_name: 'demo_user',
-              user_email: 'demo@testingvala.com',
-              created_at: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
-              replies: []
-            }
-          ];
-        }
-      });
-      
       setComments(prev => ({ ...prev, ...commentsByPost }));
       setDisplayedPosts(prev => prev.map(p => ({
         ...p,
@@ -149,25 +202,6 @@ const CommunityHub = () => {
       })));
     } catch (error) {
       console.error('Error loading data:', error);
-      // Add demo comments even if there's an error
-      const demoComments = {};
-      newPostIds.forEach(postId => {
-        if (postId === 'demo-post-1' || postId === 'demo-post-2') {
-          demoComments[postId] = [
-            {
-              id: `demo-comment-${postId}-1`,
-              content: postId === 'demo-post-1' 
-                ? 'Great initiative! Looking forward to participating in discussions here.' 
-                : 'I use retry mechanisms and better wait strategies to handle flaky tests.',
-              author_name: 'demo_user',
-              user_email: 'demo@testingvala.com',
-              created_at: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
-              replies: []
-            }
-          ];
-        }
-      });
-      setComments(prev => ({ ...prev, ...demoComments }));
     }
   }, [displayedPosts, comments, supabase]);
 
@@ -213,6 +247,12 @@ const CommunityHub = () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       setAuthUser(user);
+      
+      // Reset filter to 'recent' if user logs out and was on 'my-posts'
+      if (!user && filterType === 'my-posts') {
+        setFilterType('recent');
+      }
+      
       if (user) {
         loadUserPinnedPosts();
         loadUserLikes();
@@ -226,18 +266,19 @@ const CommunityHub = () => {
 
 
   const getFilteredAndSortedPosts = (postsToFilter) => {
-    let filtered = postsToFilter;
-    
+    let filtered = [...postsToFilter];  // Create a copy to avoid mutations
+
     // Apply search filter
-    if (searchQuery) {
+    if (searchQuery && searchQuery.trim()) {
+      const searchLower = searchQuery.toLowerCase();
       filtered = filtered.filter(post => 
-        post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        post.content.toLowerCase().includes(searchQuery.toLowerCase())
+        post.title?.toLowerCase().includes(searchLower) ||
+        post.content?.toLowerCase().includes(searchLower)
       );
     }
     
     // Apply category filter
-    if (selectedCategory !== 'all') {
+    if (selectedCategory && selectedCategory !== 'all') {
       filtered = filtered.filter(post => post.category_id === selectedCategory);
     }
     
@@ -248,7 +289,8 @@ const CommunityHub = () => {
     
     switch (filterType) {
       case 'recent':
-        return filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        filtered = filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        break;
       
       case 'trending':
         // Posts from last 7 days sorted by engagement (likes + comments), then by recency
@@ -262,20 +304,35 @@ const CommunityHub = () => {
           return bEngagement - aEngagement;
         });
         
-        return [...recentPosts, ...olderPosts];
+        filtered = [...recentPosts, ...olderPosts];
+        break;
       
       case 'hot':
         // Posts from last 24 hours sorted by engagement
-        const hotPosts = filtered.filter(post => new Date(post.created_at) >= oneDayAgo);
-        return hotPosts.sort((a, b) => {
-          const aEngagement = (a.likes_count || 0) + (a.replies_count || 0);
-          const bEngagement = (b.likes_count || 0) + (b.replies_count || 0);
-          return bEngagement - aEngagement;
-        });
+        filtered = filtered.filter(post => new Date(post.created_at) >= oneDayAgo)
+          .sort((a, b) => {
+            const aEngagement = (a.likes_count || 0) + (a.replies_count || 0);
+            const bEngagement = (b.likes_count || 0) + (b.replies_count || 0);
+            return bEngagement - aEngagement;
+          });
+        break;
+      
+      case 'my-posts':
+        // Filter posts by current user and sort by recency
+        if (!authUser) {
+          filtered = [];
+        } else {
+          filtered = filtered.filter(post => isPostOwner(post))
+            .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        }
+        break;
       
       default:
-        return filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        filtered = filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        break;
     }
+    
+    return filtered;
   };
 
   const handleLike = async (postId) => {
@@ -384,6 +441,10 @@ const CommunityHub = () => {
     if (post.user_profiles?.email === authUser.email) return true;
     // Check by author_name if it matches user's email prefix
     if (post.author_name === authUser.email?.split('@')[0]) return true;
+    // For local posts, check if the post was created by current user
+    if (post.id?.startsWith('local-') && post.user_profiles?.email === authUser.email) return true;
+    // Additional check for posts created without authentication (local posts)
+    if (post.id?.startsWith('local-') && !post.user_profiles?.email && authUser.email) return true;
     return false;
   };
 
@@ -399,10 +460,13 @@ const CommunityHub = () => {
         .eq('id', authUser.id)
         .single();
       
-      if (error) throw error;
+      if (error) {
+        console.warn('user_profiles table not found, using email-based admin check');
+        return;
+      }
       setCurrentUserProfile(data);
     } catch (error) {
-      console.error('Error loading user profile:', error);
+      console.warn('Error loading user profile, using fallback admin check:', error);
     }
   };
 
@@ -472,32 +536,42 @@ const CommunityHub = () => {
   };
 
   const handleDeletePost = async (postId) => {
-    if (!confirm('Are you sure you want to delete this post?')) return;
-    
+    const post = displayedPosts.find(p => p.id === postId);
+    setShowDeleteModal(post);
+  };
+
+  const confirmDeletePost = async (postId) => {
     try {
-      // Delete from database if available
-      if (supabase) {
+      // For local posts, delete from localStorage
+      if (postId.startsWith('local-')) {
+        const localPosts = JSON.parse(localStorage.getItem('local_forum_posts') || '[]');
+        const updatedPosts = localPosts.filter(post => post.id !== postId);
+        localStorage.setItem('local_forum_posts', JSON.stringify(updatedPosts));
+      } else if (supabase) {
+        // For database posts, try to delete from Supabase
         const { error } = await supabase
           .from('forum_posts')
           .delete()
           .eq('id', postId);
         
-        if (error) throw error;
+        if (error) {
+          console.error('Database delete error:', error);
+          // Continue with local deletion even if database fails
+        }
       }
       
-      // Delete from local storage if it's a local post
-      if (postId.startsWith('local-') || postId.startsWith('demo-')) {
-        const localPosts = JSON.parse(localStorage.getItem('local_forum_posts') || '[]');
-        const updatedPosts = localPosts.filter(post => post.id !== postId);
-        localStorage.setItem('local_forum_posts', JSON.stringify(updatedPosts));
-      }
-      
+      // Always update the UI regardless of database success/failure
       setDisplayedPosts(prev => prev.filter(post => post.id !== postId));
       setPosts(prev => prev.filter(post => post.id !== postId));
+      setShowDeleteModal(null);
       toast.success('Post deleted successfully!');
     } catch (error) {
       console.error('Error deleting post:', error);
-      toast.error('Failed to delete post');
+      // Still try to remove from UI for better UX
+      setDisplayedPosts(prev => prev.filter(post => post.id !== postId));
+      setPosts(prev => prev.filter(post => post.id !== postId));
+      setShowDeleteModal(null);
+      toast.success('Post removed from view');
     }
   };
 
@@ -623,130 +697,158 @@ const CommunityHub = () => {
   const fetchCategories = async () => {
     try {
       setCategoriesLoading(true);
-      const { data, error } = await supabase
-        .from('forum_categories')
-        .select('*');
-
-      if (error) {
-        console.error('❌ Error fetching categories:', error);
-        throw error;
-      }
-
-      if (!data || data.length === 0) {
-        if (supabase) {
-          console.error('No categories found in database. Please run the forum setup script.');
-          setCategories([]);
-        } else {
-          setCategories([
-            { id: 'local-general', name: 'General QA Discussion', description: 'General discussions about QA practices', slug: 'general-qa' },
-            { id: 'local-automation', name: 'Test Automation', description: 'Automation frameworks and tools', slug: 'test-automation' },
-            { id: 'local-manual', name: 'Manual Testing', description: 'Manual testing techniques', slug: 'manual-testing' },
-            { id: 'local-career', name: 'Career & Interview', description: 'Career advice and interviews', slug: 'career-interview' }
-          ]);
-        }
-      } else {
-        setCategories(data);
-      }
-    } catch (error) {
-      console.error('❌ Error fetching categories:', error);
-      if (supabase) {
-        setCategories([]);
-      } else {
+      if (!supabase) {
+        // Fallback categories for offline mode
         setCategories([
           { id: 'local-general', name: 'General QA Discussion', description: 'General discussions about QA practices', slug: 'general-qa' },
           { id: 'local-automation', name: 'Test Automation', description: 'Automation frameworks and tools', slug: 'test-automation' },
           { id: 'local-manual', name: 'Manual Testing', description: 'Manual testing techniques', slug: 'manual-testing' },
           { id: 'local-career', name: 'Career & Interview', description: 'Career advice and interviews', slug: 'career-interview' }
         ]);
+        return;
       }
-    }
-    finally {
+
+      const { data, error } = await supabase
+        .from('forum_categories')
+        .select('*')
+        .order('name', { ascending: true });
+
+      if (error) {
+        console.error('❌ Error fetching categories:', error);
+        setCategories([]);
+        return;
+      }
+
+      if (!data || data.length === 0) {
+        setCategories([]);
+      } else {
+        setCategories(data);
+      }
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      setCategories([]);
+    } finally {
       setCategoriesLoading(false);
     }
   };
 
   const fetchPosts = useCallback(async (forceRefresh = false) => {
-    if (forceRefresh) {
-      setLoading(true);
-    }
-    const DEMO_POSTS = [
-      {
-        id: 'demo-post-1',
-        title: 'Welcome to TestingVala — Start a QA Discussion',
-        content: 'Share your testing tips, ask questions, and connect with QA professionals. This is a demo post to showcase the community features.',
-        category_id: 'local-general',
-        category_name: 'General QA Discussion',
-        author_name: 'demo-user',
-        created_at: new Date().toISOString(),
-        user_profiles: { username: 'demo-user', full_name: 'Demo User', avatar_url: null, email: 'demo@testingvala.com' },
-        replies_count: 2,
-        likes_count: 5
-      },
-      {
-        id: 'demo-post-2',
-        title: 'Automating flaky tests — best practices',
-        content: 'How do you approach flaky tests in your CI? Share tools and strategies.',
-        category_id: 'local-automation',
-        category_name: 'Test Automation',
-        author_name: 'automation_guru',
-        created_at: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
-        user_profiles: { username: 'automation_guru', full_name: 'Automation Guru', avatar_url: null, email: 'guru@testingvala.com' },
-        replies_count: 1,
-        likes_count: 3
-      }
-    ];
     try {
       setLoading(true);
+      
+      // Always load local posts first
+      const local = loadLocalPosts();
+      
       if (!supabase) {
-        const local = loadLocalPosts();
-        const allPosts = [...local, ...DEMO_POSTS];
+        const allPosts = [...local];
         setPosts(allPosts);
-        const filteredPosts = getFilteredAndSortedPosts(allPosts);
-        setDisplayedPosts(filteredPosts.slice(0, 5));
-        setHasMore(filteredPosts.length > 5);
         return;
       }
 
+      // Simplified query - no search/category filters in the main query
       let query = supabase
         .from('forum_posts')
         .select(`
           *,
-          forum_categories!foru_posts_category_id_fkey(name,description),
-          user_profiles!forum_posts_user_id_fkey(username, full_name, email, is_admin)
+          forum_categories(name)
         `)
         .order('created_at', { ascending: false });
 
-      if (searchQuery) query = query.or(`title.ilike.%${searchQuery}%,content.ilike.%${searchQuery}%`);
-      if (selectedCategory !== 'all') query = query.eq('category_id', selectedCategory);
-
       const { data, error } = await query;
 
-      if (error) throw error;
-      // Combine database posts with local posts and demo posts
-      const local = loadLocalPosts();
-      const dbPosts = data || [];
-      const allPosts = [...local, ...dbPosts, ...DEMO_POSTS];
+      if (error) {
+        throw error;
+      }
+      
+      const dbPosts = (data || []).map(post => ({
+        ...post,
+        category_name: post.forum_categories?.name || 'Uncategorized'
+      }));
+      
+      // Combine local and database posts
+      const allPosts = [...local, ...dbPosts];
+      
       setPosts(allPosts);
-      const filteredPosts = getFilteredAndSortedPosts(allPosts);
-      setDisplayedPosts(filteredPosts.slice(0, 5));
-      setHasMore(filteredPosts.length > 5);
+      
     } catch (error) {
-      console.error('Error fetching posts:', error);
-      // Always load local posts even if database fails
+      console.error('Error in fetchPosts:', error);
+      // Fallback to local posts only
       const local = loadLocalPosts();
-      const allPosts = [...local, ...DEMO_POSTS];
-      setPosts(allPosts);
-      const filteredPosts = getFilteredAndSortedPosts(allPosts);
-      setDisplayedPosts(filteredPosts.slice(0, 5));
-      setHasMore(filteredPosts.length > 5);
+      setPosts(local);
     } finally {
       setLoading(false);
     }
-  }, [searchQuery, selectedCategory, filterType]);
+  }, []);  // Remove dependencies to prevent unnecessary re-fetches
 
+  // Separate effect for initial load
   useEffect(() => {
     fetchPosts();
-  }, [fetchPosts]);
+  }, []);  // Only run once on mount
+  
+  // Separate effect for filtering when posts or filters change
+  useEffect(() => {
+    if (posts.length > 0) {
+      const filteredPosts = getFilteredAndSortedPosts(posts);
+      setDisplayedPosts(filteredPosts.slice(0, 5));
+      setHasMore(filteredPosts.length > 5);
+    } else {
+      setDisplayedPosts([]);
+      setHasMore(false);
+    }
+  }, [posts, selectedCategory, searchQuery, filterType, authUser]);
+
+  // Listen for localStorage changes (admin deletions)
+  useEffect(() => {
+    const handlePostsUpdated = (event) => {
+      console.log('Posts updated by admin:', event.detail);
+      if (event.detail?.action === 'clearAll' || event.detail?.action === 'forceReset') {
+        // Force clear localStorage
+        localStorage.removeItem('local_forum_posts');
+        localStorage.removeItem('posts_cleared_by_admin');
+        setPosts([]);
+        setDisplayedPosts([]);
+        setHasMore(false);
+      } else if (event.detail?.deletedPostId) {
+        const deletedId = event.detail.deletedPostId;
+        setPosts(prev => prev.filter(p => p.id !== deletedId));
+        setDisplayedPosts(prev => prev.filter(p => p.id !== deletedId));
+      }
+    };
+    
+    const handleStorageChange = (event) => {
+      console.log('localStorage changed, refreshing local posts...', event);
+      
+      // Check for force clear flag
+      const forceClear = localStorage.getItem('force_clear_posts');
+      if (forceClear) {
+        localStorage.removeItem('force_clear_posts');
+        localStorage.removeItem('local_forum_posts');
+        setPosts([]);
+        setDisplayedPosts([]);
+        setHasMore(false);
+        return;
+      }
+      
+      const currentLocal = JSON.parse(localStorage.getItem('local_forum_posts') || '[]');
+      const currentLocalIds = new Set(currentLocal.map(p => p.id));
+      
+      setPosts(prev => prev.filter(p => 
+        !p.id?.startsWith('local-') || currentLocalIds.has(p.id)
+      ));
+      
+      setDisplayedPosts(prev => prev.filter(p => 
+        !p.id?.startsWith('local-') || currentLocalIds.has(p.id)
+      ));
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('postsUpdated', handlePostsUpdated);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('postsUpdated', handlePostsUpdated);
+    };
+  }, []);
 
   // Force refresh function for external calls
   const refreshPosts = useCallback(() => {
@@ -754,8 +856,9 @@ const CommunityHub = () => {
   }, [fetchPosts]);
 
   const filteredPosts = useMemo(() => {
+    if (posts.length === 0) return [];
     return getFilteredAndSortedPosts(posts);
-  }, [posts, selectedCategory, filterType, searchQuery]);
+  }, [posts, selectedCategory, filterType, searchQuery, authUser]);
 
   const loadMorePosts = useCallback(() => {
     if (loadingMore || !hasMore) return;
@@ -767,11 +870,6 @@ const CommunityHub = () => {
     setHasMore(currentLength + 5 < filteredPosts.length);
     setLoadingMore(false);
   }, [loadingMore, hasMore, displayedPosts.length, filteredPosts]);
-
-  useEffect(() => {
-    setDisplayedPosts(filteredPosts.slice(0, 5));
-    setHasMore(filteredPosts.length > 5);
-  }, [filteredPosts]);
 
   return (
     <section id="community" className="bg-gradient-to-br from-gray-50 via-white to-orange-50 pt-2 pb-8">
@@ -824,6 +922,7 @@ const CommunityHub = () => {
                   <option value="recent">Recent</option>
                   <option value="trending">Trending (7 days)</option>
                   <option value="hot">Hot Today</option>
+                  {authUser && <option value="my-posts">My Posts</option>}
                 </select>
               </div>
             )}
@@ -913,8 +1012,33 @@ const CommunityHub = () => {
               ) : displayedPosts.length === 0 ? (
                 <div className="text-center py-12">
                   <MessageSquare className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">No Posts Found</h3>
-                  <p className="text-gray-600">Be the first to start a discussion in this category!</p>
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">
+                    {filterType === 'my-posts' && !authUser 
+                      ? 'Sign in to view your posts' 
+                      : filterType === 'my-posts' 
+                      ? 'No posts found' 
+                      : 'No Posts Found'
+                    }
+                  </h3>
+                  <p className="text-gray-600">
+                    {filterType === 'my-posts' && !authUser 
+                      ? 'Please sign in to see posts you\'ve created.' 
+                      : filterType === 'my-posts' 
+                      ? 'You haven\'t created any posts yet. Create your first post!' 
+                      : 'Be the first to start a discussion in this category!'
+                    }
+                  </p>
+                  {filterType === 'my-posts' && !authUser && (
+                    <button
+                      onClick={() => {
+                        setAuthAction('create');
+                        setShowAuthModal(true);
+                      }}
+                      className="mt-4 bg-[#FF6600] text-white px-6 py-2 rounded-lg font-semibold hover:bg-[#E55A00] transition-colors"
+                    >
+                      Sign In
+                    </button>
+                  )}
                 </div>
               ) : (
                 <div className="divide-y divide-gray-100">
@@ -930,38 +1054,45 @@ const CommunityHub = () => {
                     >
                       <div className="flex items-start gap-4">
                         <div className="flex-shrink-0">
-                          <div className="w-12 h-12 bg-gradient-to-br from-[#FF6600] to-[#E55A00] rounded-full flex items-center justify-center">
-                            {post.user_profiles?.avatar_url ? (
-                              <img
-                                src={post.user_profiles.avatar_url}
-                                alt={post.user_profiles.username}
-                                className="w-12 h-12 rounded-full object-cover"
-                              />
-                            ) : (
-                              <span className="text-white font-bold text-lg">
-                                {post.user_profiles?.username?.charAt(0).toUpperCase() || 'U'}
+                          {post.user_profiles?.avatar_url ? (
+                            <img
+                              src={post.user_profiles.avatar_url}
+                              alt={post.user_profiles.username || post.author_name}
+                              className="w-10 h-10 rounded-md object-cover"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 rounded-md bg-gray-200 flex items-center justify-center">
+                              <span className="text-gray-600 font-medium text-sm">
+                                {(post.author_name || post.user_profiles?.username || 'User')
+                                  .charAt(0)
+                                  .toUpperCase()}
                               </span>
-                            )}
-                          </div>
+                            </div>
+                          )}
                         </div>
 
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-medium text-gray-900">
-                                {post.author_name || post.user_profiles?.full_name || post.user_profiles?.username || 'Anonymous'}
-                              </span>
-                              {isAdmin(post.user_profiles?.email) && (
-                                <span className="px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full font-medium">
-                                  Admin
-                                </span>
-                              )}
-                              <span className="text-xs text-gray-500">
-                                {getTimeAgo(post.created_at)}
-                              </span>
-                              <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
-                                {post.category_name}
-                              </span>
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-start gap-3">
+                              <div className="flex flex-col">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="text-sm font-semibold text-gray-900">
+                                    {post.author_name || post.user_profiles?.full_name || post.user_profiles?.username || 'Anonymous'}
+                                  </span>
+                                  {isAdmin(post.user_profiles?.email) && (
+                                    <span className="px-2 py-0.5 bg-red-100 text-red-700 text-xs rounded-md font-medium">
+                                      Admin
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2 text-xs text-gray-500">
+                                  <span>{getTimeAgo(post.created_at)}</span>
+                                  <span>•</span>
+                                  <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded-md font-medium">
+                                    {post.category_name}
+                                  </span>
+                                </div>
+                              </div>
                             </div>
                             
                             {(canEditPost(post) || canDeletePost(post)) && (
@@ -999,19 +1130,30 @@ const CommunityHub = () => {
                             )}
                           </div>
                           
-                          <h3 className={`text-lg font-semibold mb-2 hover:text-[#FF6600] transition-colors cursor-pointer ${
+                          <h3 className={`text-lg font-semibold mb-3 mt-2 hover:text-[#FF6600] transition-colors cursor-pointer ${
                             highlightedPostId === post.id ? 'text-blue-700' : 'text-gray-900'
                           }`}>
                             {post.title}
                           </h3>
                           
                           {post.image_url && (
-                            <div className="mb-3">
-                              <img
-                                src={post.image_url}
-                                alt="Post image"
-                                className="w-full max-h-48 object-cover rounded-lg border border-gray-200 shadow-sm"
-                              />
+                            <div className="mb-3 group">
+                              <div 
+                                className="relative inline-block cursor-pointer rounded-lg overflow-hidden border border-gray-200 bg-gray-50 hover:shadow-md transition-all duration-200"
+                                onClick={() => setExpandedImage(post.image_url)}
+                              >
+                                <img
+                                  src={post.image_url}
+                                  alt="Post image"
+                                  className="max-w-sm h-auto max-h-80 object-cover block"
+                                  loading="lazy"
+                                />
+                                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all duration-200 flex items-center justify-center">
+                                  <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black bg-opacity-50 text-white px-3 py-1 rounded-full text-sm font-medium">
+                                    Click to expand
+                                  </div>
+                                </div>
+                              </div>
                             </div>
                           )}
                           
@@ -1138,8 +1280,8 @@ const CommunityHub = () => {
                           {authUser && (
                             <div className="mb-4">
                               <div className="flex gap-3">
-                                <div className="w-8 h-8 bg-gradient-to-br from-[#FF6600] to-[#E55A00] rounded-full flex items-center justify-center flex-shrink-0">
-                                  <span className="text-white font-bold text-sm">
+                                <div className="w-8 h-8 bg-gray-200 rounded-md flex items-center justify-center flex-shrink-0">
+                                  <span className="text-gray-600 font-medium text-xs">
                                     {authUser.email.charAt(0).toUpperCase()}
                                   </span>
                                 </div>
@@ -1180,9 +1322,9 @@ const CommunityHub = () => {
                             ) : (
                               (comments[post.id] || []).map((comment) => (
                                 <div key={comment.id} className="flex gap-3">
-                                  <div className="w-8 h-8 bg-gray-400 rounded-full flex items-center justify-center flex-shrink-0">
-                                    <span className="text-white font-bold text-sm">
-                                      {(comment.author_name || 'U').charAt(0).toUpperCase()}
+                                  <div className="w-8 h-8 bg-gray-200 rounded-md flex items-center justify-center flex-shrink-0">
+                                    <span className="text-gray-600 font-medium text-xs">
+                                      {(comment.author_name || 'User').charAt(0).toUpperCase()}
                                     </span>
                                   </div>
                                   <div className="flex-1">
@@ -1225,8 +1367,8 @@ const CommunityHub = () => {
                                     {replyingTo === comment.id && authUser && (
                                       <div className="mt-2 ml-3">
                                         <div className="flex gap-2">
-                                          <div className="w-6 h-6 bg-blue-400 rounded-full flex items-center justify-center">
-                                            <span className="text-white font-bold text-xs">
+                                          <div className="w-6 h-6 bg-gray-200 rounded-md flex items-center justify-center">
+                                            <span className="text-gray-600 font-medium text-xs">
                                               {authUser.email.charAt(0).toUpperCase()}
                                             </span>
                                           </div>
@@ -1268,8 +1410,8 @@ const CommunityHub = () => {
                                       <div className="mt-2 ml-6 space-y-2">
                                         {comment.replies.map((reply) => (
                                           <div key={reply.id} className="flex gap-2">
-                                            <div className="w-6 h-6 bg-green-400 rounded-full flex items-center justify-center">
-                                              <span className="text-white font-bold text-xs">
+                                            <div className="w-6 h-6 bg-gray-200 rounded-md flex items-center justify-center">
+                                              <span className="text-gray-600 font-medium text-xs">
                                                 {reply.authorName.charAt(0).toUpperCase()}
                                               </span>
                                             </div>
@@ -1356,6 +1498,63 @@ const CommunityHub = () => {
             post={displayedPosts.find(p => p.id === showSaveModal)}
             user={authUser}
           />
+        )}
+
+        {/* Delete Confirmation Modal */}
+        {showDeleteModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                  <Trash2 className="w-6 h-6 text-red-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Delete Post</h3>
+                  <p className="text-sm text-gray-600">This action cannot be undone</p>
+                </div>
+              </div>
+              
+              <div className="bg-gray-50 rounded-lg p-4 mb-6">
+                <h4 className="font-medium text-gray-900 mb-1 line-clamp-1">{showDeleteModal.title}</h4>
+                <p className="text-sm text-gray-600 line-clamp-2">{showDeleteModal.content}</p>
+              </div>
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowDeleteModal(null)}
+                  className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => confirmDeletePost(showDeleteModal.id)}
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+                >
+                  Delete Post
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Image Expansion Modal */}
+        {expandedImage && (
+          <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 p-4" onClick={() => setExpandedImage(null)}>
+            <div className="relative max-w-4xl max-h-full">
+              <button
+                onClick={() => setExpandedImage(null)}
+                className="absolute -top-12 right-0 text-white hover:text-gray-300 transition-colors"
+              >
+                <X className="w-8 h-8" />
+              </button>
+              <img
+                src={expandedImage}
+                alt="Expanded view"
+                className="max-w-full max-h-full object-contain rounded-lg"
+                onClick={(e) => e.stopPropagation()}
+              />
+            </div>
+          </div>
         )}
 
         {/* Share Modal */}

@@ -155,27 +155,27 @@ const WebsiteAdminPanel = ({ isOpen, onClose }) => {
   return (
     <div className="bg-slate-50 min-h-screen">
       <div className="max-w-7xl mx-auto">
-        {/* Enhanced Header */}
-        <div className="bg-gradient-to-r from-primary via-secondary to-orange-600 text-white p-8 rounded-b-3xl shadow-2xl">
+        {/* Professional Header */}
+        <div className="bg-gradient-to-r from-[#0057B7] via-[#0066CC] to-[#FF6600] text-white p-8 rounded-b-3xl shadow-2xl">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
                 <Globe className="w-7 h-7" />
               </div>
               <div>
-                <h2 className="text-2xl font-bold">Website Content Manager</h2>
-                <p className="text-white/80 text-sm font-medium">Real-time content & configuration</p>
+                <h2 className="text-2xl font-bold">TestingVala Admin Panel</h2>
+                <p className="text-white/80 text-sm font-medium">Professional Content Management System</p>
               </div>
               <span className="bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-semibold border border-white/30">
-                🎯 Live Editor
+                🛡️ Admin Control
               </span>
             </div>
           </div>
         </div>
 
-        {/* Enhanced Tabs */}
+        {/* Professional Navigation */}
         <div className="p-6 pb-0">
-          <div className="flex gap-2 p-1 bg-white rounded-xl shadow-sm border border-slate-200 w-fit">
+          <div className="flex gap-2 p-1 bg-white rounded-xl shadow-lg border border-gray-200 w-fit">
             {[
               { id: 'contest', label: 'Contest', icon: Trophy },
               { id: 'hero', label: 'Hero', icon: Users },
@@ -189,10 +189,10 @@ const WebsiteAdminPanel = ({ isOpen, onClose }) => {
             ].map(tab => (
               <button 
                 key={tab.id}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 whitespace-nowrap ${
+                className={`flex items-center gap-2 px-4 py-3 rounded-lg font-semibold transition-all duration-200 whitespace-nowrap ${
                   activeTab === tab.id 
-                    ? 'bg-primary text-white shadow-lg shadow-primary/25' 
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                    ? 'bg-gradient-to-r from-[#0057B7] to-[#FF6600] text-white shadow-lg transform scale-105' 
+                    : 'text-gray-600 hover:text-[#0057B7] hover:bg-blue-50 border border-transparent hover:border-blue-200'
                 }`}
                 onClick={() => setActiveTab(tab.id)}
               >
@@ -203,127 +203,160 @@ const WebsiteAdminPanel = ({ isOpen, onClose }) => {
           </div>
         </div>
 
-        {/* Enhanced Content */}
+        {/* Professional Content Area */}
         <div className="p-6">
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 min-h-[600px]">
-            {/* Contest Tab */}
+          <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8 min-h-[600px]">
+            {/* Contest Management */}
             {activeTab === 'contest' && (
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-2xl font-bold text-gray-900 mb-2">Contest Management</h3>
-                  <p className="text-gray-600">Configure monthly contest settings</p>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-8">
+                <div className="flex items-center justify-between">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Theme</label>
-                    <input
-                      type="text"
-                      value={localData.contest?.theme || ''}
-                      onChange={(e) => setLocalData({
-                        ...localData, 
-                        contest: {...(localData.contest || {}), theme: e.target.value}
-                      })}
-                      placeholder="Testing Hacks & Smart Techniques"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF6600] focus:border-transparent"
-                    />
+                    <h3 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+                      <div className="w-8 h-8 bg-gradient-to-br from-[#0057B7] to-[#FF6600] rounded-lg flex items-center justify-center">
+                        <Trophy className="w-5 h-5 text-white" />
+                      </div>
+                      Contest Management
+                    </h3>
+                    <p className="text-gray-600 mt-1">Configure monthly contest settings and parameters</p>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
-                    <select
-                      value={localData.contest?.status || 'Active Now'}
-                      onChange={(e) => setLocalData({
-                        ...localData, 
-                        contest: {...(localData.contest || {}), status: e.target.value}
-                      })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF6600] focus:border-transparent"
-                    >
-                      <option value="Active Now">Active Now</option>
-                      <option value="Coming Soon">Coming Soon</option>
-                      <option value="Ended">Ended</option>
-                    </select>
+                  <div className="bg-gradient-to-r from-blue-50 to-orange-50 px-4 py-2 rounded-lg border border-blue-200">
+                    <span className="text-sm font-semibold text-blue-700">🏆 Contest Control</span>
                   </div>
                 </div>
 
-                <button 
-                  onClick={() => handleSave('contest')}
-                  className="bg-[#FF6600] text-white px-6 py-3 rounded-lg font-semibold hover:bg-[#E55A00] transition-colors flex items-center gap-2"
-                >
-                  <Save className="w-4 h-4" />
-                  Save Changes
-                </button>
+                <div className="bg-gradient-to-br from-blue-50 to-orange-50 rounded-2xl p-6 border border-blue-200">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Contest Theme</label>
+                      <input
+                        type="text"
+                        value={localData.contest?.theme || ''}
+                        onChange={(e) => setLocalData({
+                          ...localData, 
+                          contest: {...(localData.contest || {}), theme: e.target.value}
+                        })}
+                        placeholder="Testing Hacks & Smart Techniques"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#0057B7] focus:border-transparent bg-white shadow-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Contest Status</label>
+                      <select
+                        value={localData.contest?.status || 'Active Now'}
+                        onChange={(e) => setLocalData({
+                          ...localData, 
+                          contest: {...(localData.contest || {}), status: e.target.value}
+                        })}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#0057B7] focus:border-transparent bg-white shadow-sm"
+                      >
+                        <option value="Active Now">Active Now</option>
+                        <option value="Coming Soon">Coming Soon</option>
+                        <option value="Ended">Ended</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end">
+                  <button 
+                    onClick={() => handleSave('contest')}
+                    className="bg-gradient-to-r from-[#0057B7] to-[#FF6600] text-white px-8 py-3 rounded-xl font-semibold hover:shadow-lg hover:shadow-blue-200 transition-all duration-200 flex items-center gap-2 transform hover:scale-105"
+                  >
+                    <Save className="w-5 h-5" />
+                    Save Contest Settings
+                  </button>
+                </div>
               </div>
             )}
 
-            {/* Hero Tab */}
+            {/* Hero Section Management */}
             {activeTab === 'hero' && (
-              <div className="space-y-6">
-                <h3 className="text-lg font-semibold text-gray-900">Hero Section</h3>
-                <div className="space-y-6">
+              <div className="space-y-8">
+                <div className="flex items-center justify-between">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Main Headline</label>
-                    <input
-                      type="text"
-                      value={localData.hero?.headline || ''}
-                      onChange={(e) => setLocalData({
-                        ...localData, 
-                        hero: {...(localData.hero || {}), headline: e.target.value}
-                      })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF6600] focus:border-transparent"
-                    />
+                    <h3 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+                      <div className="w-8 h-8 bg-gradient-to-br from-[#0057B7] to-[#FF6600] rounded-lg flex items-center justify-center">
+                        <Users className="w-5 h-5 text-white" />
+                      </div>
+                      Hero Section Management
+                    </h3>
+                    <p className="text-gray-600 mt-1">Configure homepage hero content and statistics</p>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Subtitle</label>
-                    <textarea
-                      value={localData.hero?.subtitle || ''}
-                      onChange={(e) => setLocalData({
-                        ...localData, 
-                        hero: {...(localData.hero || {}), subtitle: e.target.value}
-                      })}
-                      rows="4"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF6600] focus:border-transparent"
-                    />
+                  <div className="bg-gradient-to-r from-blue-50 to-orange-50 px-4 py-2 rounded-lg border border-blue-200">
+                    <span className="text-sm font-semibold text-blue-700">🎯 Hero Editor</span>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                </div>
+
+                <div className="bg-gradient-to-br from-blue-50 to-orange-50 rounded-2xl p-6 border border-blue-200">
+                  <div className="space-y-6">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Participants Count</label>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Main Headline</label>
                       <input
                         type="text"
-                        value={localData.hero?.stats?.participants || ''}
+                        value={localData.hero?.headline || ''}
                         onChange={(e) => setLocalData({
                           ...localData, 
-                          hero: {
-                            ...(localData.hero || {}), 
-                            stats: {...(localData.hero?.stats || {}), participants: e.target.value}
-                          }
+                          hero: {...(localData.hero || {}), headline: e.target.value}
                         })}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF6600] focus:border-transparent"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#0057B7] focus:border-transparent bg-white shadow-sm"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Total Prizes</label>
-                      <input
-                        type="text"
-                        value={localData.hero?.stats?.prizes || ''}
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Subtitle Description</label>
+                      <textarea
+                        value={localData.hero?.subtitle || ''}
                         onChange={(e) => setLocalData({
                           ...localData, 
-                          hero: {
-                            ...(localData.hero || {}), 
-                            stats: {...(localData.hero?.stats || {}), prizes: e.target.value}
-                          }
+                          hero: {...(localData.hero || {}), subtitle: e.target.value}
                         })}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF6600] focus:border-transparent"
+                        rows="4"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#0057B7] focus:border-transparent bg-white shadow-sm"
                       />
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Participants Count</label>
+                        <input
+                          type="text"
+                          value={localData.hero?.stats?.participants || ''}
+                          onChange={(e) => setLocalData({
+                            ...localData, 
+                            hero: {
+                              ...(localData.hero || {}), 
+                              stats: {...(localData.hero?.stats || {}), participants: e.target.value}
+                            }
+                          })}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#0057B7] focus:border-transparent bg-white shadow-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Total Prizes</label>
+                        <input
+                          type="text"
+                          value={localData.hero?.stats?.prizes || ''}
+                          onChange={(e) => setLocalData({
+                            ...localData, 
+                            hero: {
+                              ...(localData.hero || {}), 
+                              stats: {...(localData.hero?.stats || {}), prizes: e.target.value}
+                            }
+                          })}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#0057B7] focus:border-transparent bg-white shadow-sm"
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
-                <button 
-                  onClick={() => handleSave('hero')}
-                  className="bg-gradient-to-r from-[#FF6600] to-[#E55A00] text-white px-8 py-3 rounded-xl font-semibold hover:shadow-lg hover:shadow-orange-200 transition-all duration-200 flex items-center gap-2 transform hover:scale-105"
-                >
-                  <Save className="w-4 h-4" />
-                  Save Hero Changes
-                </button>
+
+                <div className="flex justify-end">
+                  <button 
+                    onClick={() => handleSave('hero')}
+                    className="bg-gradient-to-r from-[#0057B7] to-[#FF6600] text-white px-8 py-3 rounded-xl font-semibold hover:shadow-lg hover:shadow-blue-200 transition-all duration-200 flex items-center gap-2 transform hover:scale-105"
+                  >
+                    <Save className="w-5 h-5" />
+                    Save Hero Changes
+                  </button>
+                </div>
               </div>
             )}
 
@@ -536,179 +569,212 @@ const WebsiteAdminPanel = ({ isOpen, onClose }) => {
               </div>
             )}
 
-            {/* About Tab */}
+            {/* About Section Management */}
             {activeTab === 'about' && (
               <div className="space-y-8">
-                <div>
-                  <h3 className="text-2xl font-bold text-gray-900 mb-2">About TestingVala Management</h3>
-                  <p className="text-gray-600">Manage the About section content and company information</p>
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  <div className="space-y-6">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Title</label>
-                      <input
-                        type="text"
-                        value={localData.about?.title || 'About TestingVala'}
-                        onChange={(e) => setLocalData({ ...localData, about: { ...(localData.about || {}), title: e.target.value } })}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF6600] focus:border-transparent"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Subtitle</label>
-                      <input
-                        type="text"
-                        value={localData.about?.subtitle || 'Empowering QA Excellence Worldwide'}
-                        onChange={(e) => setLocalData({ ...localData, about: { ...(localData.about || {}), subtitle: e.target.value } })}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF6600] focus:border-transparent"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
-                      <textarea
-                        value={localData.about?.description || ''}
-                        onChange={(e) => setLocalData({ ...localData, about: { ...(localData.about || {}), description: e.target.value } })}
-                        rows="4"
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF6600] focus:border-transparent"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Mission Statement</label>
-                      <textarea
-                        value={localData.about?.mission || ''}
-                        onChange={(e) => setLocalData({ ...localData, about: { ...(localData.about || {}), mission: e.target.value } })}
-                        rows="3"
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF6600] focus:border-transparent"
-                      />
-                    </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+                      <div className="w-8 h-8 bg-gradient-to-br from-[#0057B7] to-[#FF6600] rounded-lg flex items-center justify-center">
+                        <Info className="w-5 h-5 text-white" />
+                      </div>
+                      About TestingVala Management
+                    </h3>
+                    <p className="text-gray-600 mt-1">Manage company information and about section content</p>
                   </div>
-
-                  <div className="space-y-6">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Features (one per line)</label>
-                      <textarea
-                        value={(localData.about?.features || []).join('\n')}
-                        onChange={(e) => setLocalData({ ...localData, about: { ...(localData.about || {}), features: e.target.value.split('\n').filter(f => f.trim()) } })}
-                        rows="4"
-                        placeholder="Advanced Testing Methodologies\nIndustry-Leading Best Practices\nProfessional Certification Programs\nGlobal Networking Opportunities"
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF6600] focus:border-transparent"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Achievements (one per line)</label>
-                      <textarea
-                        value={(localData.about?.achievements || []).join('\n')}
-                        onChange={(e) => setLocalData({ ...localData, about: { ...(localData.about || {}), achievements: e.target.value.split('\n').filter(f => f.trim()) } })}
-                        rows="4"
-                        placeholder="Recognized as Top QA Platform 2024\nFeatured in 50+ Industry Publications\nTrusted by Fortune 500 Companies\nAward-Winning Community Platform"
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF6600] focus:border-transparent"
-                      />
-                    </div>
+                  <div className="bg-gradient-to-r from-blue-50 to-orange-50 px-4 py-2 rounded-lg border border-blue-200">
+                    <span className="text-sm font-semibold text-blue-700">ℹ️ About Editor</span>
                   </div>
                 </div>
 
-                <div>
-                  <h4 className="text-lg font-semibold text-gray-900 mb-4">Statistics</h4>
+                <div className="bg-gradient-to-br from-blue-50 to-orange-50 rounded-2xl p-6 border border-blue-200">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div className="space-y-6">
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Section Title</label>
+                        <input
+                          type="text"
+                          value={localData.about?.title || 'About TestingVala'}
+                          onChange={(e) => setLocalData({ ...localData, about: { ...(localData.about || {}), title: e.target.value } })}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#0057B7] focus:border-transparent bg-white shadow-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Subtitle</label>
+                        <input
+                          type="text"
+                          value={localData.about?.subtitle || 'Empowering QA Excellence Worldwide'}
+                          onChange={(e) => setLocalData({ ...localData, about: { ...(localData.about || {}), subtitle: e.target.value } })}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#0057B7] focus:border-transparent bg-white shadow-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Main Description</label>
+                        <textarea
+                          value={localData.about?.description || ''}
+                          onChange={(e) => setLocalData({ ...localData, about: { ...(localData.about || {}), description: e.target.value } })}
+                          rows="4"
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#0057B7] focus:border-transparent bg-white shadow-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Mission Statement</label>
+                        <textarea
+                          value={localData.about?.mission || ''}
+                          onChange={(e) => setLocalData({ ...localData, about: { ...(localData.about || {}), mission: e.target.value } })}
+                          rows="3"
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#0057B7] focus:border-transparent bg-white shadow-sm"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-6">
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Platform Features (one per line)</label>
+                        <textarea
+                          value={(localData.about?.features || []).join('\n')}
+                          onChange={(e) => setLocalData({ ...localData, about: { ...(localData.about || {}), features: e.target.value.split('\n').filter(f => f.trim()) } })}
+                          rows="4"
+                          placeholder="Advanced Testing Methodologies\nIndustry-Leading Best Practices\nProfessional Certification Programs\nGlobal Networking Opportunities"
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#0057B7] focus:border-transparent bg-white shadow-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Key Achievements (one per line)</label>
+                        <textarea
+                          value={(localData.about?.achievements || []).join('\n')}
+                          onChange={(e) => setLocalData({ ...localData, about: { ...(localData.about || {}), achievements: e.target.value.split('\n').filter(f => f.trim()) } })}
+                          rows="4"
+                          placeholder="Recognized as Top QA Platform 2024\nFeatured in 50+ Industry Publications\nTrusted by Fortune 500 Companies\nAward-Winning Community Platform"
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#0057B7] focus:border-transparent bg-white shadow-sm"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-gradient-to-br from-blue-50 to-orange-50 rounded-2xl p-6 border border-blue-200">
+                  <h4 className="text-lg font-semibold text-gray-900 mb-4">Platform Statistics</h4>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Members</label>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Members</label>
                       <input
                         type="text"
                         value={localData.about?.stats?.members || '25,000+'}
                         onChange={(e) => setLocalData({ ...localData, about: { ...(localData.about || {}), stats: { ...(localData.about?.stats || {}), members: e.target.value } } })}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF6600] focus:border-transparent"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#0057B7] focus:border-transparent bg-white shadow-sm"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Countries</label>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Countries</label>
                       <input
                         type="text"
                         value={localData.about?.stats?.countries || '85+'}
                         onChange={(e) => setLocalData({ ...localData, about: { ...(localData.about || {}), stats: { ...(localData.about?.stats || {}), countries: e.target.value } } })}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF6600] focus:border-transparent"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#0057B7] focus:border-transparent bg-white shadow-sm"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Contests</label>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Contests</label>
                       <input
                         type="text"
                         value={localData.about?.stats?.contests || '50+'}
                         onChange={(e) => setLocalData({ ...localData, about: { ...(localData.about || {}), stats: { ...(localData.about?.stats || {}), contests: e.target.value } } })}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF6600] focus:border-transparent"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#0057B7] focus:border-transparent bg-white shadow-sm"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Companies</label>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Companies</label>
                       <input
                         type="text"
                         value={localData.about?.stats?.companies || '1,200+'}
                         onChange={(e) => setLocalData({ ...localData, about: { ...(localData.about || {}), stats: { ...(localData.about?.stats || {}), companies: e.target.value } } })}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF6600] focus:border-transparent"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#0057B7] focus:border-transparent bg-white shadow-sm"
                       />
                     </div>
                   </div>
                 </div>
 
-                <button 
-                  onClick={() => handleSave('about')}
-                  className="bg-[#FF6600] text-white px-6 py-3 rounded-lg font-semibold hover:bg-[#E55A00] transition-colors flex items-center gap-2"
-                >
-                  <Save className="w-4 h-4" />
-                  Save Changes
-                </button>
+                <div className="flex justify-end">
+                  <button 
+                    onClick={() => handleSave('about')}
+                    className="bg-gradient-to-r from-[#0057B7] to-[#FF6600] text-white px-8 py-3 rounded-xl font-semibold hover:shadow-lg hover:shadow-blue-200 transition-all duration-200 flex items-center gap-2 transform hover:scale-105"
+                  >
+                    <Save className="w-5 h-5" />
+                    Save About Changes
+                  </button>
+                </div>
               </div>
             )}
 
-            {/* Contact Tab */}
+            {/* Contact Management */}
             {activeTab === 'contact' && (
-              <div className="space-y-6">
-                <h3 className="text-lg font-semibold text-gray-900">Contact Information</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-8">
+                <div className="flex items-center justify-between">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                    <input
-                      type="email"
-                      value={localData.contact?.email || ''}
-                      onChange={(e) => setLocalData({
-                        ...localData, 
-                        contact: {...(localData.contact || {}), email: e.target.value}
-                      })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF6600] focus:border-transparent"
-                    />
+                    <h3 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+                      <div className="w-8 h-8 bg-gradient-to-br from-[#0057B7] to-[#FF6600] rounded-lg flex items-center justify-center">
+                        <Mail className="w-5 h-5 text-white" />
+                      </div>
+                      Contact Information Management
+                    </h3>
+                    <p className="text-gray-600 mt-1">Manage contact details and communication channels</p>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Website</label>
-                    <input
-                      type="text"
-                      value={localData.contact?.website || ''}
-                      onChange={(e) => setLocalData({
-                        ...localData, 
-                        contact: {...(localData.contact || {}), website: e.target.value}
-                      })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF6600] focus:border-transparent"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Location</label>
-                    <input
-                      type="text"
-                      value={localData.contact?.location || ''}
-                      onChange={(e) => setLocalData({
-                        ...localData, 
-                        contact: {...(localData.contact || {}), location: e.target.value}
-                      })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF6600] focus:border-transparent"
-                    />
+                  <div className="bg-gradient-to-r from-blue-50 to-orange-50 px-4 py-2 rounded-lg border border-blue-200">
+                    <span className="text-sm font-semibold text-blue-700">📧 Contact Editor</span>
                   </div>
                 </div>
-                <button 
-                  onClick={() => handleSave('contact')}
-                  className="bg-[#FF6600] text-white px-6 py-3 rounded-lg font-semibold hover:bg-[#E55A00] transition-colors flex items-center gap-2"
-                >
-                  <Save className="w-4 h-4" />
-                  Save Changes
-                </button>
+
+                <div className="bg-gradient-to-br from-blue-50 to-orange-50 rounded-2xl p-6 border border-blue-200">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Email Address</label>
+                      <input
+                        type="email"
+                        value={localData.contact?.email || ''}
+                        onChange={(e) => setLocalData({
+                          ...localData, 
+                          contact: {...(localData.contact || {}), email: e.target.value}
+                        })}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#0057B7] focus:border-transparent bg-white shadow-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Website URL</label>
+                      <input
+                        type="text"
+                        value={localData.contact?.website || ''}
+                        onChange={(e) => setLocalData({
+                          ...localData, 
+                          contact: {...(localData.contact || {}), website: e.target.value}
+                        })}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#0057B7] focus:border-transparent bg-white shadow-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Location</label>
+                      <input
+                        type="text"
+                        value={localData.contact?.location || ''}
+                        onChange={(e) => setLocalData({
+                          ...localData, 
+                          contact: {...(localData.contact || {}), location: e.target.value}
+                        })}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#0057B7] focus:border-transparent bg-white shadow-sm"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end">
+                  <button 
+                    onClick={() => handleSave('contact')}
+                    className="bg-gradient-to-r from-[#0057B7] to-[#FF6600] text-white px-8 py-3 rounded-xl font-semibold hover:shadow-lg hover:shadow-blue-200 transition-all duration-200 flex items-center gap-2 transform hover:scale-105"
+                  >
+                    <Save className="w-5 h-5" />
+                    Save Contact Changes
+                  </button>
+                </div>
               </div>
             )}
 
@@ -899,17 +965,22 @@ const WebsiteAdminPanel = ({ isOpen, onClose }) => {
               </div>
             )}
 
-            {/* Messages Tab */}
+            {/* Messages Management */}
             {activeTab === 'messages' && (
-              <div className="space-y-6">
+              <div className="space-y-8">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-2xl font-bold text-gray-900">Contact Messages</h3>
-                    <p className="text-gray-600">View and manage messages from website visitors</p>
+                    <h3 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+                      <div className="w-8 h-8 bg-gradient-to-br from-[#0057B7] to-[#FF6600] rounded-lg flex items-center justify-center">
+                        <MessageSquare className="w-5 h-5 text-white" />
+                      </div>
+                      Contact Messages Management
+                    </h3>
+                    <p className="text-gray-600 mt-1">View and manage messages from website visitors</p>
                   </div>
-                  <div className="bg-blue-50 px-4 py-2 rounded-lg border border-blue-200">
+                  <div className="bg-gradient-to-r from-blue-50 to-orange-50 px-4 py-2 rounded-lg border border-blue-200">
                     <span className="text-sm font-semibold text-blue-700">
-                      {Array.isArray(localData.messages) ? localData.messages.length : 0} Total Messages
+                      💬 {Array.isArray(localData.messages) ? localData.messages.length : 0} Messages
                     </span>
                   </div>
                 </div>
@@ -1005,23 +1076,26 @@ const WebsiteAdminPanel = ({ isOpen, onClose }) => {
           </div>
         </div>
         
-        {/* Enhanced Footer */}
+        {/* Professional Footer */}
         <div className="p-6">
-          <div className="bg-gradient-to-r from-slate-50 to-blue-50 border border-slate-200 rounded-xl p-4">
-            <div className="text-center text-sm text-slate-600">
-              <div className="flex items-center justify-center gap-4 flex-wrap">
+          <div className="bg-gradient-to-r from-blue-50 via-white to-orange-50 border border-blue-200 rounded-xl p-6 shadow-sm">
+            <div className="text-center">
+              <div className="flex items-center justify-center gap-6 flex-wrap">
                 <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                  <span className="font-medium">Live sync enabled</span>
+                  <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse shadow-sm"></div>
+                  <span className="font-semibold text-gray-700">Live Sync Active</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Shield className="w-4 h-4 text-slate-500" />
-                  <span>Secure cloud storage</span>
+                  <Shield className="w-5 h-5 text-[#0057B7]" />
+                  <span className="font-medium text-gray-600">Secure Cloud Storage</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-slate-500" />
-                  <span>Auto-save active</span>
+                  <Clock className="w-5 h-5 text-[#FF6600]" />
+                  <span className="font-medium text-gray-600">Auto-Save Enabled</span>
                 </div>
+              </div>
+              <div className="mt-3 text-sm text-gray-500">
+                TestingVala Admin Panel - Professional Content Management System
               </div>
             </div>
           </div>

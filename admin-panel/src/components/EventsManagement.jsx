@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Calendar, Clock, Link, Image as ImageIcon, X, Upload, Eye, EyeOff, TestTube } from 'lucide-react';
-import { getUpcomingEvents, createEvent, updateEvent, deleteEvent, uploadEventImage, testSupabaseConnection } from '../lib/supabase';
+import { Plus, Edit, Trash2, Calendar, Clock, Link, Image as ImageIcon, X, Upload, Eye, EyeOff } from 'lucide-react';
+import { getUpcomingEvents, createEvent, updateEvent, deleteEvent, uploadEventImage } from '../lib/supabase';
 import toast from 'react-hot-toast';
 
 const EventsManagement = () => {
@@ -9,7 +9,7 @@ const EventsManagement = () => {
   const [showForm, setShowForm] = useState(false);
   const [editingEvent, setEditingEvent] = useState(null);
   const [imageUploading, setImageUploading] = useState(false);
-  const [testingConnection, setTestingConnection] = useState(false);
+
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -52,27 +52,7 @@ const EventsManagement = () => {
     }
   };
 
-  const testConnection = async () => {
-    try {
-      setTestingConnection(true);
-      console.log('🧪 Testing Supabase connection...');
-      
-      const result = await testSupabaseConnection();
-      
-      if (result.success) {
-        toast.success('✅ Supabase connection test passed!');
-        console.log('🎉 Connection test successful');
-      } else {
-        toast.error(`❌ Connection test failed: ${result.error}`);
-        console.error('❌ Connection test failed:', result.error);
-      }
-    } catch (error) {
-      console.error('❌ Test function error:', error);
-      toast.error('❌ Test function error: ' + error.message);
-    } finally {
-      setTestingConnection(false);
-    }
-  };
+
 
   const handleImageUpload = async (file) => {
     if (!file) return;
@@ -122,63 +102,51 @@ const EventsManagement = () => {
         short_description: formData.short_description,
         event_date: formData.event_date,
         event_time: formData.event_time,
-        duration_minutes: formData.duration_minutes,
+        duration_minutes: parseInt(formData.duration_minutes) || 120,
         registration_link: formData.registration_link,
-        image_url: formData.image_url,
+        image_url: formData.image_url || null,
         event_type: formData.event_type,
         difficulty_level: formData.difficulty_level,
-        max_participants: formData.max_participants,
+        max_participants: formData.max_participants ? parseInt(formData.max_participants) : null,
         is_featured: formData.is_featured,
-        is_active: formData.is_active
+        is_active: formData.is_active,
+        price: formData.price || '$99',
+        capacity: parseInt(formData.capacity) || 50,
+        registered_count: 0,
+        speaker: formData.speaker || 'QA Expert',
+        speaker_title: formData.speaker_title || 'Senior QA Professional',
+        company: formData.company || 'TestingVala',
+        location: formData.location || 'Online',
+        featured: formData.is_featured
       };
 
       if (editingEvent) {
         await updateEvent(editingEvent.id, eventData);
         toast.success('Event updated successfully!');
       } else {
-        if (formData.image_file) {
-          const newEvent = await createEvent(eventData);
-          
-          if (newEvent?.id) {
-            try {
-              const imageUrl = await uploadEventImage(formData.image_file, newEvent.id);
-              await updateEvent(newEvent.id, { image_url: imageUrl });
-              toast.success('Event created with image successfully!');
-            } catch (imageError) {
-              console.error('Image upload failed:', imageError);
-              toast.error('Event created but image upload failed. You can add an image later.');
-            }
+        const newEvent = await createEvent(eventData);
+        
+        if (formData.image_file && newEvent?.id) {
+          try {
+            const imageUrl = await uploadEventImage(formData.image_file, newEvent.id);
+            await updateEvent(newEvent.id, { image_url: imageUrl });
+            toast.success('Event created with image successfully!');
+          } catch (imageError) {
+            console.error('Image upload failed:', imageError);
+            toast.success('Event created successfully! (Image upload failed)');
           }
         } else {
-          try {
-            await createEvent(eventData);
-            toast.success('Event created successfully!');
-          } catch (createErr) {
-            console.error('Create event failed:', createErr);
-            if (import.meta.env.MODE !== 'production') {
-              const localEvent = {
-                id: `local-${Date.now()}`,
-                ...eventData,
-                registered_count: 0,
-                image_url: formData.image_url || null
-              };
-              setEvents(prev => [localEvent, ...prev]);
-              toast.success('Event added locally (dev fallback)');
-            } else {
-              toast.error('Failed to create event');
-              throw createErr;
-            }
-          }
+          toast.success('Event created successfully!');
         }
       }
       
       setShowForm(false);
       setEditingEvent(null);
       resetForm();
-      fetchEvents();
+      await fetchEvents();
     } catch (error) {
       console.error('Error saving event:', error);
-      toast.error('Failed to save event. Please try again.');
+      toast.error(`Failed to save event: ${error.message}`);
     }
   };
 
@@ -284,24 +252,13 @@ const EventsManagement = () => {
           <h3 className="text-xl font-bold text-gray-900">Events Management</h3>
           <p className="text-gray-600 text-sm mt-1">Manage upcoming workshops, seminars, and events</p>
         </div>
-        <div className="flex gap-3">
-          <button
-            onClick={testConnection}
-            disabled={testingConnection}
-            className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2 disabled:opacity-50"
-            title="Test Supabase connection and storage"
-          >
-            <TestTube className="w-4 h-4" />
-            {testingConnection ? 'Testing...' : 'Test Connection'}
-          </button>
-          <button
-            onClick={() => setShowForm(true)}
-            className="bg-[#FF6600] text-white px-4 py-2 rounded-lg hover:bg-[#E55A00] transition-colors flex items-center gap-2 shadow-lg"
-          >
-            <Plus className="w-4 h-4" />
-            Add Event
-          </button>
-        </div>
+        <button
+          onClick={() => setShowForm(true)}
+          className="bg-[#FF6600] text-white px-4 py-2 rounded-lg hover:bg-[#E55A00] transition-colors flex items-center gap-2 shadow-lg"
+        >
+          <Plus className="w-4 h-4" />
+          Add Event
+        </button>
       </div>
 
       {/* Events List */}
@@ -569,10 +526,50 @@ const EventsManagement = () => {
                   <input
                     type="number"
                     value={formData.max_participants}
-                    onChange={(e) => setFormData({ ...formData, max_participants: e.target.value })}
+                    onChange={(e) => setFormData({ ...formData, max_participants: e.target.value, capacity: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF6600] focus:border-transparent"
                     placeholder="50"
                     min="1"
+                  />
+                </div>
+              </div>
+
+              {/* Additional Fields */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Speaker Name
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.speaker}
+                    onChange={(e) => setFormData({ ...formData, speaker: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF6600] focus:border-transparent"
+                    placeholder="John Doe"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Speaker Title
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.speaker_title}
+                    onChange={(e) => setFormData({ ...formData, speaker_title: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF6600] focus:border-transparent"
+                    placeholder="Senior QA Engineer"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Price
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.price}
+                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF6600] focus:border-transparent"
+                    placeholder="$99 or Free"
                   />
                 </div>
               </div>

@@ -43,7 +43,8 @@ const AuthModal = ({ isOpen, onClose, onSuccess, action = 'comment' }) => {
     like: 'like this post',
     post: 'create a post',
     save: 'save this post to your boards',
-    boards: 'access your boards'
+    boards: 'access your boards',
+    resume: 'create your resume'
   };
 
   return (
