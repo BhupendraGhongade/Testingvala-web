@@ -1,5 +1,5 @@
 import React from 'react'
-import { useWebsiteData } from '../hooks/useWebsiteData'
+import { useWebsiteData } from '../contexts/GlobalDataContext'
 import { Mail, Globe, Instagram, Youtube, Twitter, Linkedin, Phone, Shield, FileText, Users, Award, Target } from 'lucide-react'
 
 const Footer = () => {

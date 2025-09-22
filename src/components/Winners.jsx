@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { Trophy, Star, Award, Users, Clock, Linkedin, Share2, Download, Clipboard, Instagram, Check, Crown, Medal, Zap, MessageCircle } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { useWinnersData } from '../contexts/GlobalDataContext';
 
 const createShareCardDataUrl = async (winner, badgeLabel) => {
   const width = 1200;
@@ -148,8 +148,8 @@ const downloadShareCard = async (winner, badgeLabel) => {
 };
 
 const Winners = ({ data }) => {
+  const { winners: winnersData, loading } = useWinnersData();
   const [winners, setWinners] = useState([]);
-  const [loading, setLoading] = useState(true);
 
   const defaultData = {
     winners: [],
@@ -161,12 +161,35 @@ const Winners = ({ data }) => {
   };
 
   useEffect(() => {
-    loadWinners();
-    
-    // Auto-refresh every 5 seconds to catch winner updates
-    const interval = setInterval(loadWinners, 5000);
-    return () => clearInterval(interval);
-  }, []);
+    if (winnersData && winnersData.length > 0) {
+      // Process winners data from unified context
+      const winnersMap = new Map();
+      
+      winnersData.forEach(winner => {
+        const rank = parseInt(winner.winner_rank);
+        if (rank >= 1 && rank <= 3 && !isNaN(rank)) {
+          const formattedWinner = {
+            avatar: rank === 1 ? '👑' : rank === 2 ? '🥈' : '🥉',
+            name: winner.name || 'Anonymous Winner',
+            title: winner.role || winner.company || 'QA Professional',
+            trick: winner.technique_description || winner.technique_title || 'Innovative QA technique',
+            rank: rank,
+            email: winner.email
+          };
+          winnersMap.set(rank, formattedWinner);
+        }
+      });
+      
+      const formattedWinners = [];
+      for (let rank = 1; rank <= 3; rank++) {
+        if (winnersMap.has(rank)) {
+          formattedWinners.push(winnersMap.get(rank));
+        }
+      }
+      
+      setWinners(formattedWinners);
+    }
+  }, [winnersData]);
   
   // Direct database verification function
   const verifyDatabase = async () => {
@@ -218,139 +241,7 @@ const Winners = ({ data }) => {
     }
   };
 
-  const loadWinners = async () => {
-    console.log('🔄 Loading winners...');
-    try {
-      let winnersData = [];
-      
-      // Always try Supabase first if available
-      if (supabase) {
-        console.log('📡 Trying Supabase database...');
-        
-        // Try multiple query approaches to ensure we get the data
-        const queries = [
-          // Query 1: Direct winner_rank filter
-          supabase
-            .from('contest_submissions')
-            .select('*')
-            .in('winner_rank', [1, 2, 3])
-            .order('winner_rank'),
-            
-          // Query 2: Not null filter
-          supabase
-            .from('contest_submissions')
-            .select('*')
-            .not('winner_rank', 'is', null)
-            .order('winner_rank'),
-            
-          // Query 3: All submissions, filter client-side
-          supabase
-            .from('contest_submissions')
-            .select('*')
-            .order('created_at', { ascending: false })
-        ];
-        
-        for (let i = 0; i < queries.length; i++) {
-          console.log(`📡 Trying query ${i + 1}...`);
-          const { data: contestWinners, error } = await queries[i];
-          
-          console.log(`📊 Query ${i + 1} result:`, { data: contestWinners, error, count: contestWinners?.length });
-          
-          if (!error && contestWinners && contestWinners.length > 0) {
-            // For query 3, filter client-side
-            if (i === 2) {
-              winnersData = contestWinners.filter(sub => sub.winner_rank && sub.winner_rank >= 1 && sub.winner_rank <= 3);
-            } else {
-              winnersData = contestWinners;
-            }
-            
-            console.log('✅ Raw contest winners from database:', winnersData);
-            console.log('🔍 Checking for Bhupendra:', winnersData.filter(w => w.email === 'bghongade@york.ie'));
-            
-            if (winnersData.length > 0) {
-              break; // Found winners, stop trying other queries
-            }
-          } else {
-            console.log(`❌ Query ${i + 1} failed or no data:`, error);
-          }
-        }
-      }
-      
-      // Fallback to localStorage if no Supabase data
-      if (winnersData.length === 0) {
-        console.log('💾 Trying localStorage...');
-        const localSubmissions = JSON.parse(localStorage.getItem('contest_submissions') || '[]');
-        winnersData = localSubmissions.filter(sub => sub.winner_rank && sub.winner_rank >= 1 && sub.winner_rank <= 3);
-        console.log('📦 Winners from localStorage:', winnersData);
-      }
-      
-      // Process winners data with better validation
-      console.log('🔄 Processing winners data:', winnersData);
-      
-      const winnersMap = new Map();
-      
-      winnersData.forEach(winner => {
-        console.log('🔄 Processing winner:', {
-          id: winner.id,
-          name: winner.name,
-          email: winner.email,
-          winner_rank: winner.winner_rank,
-          technique_title: winner.technique_title,
-          status: winner.status
-        });
-        
-        // Validate winner_rank is a valid number
-        const rank = parseInt(winner.winner_rank);
-        if (rank >= 1 && rank <= 3 && !isNaN(rank)) {
-          const formattedWinner = {
-            avatar: rank === 1 ? '👑' : rank === 2 ? '🥈' : '🥉',
-            name: winner.name || 'Anonymous Winner',
-            title: winner.role || winner.company || (winner.experience_years ? `${winner.experience_years} Experience` : '') || 'QA Professional',
-            trick: winner.technique_description || winner.impact_benefits || (winner.submission_text ? winner.submission_text.substring(0, 200) + '...' : '') || winner.technique_title || 'Innovative QA technique',
-            rank: rank,
-            email: winner.email // Keep for debugging
-          };
-          
-          console.log(`🏆 Setting ${rank} place winner:`, formattedWinner);
-          winnersMap.set(rank, formattedWinner);
-        } else {
-          console.log('❌ Invalid winner_rank:', winner.winner_rank, 'for winner:', winner.name);
-        }
-      });
-      
-      // Convert map to sorted array
-      const formattedWinners = [];
-      for (let rank = 1; rank <= 3; rank++) {
-        if (winnersMap.has(rank)) {
-          formattedWinners.push(winnersMap.get(rank));
-        }
-      }
-      
-      console.log('🏆 Final formatted winners:', formattedWinners);
-      console.log('📊 Winners count:', formattedWinners.length);
-      
-      // Log each winner for debugging
-      formattedWinners.forEach((winner, index) => {
-        console.log(`🏆 Winner ${index + 1}:`, {
-          name: winner.name,
-          email: winner.email,
-          rank: winner.rank,
-          title: winner.title
-        });
-      });
-      
-      setWinners(formattedWinners);
-      
-    } catch (error) {
-      console.error('❌ Error loading winners:', error);
-      console.error('❌ Error details:', error.message, error.stack);
-      // Show empty array on error
-      setWinners([]);
-      toast.error('Failed to load winners: ' + error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Winners are now loaded via unified context - no additional API calls needed
 
   const safeData = data || defaultData;
   const stats = safeData.stats || defaultData.stats;

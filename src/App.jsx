@@ -15,18 +15,27 @@ import BoardDetailPage from './components/BoardDetailPage';
 import PublicBoardsPage from './components/PublicBoardsPage';
 import AuthCallback from './components/AuthCallback';
 import AuthVerify from './components/AuthVerify';
+import ApiCallMonitor from './components/ApiCallMonitor';
+import ApiAuditDashboard from './components/ApiAuditDashboard';
 
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { useWebsiteData } from './hooks/useWebsiteData';
+import { GlobalDataProvider } from './contexts/GlobalDataContext';
+import { useWebsiteData } from './contexts/GlobalDataContext';
 import { enterpriseAnalytics, trackUserEvent } from './services/enterpriseAnalytics';
 import { Wifi, WifiOff, AlertCircle } from 'lucide-react';
+import './utils/testOptimizations';
+import './utils/globalApiLogger';
+import './utils/testApiOptimizations';
+import './utils/apiMonitor';
 
 const AppContent = () => {
   const [currentPath, setCurrentPath] = useState(typeof window !== 'undefined' ? window.location.pathname : '/');
   const [boardView, setBoardView] = useState({ type: 'list', boardId: null });
 
   const { user, isVerified } = useAuth();
-  const { data, loading, error, isOnline } = useWebsiteData();
+  const { data, loading } = useWebsiteData();
+  const error = null; // Handle errors in the context
+  const isOnline = !!data;
 
   // Track user authentication state changes
   useEffect(() => {
@@ -183,19 +192,17 @@ const AppContent = () => {
     );
   }
 
-  // Use data or fallback to defaults, ensuring all required properties exist
-  const safeData = data || defaultData;
+  // Use optimized data structure
+  const websiteData = data || {};
   
   // Ensure all sections have the required structure
   const validatedData = {
-    hero: safeData.hero || defaultData.hero,
-    contest: safeData.contest || defaultData.contest,
-    winners: Array.isArray(safeData.winners) ? safeData.winners : defaultData.winners,
-    about: safeData.about || defaultData.about,
-    contact: safeData.contact || defaultData.contact
+    hero: websiteData.hero || defaultData.hero,
+    contest: websiteData.contest || defaultData.contest,
+    winners: Array.isArray(websiteData.winners) ? websiteData.winners : defaultData.winners,
+    about: websiteData.about || defaultData.about,
+    contact: websiteData.contact || defaultData.contact
   };
-
-  console.log('App.jsx - Data structure:', { originalData: data, validatedData, isOnline });
 
   return (
     <div className="min-h-screen bg-white">
@@ -283,7 +290,7 @@ const AppContent = () => {
         ) : (
           <>
             <Hero data={validatedData.hero} />
-            <UpcomingEvents key={`events-${Date.now()}`} />
+            <UpcomingEvents />
             <CommunityHub />
             <ContestSection contestData={validatedData.contest} />
             <AboutUs data={validatedData.about} />
@@ -293,6 +300,8 @@ const AppContent = () => {
       </main>
       
       <Footer />
+      <ApiCallMonitor />
+      <ApiAuditDashboard />
     </div>
   );
 };
@@ -300,7 +309,9 @@ const AppContent = () => {
 function App() {
   return (
     <AuthProvider>
-      <AppContent />
+      <GlobalDataProvider>
+        <AppContent />
+      </GlobalDataProvider>
     </AuthProvider>
   );
 }

@@ -56,12 +56,12 @@ export const useRealtimeLikes = (postId, initialDbCount = 0) => {
     loadInitialState();
   }, [postId, authUser]);
 
-  // Real-time subscription - refresh full state on any change
+  // Real-time subscription with proper cleanup
   useEffect(() => {
-    if (!supabase) return;
+    if (!supabase || !postId) return;
 
     const subscription = supabase
-      .channel(`post_likes_${postId}`)
+      .channel(`post_likes_${postId}_${Date.now()}`)
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
@@ -98,8 +98,9 @@ export const useRealtimeLikes = (postId, initialDbCount = 0) => {
 
     return () => {
       subscription.unsubscribe();
+      supabase.removeChannel(subscription);
     };
-  }, [postId, authUser]);
+  }, [postId]); // Removed authUser dependency to prevent re-subscriptions
 
   // Toggle like function
   const toggleLike = useCallback(async () => {

@@ -15,10 +15,10 @@ export const usePremiumAccess = (userEmail) => {
 
     checkPremiumAccess();
     
-    // Set up real-time subscription
+    // Set up real-time subscription with proper cleanup
     if (supabase) {
       const subscription = supabase
-        .channel('premium-access')
+        .channel(`premium-access-${userEmail}-${Date.now()}`)
         .on('postgres_changes', 
           { 
             event: '*', 
@@ -33,6 +33,7 @@ export const usePremiumAccess = (userEmail) => {
         .subscribe();
 
       return () => {
+        subscription.unsubscribe();
         supabase.removeChannel(subscription);
       };
     }

@@ -1,4 +1,18 @@
 {
+  "functions": {
+    "api/send-magic-link.js": {
+      "runtime": "nodejs18.x",
+      "maxDuration": 30
+    },
+    "api/send-magic-link-enhanced.js": {
+      "runtime": "nodejs18.x",
+      "maxDuration": 30
+    },
+    "api/verify-token.js": {
+      "runtime": "nodejs18.x",
+      "maxDuration": 15
+    }
+  },
   "rewrites": [
     {
       "source": "/api/(.*)",

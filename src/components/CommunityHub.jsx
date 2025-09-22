@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { MessageSquare, TrendingUp, Plus, Search, Filter, Heart, MoreHorizontal, Edit2, Trash2, Share2, X, Bookmark, Pin, Zap, Clipboard, Briefcase, BookOpen, Code, Layers } from 'lucide-react';
 import { TwitterIcon, FacebookIcon, LinkedInIcon, WhatsAppIcon, CopyIcon } from './SocialIcons';
 import { supabase } from '../lib/supabase';
-import { useBatchData } from '../hooks/useBatchData';
 import { useModalScrollLock } from '../hooks/useModalScrollLock';
 
 // Working Like Button Component
@@ -54,7 +53,7 @@ import AuthModal from './AuthModal';
 import SavePostModal from './SavePostModal';
 import ConfirmationModal from './ConfirmationModal';
 import Winners from './Winners';
-import { useWebsiteData } from '../hooks/useWebsiteData';
+import { useWebsiteData, useCommunityData } from '../contexts/GlobalDataContext';
 import { getTimeAgo } from '../utils/timeUtils';
 import toast from 'react-hot-toast';
 
@@ -157,10 +156,9 @@ const CommunityHub = () => {
   }, []);
   
   const { data: siteData } = useWebsiteData();
-  const [categories, setCategories] = useState([]);
-  const [posts, setPosts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [categoriesLoading, setCategoriesLoading] = useState(true);
+  const { posts, categories, loading: contextLoading } = useCommunityData();
+  const [loading, setLoading] = useState(false);
+  const [categoriesLoading, setCategoriesLoading] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [showCreatePost, setShowCreatePost] = useState(false);
@@ -259,23 +257,42 @@ const CommunityHub = () => {
     }
   };
 
+  // OPTIMIZED: Single useEffect with proper cleanup
   useEffect(() => { 
-    // Immediate cleanup check
-    const forceClear = localStorage.getItem('force_clear_posts');
-    const adminClearTime = localStorage.getItem('posts_cleared_by_admin');
+    let mounted = true;
+    let initPromise = null;
     
-    if (forceClear || (adminClearTime && Date.now() - parseInt(adminClearTime) < 24 * 60 * 60 * 1000)) {
-      localStorage.removeItem('local_forum_posts');
-      localStorage.removeItem('force_clear_posts');
-      if (adminClearTime && Date.now() - parseInt(adminClearTime) < 24 * 60 * 60 * 1000) {
-        localStorage.removeItem('posts_cleared_by_admin');
-      }
-    }
+    const initializeComponent = async () => {
+      // Prevent multiple initializations
+      if (initPromise) return initPromise;
+      
+      initPromise = (async () => {
+        try {
+          // Cleanup check
+          const forceClear = localStorage.getItem('force_clear_posts');
+          const adminClearTime = localStorage.getItem('posts_cleared_by_admin');
+          
+          if (forceClear || (adminClearTime && Date.now() - parseInt(adminClearTime) < 24 * 60 * 60 * 1000)) {
+            localStorage.removeItem('local_forum_posts');
+            localStorage.removeItem('force_clear_posts');
+            if (adminClearTime && Date.now() - parseInt(adminClearTime) < 24 * 60 * 60 * 1000) {
+              localStorage.removeItem('posts_cleared_by_admin');
+            }
+          }
+          
+          // Single batch initialization
+          if (mounted) {
+            await checkAuthStatus();
+          }
+        } catch (error) {
+          console.error('Component initialization error:', error);
+        }
+      })();
+      
+      return initPromise;
+    };
     
-    // FIXED: Only call essential functions on mount
-    fetchCategories();
-    checkAuthStatus();
-    // Removed loadCommentsAndLikes() - will be called after posts load
+    initializeComponent();
     
     // Listen for post highlighting from hash navigation
     const handleHighlightPost = (event) => {
@@ -284,57 +301,22 @@ const CommunityHub = () => {
     };
     
     window.addEventListener('highlightPost', handleHighlightPost);
-    return () => window.removeEventListener('highlightPost', handleHighlightPost);
+    return () => {
+      mounted = false;
+      initPromise = null;
+      window.removeEventListener('highlightPost', handleHighlightPost);
+    };
+  }, []); // Empty dependency array - only run once
+
+
+
+  // OPTIMIZED: Use context for engagement data
+  const loadCommentsAndLikes = useCallback(async () => {
+    // Engagement data now handled by context
+    return;
   }, []);
 
-
-
-  const loadCommentsAndLikes = useCallback(async () => {
-    if (displayedPosts.length === 0) return;
-    
-    const postIds = displayedPosts.map(p => p.id);
-    const existingIds = Object.keys(comments);
-    const newPostIds = postIds.filter(id => !existingIds.includes(id) && !id.startsWith('local-'));
-    
-    if (newPostIds.length === 0) return;
-    
-    try {
-      const [allComments, allLikes] = await Promise.all([
-        supabase?.from('post_comments').select('*').in('post_id', newPostIds) || Promise.resolve({ data: [] }),
-        supabase?.from('post_likes').select('post_id').in('post_id', newPostIds) || Promise.resolve({ data: [] })
-      ]);
-      
-      const commentsByPost = {};
-      const likesByPost = {};
-      
-      (allComments.data || []).forEach(comment => {
-        if (!commentsByPost[comment.post_id]) commentsByPost[comment.post_id] = [];
-        commentsByPost[comment.post_id].push(comment);
-      });
-      
-      (allLikes.data || []).forEach(like => {
-        likesByPost[like.post_id] = (likesByPost[like.post_id] || 0) + 1;
-      });
-      
-      setComments(prev => ({ ...prev, ...commentsByPost }));
-      setDisplayedPosts(prev => prev.map(p => ({
-        ...p,
-        likes_count: likesByPost[p.id] || p.likes_count || 0
-      })));
-    } catch (error) {
-      console.error('Error loading data:', error);
-    }
-  }, [displayedPosts.length, supabase]); // FIXED: Removed comments dependency
-
-  useEffect(() => {
-    if (displayedPosts.length > 0) {
-      const timer = setTimeout(() => {
-        loadCommentsAndLikes();
-        loadUserLikes();
-      }, 100);
-      return () => clearTimeout(timer);
-    }
-  }, [displayedPosts.length, authUser?.email]); // FIXED: Removed loadCommentsAndLikes dependency
+  // Engagement data handled by context - no additional loading needed
 
   const loadUserPinnedPosts = async () => {
     if (!authUser?.email) return;
@@ -694,14 +676,12 @@ const CommunityHub = () => {
       
       // Always update the UI regardless of database success/failure
       setDisplayedPosts(prev => prev.filter(post => post.id !== postId));
-      setPosts(prev => prev.filter(post => post.id !== postId));
       setShowDeleteModal(null);
       toast.success('Post deleted successfully!');
     } catch (error) {
       console.error('Error deleting post:', error);
       // Still try to remove from UI for better UX
       setDisplayedPosts(prev => prev.filter(post => post.id !== postId));
-      setPosts(prev => prev.filter(post => post.id !== postId));
       setShowDeleteModal(null);
       toast.success('Post removed from view');
     }
@@ -853,112 +833,25 @@ const CommunityHub = () => {
 
 
 
-  const fetchCategories = async () => {
-    try {
-      setCategoriesLoading(true);
-      if (!supabase) {
-        // Fallback categories for offline mode
-        setCategories([
-          { id: 'local-general', name: 'General QA Discussion', description: 'General discussions about QA practices', slug: 'general-qa' },
-          { id: 'local-automation', name: 'Test Automation', description: 'Automation frameworks and tools', slug: 'test-automation' },
-          { id: 'local-manual', name: 'Manual Testing', description: 'Manual testing techniques', slug: 'manual-testing' },
-          { id: 'local-career', name: 'Career & Interview', description: 'Career advice and interviews', slug: 'career-interview' }
-        ]);
-        return;
-      }
+  // Categories now loaded via useCommunityData hook
 
-      const { data, error } = await supabase
-        .from('forum_categories')
-        .select('*')
-        .order('name', { ascending: true });
-
-      if (error) {
-        console.error('❌ Error fetching categories:', error);
-        setCategories([]);
-        return;
-      }
-
-      if (!data || data.length === 0) {
-        setCategories([]);
-      } else {
-        setCategories(data);
-      }
-    } catch (error) {
-      console.error('Error fetching categories:', error);
-      setCategories([]);
-    } finally {
-      setCategoriesLoading(false);
-    }
-  };
-
-  const fetchPosts = useCallback(async (forceRefresh = false) => {
-    try {
-      setLoading(true);
-      
-      // Always load local posts first
-      const local = loadLocalPosts();
-      
-      if (!supabase) {
-        const allPosts = [...local];
-        setPosts(allPosts);
-        return;
-      }
-
-      // Simplified query - no search/category filters in the main query
-      let query = supabase
-        .from('forum_posts')
-        .select(`
-          *,
-          forum_categories(name)
-        `)
-        .order('created_at', { ascending: false });
-
-      const { data, error } = await query;
-
-      if (error) {
-        throw error;
-      }
-      
-      const dbPosts = (data || []).map(post => ({
-        ...post,
-        category_name: post.forum_categories?.name || 'Uncategorized'
-      }));
-      
-      // Combine local and database posts
-      const allPosts = [...local, ...dbPosts];
-      
-      setPosts(allPosts);
-      
-    } catch (error) {
-      console.error('Error in fetchPosts:', error);
-      // Fallback to local posts only
-      const local = loadLocalPosts();
-      setPosts(local);
-    } finally {
-      setLoading(false);
-    }
-  }, []);  // Remove dependencies to prevent unnecessary re-fetches
-
-  // Separate effect for initial load
-  useEffect(() => {
-    fetchPosts();
-  }, []);  // Only run once on mount
+  // Posts now loaded via useCommunityData hook
   
   // Separate effect for filtering when posts or filters change
   // Create post index map for O(1) lookup
   const filteredPosts = useMemo(() => {
-    if (posts.length === 0) return [];
-    const filtered = getFilteredAndSortedPosts(posts);
-    
-    // Create index map for instant lookup
+    if (!posts || posts.length === 0) return [];
+    return getFilteredAndSortedPosts(posts);
+  }, [posts, selectedCategory, filterType, searchQuery, authUser]);
+
+  // Update post index map when filtered posts change
+  useEffect(() => {
     const indexMap = new Map();
-    filtered.forEach((post, index) => {
+    filteredPosts.forEach((post, index) => {
       indexMap.set(post.id, index);
     });
     setPostIndexMap(indexMap);
-    
-    return filtered;
-  }, [posts, selectedCategory, filterType, searchQuery, authUser]);
+  }, [filteredPosts]);
 
   // Advanced navigation with instant lookup
   const navigateToPost = useCallback((postId) => {
@@ -1027,12 +920,10 @@ const CommunityHub = () => {
         // Force clear localStorage
         localStorage.removeItem('local_forum_posts');
         localStorage.removeItem('posts_cleared_by_admin');
-        setPosts([]);
         setDisplayedPosts([]);
         setHasMore(false);
       } else if (event.detail?.deletedPostId) {
         const deletedId = event.detail.deletedPostId;
-        setPosts(prev => prev.filter(p => p.id !== deletedId));
         setDisplayedPosts(prev => prev.filter(p => p.id !== deletedId));
       }
     };
@@ -1045,7 +936,6 @@ const CommunityHub = () => {
       if (forceClear) {
         localStorage.removeItem('force_clear_posts');
         localStorage.removeItem('local_forum_posts');
-        setPosts([]);
         setDisplayedPosts([]);
         setHasMore(false);
         return;
@@ -1053,10 +943,6 @@ const CommunityHub = () => {
       
       const currentLocal = JSON.parse(localStorage.getItem('local_forum_posts') || '[]');
       const currentLocalIds = new Set(currentLocal.map(p => p.id));
-      
-      setPosts(prev => prev.filter(p => 
-        !p.id?.startsWith('local-') || currentLocalIds.has(p.id)
-      ));
       
       setDisplayedPosts(prev => prev.filter(p => 
         !p.id?.startsWith('local-') || currentLocalIds.has(p.id)
@@ -1074,8 +960,9 @@ const CommunityHub = () => {
 
   // Force refresh function for external calls
   const refreshPosts = useCallback(() => {
-    fetchPosts(true);
-  }, [fetchPosts]);
+    // Refresh via context
+    window.location.reload();
+  }, []);
 
 
 
@@ -1329,7 +1216,7 @@ const CommunityHub = () => {
           ) : (
             // Feed Tab
             <div>
-              {loading ? (
+              {contextLoading ? (
                 <div className="text-center py-12">
                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#FF6600] mx-auto mb-4"></div>
                   <p className="text-gray-600">Loading community posts...</p>

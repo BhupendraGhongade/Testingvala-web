@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, MapPin, ExternalLink, Filter, Search } from 'lucide-react';
-import { getAllEvents } from '../lib/supabase';
+import { useEventsData } from '../contexts/GlobalDataContext';
 
 const EventsPage = () => {
+  const { events: contextEvents, loading } = useEventsData();
   const [events, setEvents] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all'); // all, upcoming, past
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedType, setSelectedType] = useState('all');
@@ -42,23 +42,12 @@ const EventsPage = () => {
   ];
 
   useEffect(() => {
-    fetchEvents();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const fetchEvents = async () => {
-    try {
-      setLoading(true);
-      const eventsData = await getAllEvents();
-      if (eventsData && eventsData.length > 0) setEvents(eventsData);
-      else setEvents(dummyEvents);
-    } catch (error) {
-      console.error('Error fetching events:', error);
+    if (contextEvents && contextEvents.length > 0) {
+      setEvents(contextEvents);
+    } else {
       setEvents(dummyEvents);
-    } finally {
-      setLoading(false);
     }
-  };
+  }, [contextEvents]);
 
   const formatDate = (dateString) => {
     try {

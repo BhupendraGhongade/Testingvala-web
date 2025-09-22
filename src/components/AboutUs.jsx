@@ -1,6 +1,6 @@
 import React from 'react';
 import { Shield, Target, Users, Globe, Trophy, CheckCircle, Award, Star, Heart, BookOpen, Rocket, Code } from 'lucide-react';
-import { useWebsiteData } from '../hooks/useWebsiteData';
+import { useWebsiteData } from '../contexts/GlobalDataContext';
 
 const AboutUs = ({ data }) => {
   const { data: websiteData } = useWebsiteData();

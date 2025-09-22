@@ -37,14 +37,14 @@ export const useLikeSync = (postId, authUser) => {
     }
   }, [postId, authUser?.email, sessionId]);
 
-  // Real-time subscription
+  // Real-time subscription with proper cleanup
   useEffect(() => {
     if (!postId || !supabase) return;
 
     loadLikeData();
 
     const subscription = supabase
-      .channel(`likes_${postId}`)
+      .channel(`likes_${postId}_${Date.now()}`)
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
@@ -55,8 +55,11 @@ export const useLikeSync = (postId, authUser) => {
       })
       .subscribe();
 
-    return () => subscription.unsubscribe();
-  }, [postId, loadLikeData]);
+    return () => {
+      subscription.unsubscribe();
+      supabase.removeChannel(subscription);
+    };
+  }, [postId]); // Removed loadLikeData dependency to prevent re-subscriptions
 
   return { totalLikes, isLiked, sessionId };
 };

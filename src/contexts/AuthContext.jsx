@@ -37,36 +37,56 @@ export const AuthProvider = ({ children }) => {
   const [authStatus, setAuthStatus] = useState(null);
 
   useEffect(() => {
-    initializeAuth();
+    let mounted = true;
     
-    // Set up activity listener to extend sessions
-    const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
-    const handleActivity = () => {
-      if (authService.isAuthenticated()) {
-        authService.extendSession();
+    const initialize = async () => {
+      if (mounted) {
+        await initializeAuth();
       }
     };
     
+    initialize();
+    
+    // OPTIMIZED: Throttled activity listener
+    let activityTimeout;
+    const handleActivity = () => {
+      if (activityTimeout) return; // Throttle activity checks
+      
+      activityTimeout = setTimeout(() => {
+        if (mounted && authService.isAuthenticated()) {
+          authService.extendSession();
+        }
+        activityTimeout = null;
+      }, 30000); // Throttle to 30 seconds
+    };
+    
+    const activityEvents = ['mousedown', 'keypress', 'scroll'];
     activityEvents.forEach(event => {
       document.addEventListener(event, handleActivity, { passive: true });
     });
     
-    // Check session periodically
+    // OPTIMIZED: Less frequent session checks
     const sessionCheck = setInterval(() => {
+      if (!mounted) return;
+      
       const currentStatus = authService.getAuthStatus();
       if (currentStatus.isAuthenticated !== authStatus?.isAuthenticated) {
         setAuthStatus(currentStatus);
         updateUserState(currentStatus);
       }
-    }, 60000); // Check every minute
+    }, 600000); // Check every 10 minutes
     
     return () => {
+      mounted = false;
       activityEvents.forEach(event => {
         document.removeEventListener(event, handleActivity);
       });
       clearInterval(sessionCheck);
+      if (activityTimeout) {
+        clearTimeout(activityTimeout);
+      }
     };
-  }, [authStatus?.isAuthenticated]);
+  }, []); // Remove dependency to prevent re-initialization
   
   const initializeAuth = async () => {
     try {

@@ -6,14 +6,15 @@ class EnterpriseAnalytics {
     this.batchQueue = [];
     this.batchSize = 10;
     this.flushInterval = 15000; // 15 seconds
-    this.isEnabled = true;
+    this.isEnabled = false; // DISABLED to prevent 400 errors
     this.userCache = null;
     this.userCacheTime = 0;
     this.sessionId = this.generateSessionId();
     
-    this.startBatchProcessor();
-    this.initializeSession();
-    window.addEventListener('beforeunload', () => this.flush());
+    // Disabled to prevent API calls
+    // this.startBatchProcessor();
+    // this.initializeSession();
+    // window.addEventListener('beforeunload', () => this.flush());
   }
 
   generateSessionId() {
@@ -43,9 +44,19 @@ class EnterpriseAnalytics {
     }
   }
 
-  // Core tracking method
+  // OPTIMIZED: Core tracking method with throttling
   async trackEvent(eventType, category, properties = {}) {
     if (!this.isEnabled || !supabase) return;
+
+    // Throttle similar events
+    const eventKey = `${eventType}_${category}`;
+    const now = Date.now();
+    if (this.lastEventTime && this.lastEventTime[eventKey] && now - this.lastEventTime[eventKey] < 10000) {
+      return; // Skip if same event within 10 seconds
+    }
+    
+    if (!this.lastEventTime) this.lastEventTime = {};
+    this.lastEventTime[eventKey] = now;
 
     try {
       const user = await this.getCurrentUser();
@@ -57,20 +68,13 @@ class EnterpriseAnalytics {
         event_category: category,
         properties: {
           ...properties,
-          timestamp: new Date().toISOString(),
-          user_agent: navigator.userAgent,
-          referrer: document.referrer,
-          page_url: window.location.href
+          timestamp: new Date().toISOString()
         },
+        // Reduced device info to minimize payload
         device_info: {
-          screen_resolution: `${screen.width}x${screen.height}`,
           viewport: `${window.innerWidth}x${window.innerHeight}`,
-          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-          language: navigator.language
-        },
-        ip_address: null, // Will be filled by server
-        user_agent: navigator.userAgent,
-        referrer: document.referrer
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+        }
       };
 
       this.batchQueue.push(event);
@@ -189,15 +193,18 @@ class EnterpriseAnalytics {
     this.batchQueue = [];
 
     try {
+      // Skip analytics if table doesn't exist
+      if (!supabase) return;
+      
       const { error } = await supabase
         .from('user_analytics')
         .insert(batch);
 
-      if (error) {
-        console.error('Analytics batch failed:', error);
+      if (error && error.code !== 'PGRST106') { // Ignore table not found
+        console.warn('Analytics batch failed:', error);
       }
     } catch (error) {
-      console.error('Analytics flush error:', error);
+      console.warn('Analytics flush error:', error);
     }
   }
 

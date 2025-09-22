@@ -46,7 +46,7 @@ const CreatePostModal = ({ isOpen, onClose, categories = [], onPostCreated }) =>
           }
         }
 
-        const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
           setAuthUser(session?.user || null);
           // Update author name when auth state changes (only if completely empty)
           if (session?.user) {
@@ -63,8 +63,7 @@ const CreatePostModal = ({ isOpen, onClose, categories = [], onPostCreated }) =>
         });
 
         // store subscription to unsubscribe later
-        // @ts-ignore
-        init._sub = sub?.subscription;
+        init._sub = subscription;
       } catch (err) {
         console.error('Auth init error:', err);
       } finally {
