@@ -1,0 +1,258 @@
+<!-- TestingVala Enterprise Magic Link Email Template -->
+<!-- Subject: Welcome to TestingVala - Verify Your Email -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Welcome to TestingVala</title>
+    <!--[if mso]>
+    <noscript>
+        <xml>
+            <o:OfficeDocumentSettings>
+                <o:PixelsPerInch>96</o:PixelsPerInch>
+            </o:OfficeDocumentSettings>
+        </xml>
+    </noscript>
+    <![endif]-->
+    <style>
+        /* Reset and base styles */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #1f2937; background-color: #f8fafc; margin: 0; padding: 0; }
+        table { border-collapse: collapse; width: 100%; }
+        img { max-width: 100%; height: auto; display: block; }
+        
+        /* Container */
+        .email-container { max-width: 600px; margin: 0 auto; background-color: #ffffff; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05); }
+        
+        /* Header */
+        .header { background: linear-gradient(135deg, #0057B7 0%, #004494 100%); padding: 40px 30px; text-align: center; position: relative; overflow: hidden; }
+        .header::before { content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%); animation: shimmer 3s ease-in-out infinite; }
+        .logo { font-size: 28px; font-weight: 800; color: #ffffff; margin-bottom: 8px; letter-spacing: -0.5px; position: relative; z-index: 1; }
+        .tagline { color: #bfdbfe; font-size: 16px; font-weight: 500; position: relative; z-index: 1; }
+        
+        /* Hero Section */
+        .hero { background: linear-gradient(135deg, #f8fafc 0%, #fef7ed 100%); padding: 50px 30px; text-align: center; border-bottom: 1px solid #e5e7eb; position: relative; }
+        .hero-icon { width: 80px; height: 80px; background: linear-gradient(135deg, #FF6600 0%, #E55A00 100%); border-radius: 20px; margin: 0 auto 24px; display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 25px rgba(255, 102, 0, 0.3); position: relative; }
+        .hero-icon::after { content: ''; position: absolute; inset: -2px; background: linear-gradient(45deg, #FF6600, #0057B7, #FF6600); border-radius: 22px; z-index: -1; opacity: 0.7; }
+        .hero-title { font-size: 32px; font-weight: 800; color: #1f2937; margin-bottom: 16px; line-height: 1.2; }
+        .hero-subtitle { font-size: 18px; color: #4b5563; line-height: 1.6; max-width: 480px; margin: 0 auto; }
+        
+        /* Content */
+        .content { padding: 40px 30px; }
+        .welcome-text { font-size: 16px; color: #374151; line-height: 1.7; margin-bottom: 32px; }
+        
+        /* CTA Button */
+        .cta-container { text-align: center; margin: 40px 0; }
+        .cta-button { display: inline-block; background: linear-gradient(135deg, #0057B7 0%, #004494 100%); color: #ffffff; text-decoration: none; padding: 18px 36px; border-radius: 12px; font-weight: 700; font-size: 18px; box-shadow: 0 10px 25px rgba(0, 87, 183, 0.4); transition: all 0.3s ease; position: relative; overflow: hidden; }
+        .cta-button::before { content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent); transition: left 0.5s; }
+        .cta-button:hover::before { left: 100%; }
+        .cta-button:hover { transform: translateY(-2px); box-shadow: 0 15px 35px rgba(0, 87, 183, 0.5); }
+        
+
+        
+        /* Features Grid */
+        .features { margin: 40px 0; }
+        .features-title { font-size: 22px; font-weight: 700; color: #1f2937; margin-bottom: 24px; text-align: center; }
+        .features-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+        .feature-item { display: flex; align-items: flex-start; gap: 16px; padding: 20px; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 12px; transition: all 0.3s ease; }
+        .feature-item:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1); border-color: #FF6600; }
+        .feature-icon { width: 32px; height: 32px; background: linear-gradient(135deg, #FF6600 0%, #E55A00 100%); border-radius: 8px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+        .feature-text { font-size: 14px; color: #4b5563; line-height: 1.6; }
+        .feature-title { font-weight: 600; color: #1f2937; margin-bottom: 4px; }
+        
+        /* Value Proposition */
+        .value-prop { background: linear-gradient(135deg, #eff6ff 0%, #fef7ed 100%); border-radius: 16px; padding: 32px; margin: 32px 0; text-align: center; border: 1px solid #e0f2fe; }
+        .value-title { font-size: 20px; font-weight: 700; color: #1f2937; margin-bottom: 16px; }
+        .value-text { font-size: 16px; color: #4b5563; line-height: 1.6; max-width: 480px; margin: 0 auto; }
+        
+        /* Security Notice */
+        .security { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 12px; padding: 24px; margin: 32px 0; display: flex; align-items: flex-start; gap: 12px; }
+        .security-icon { width: 24px; height: 24px; background: #0057B7; border-radius: 6px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .security-content { flex: 1; }
+        .security-title { font-size: 14px; font-weight: 600; color: #1e40af; margin-bottom: 4px; }
+        .security-text { font-size: 14px; color: #1e40af; line-height: 1.5; }
+        
+        /* Support Section */
+        .support { background: #f9fafb; border-radius: 12px; padding: 24px; margin: 32px 0; text-align: center; border: 1px solid #e5e7eb; }
+        .support-title { font-size: 16px; font-weight: 600; color: #1f2937; margin-bottom: 8px; }
+        .support-text { font-size: 14px; color: #6b7280; margin-bottom: 16px; }
+        .support-email { display: inline-flex; align-items: center; gap: 8px; color: #0057B7; text-decoration: none; font-weight: 500; padding: 8px 16px; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px; transition: all 0.3s ease; }
+        .support-email:hover { background: #eff6ff; border-color: #0057B7; }
+        
+        /* Footer */
+        .footer { background: #f9fafb; padding: 40px 30px; border-top: 1px solid #e5e7eb; }
+        .footer-content { text-align: center; }
+        .footer-logo { font-size: 20px; font-weight: 700; color: #1f2937; margin-bottom: 16px; }
+        .footer-text { font-size: 14px; color: #6b7280; line-height: 1.6; margin-bottom: 24px; max-width: 400px; margin-left: auto; margin-right: auto; }
+        .social-links { margin-bottom: 24px; }
+        .social-link { display: inline-block; margin: 0 12px; color: #0057B7; text-decoration: none; font-size: 14px; font-weight: 500; padding: 8px 12px; border-radius: 6px; transition: all 0.3s ease; }
+        .social-link:hover { color: #FF6600; background: rgba(255, 102, 0, 0.1); }
+        .copyright { font-size: 12px; color: #9ca3af; line-height: 1.5; }
+        
+        /* Animations */
+        @keyframes shimmer {
+            0%, 100% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+            50% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+        }
+        
+        /* Mobile Responsive */
+        @media only screen and (max-width: 600px) {
+            .email-container { width: 100% !important; margin: 0 !important; }
+            .header { padding: 30px 20px !important; }
+            .hero { padding: 40px 20px !important; }
+            .content { padding: 30px 20px !important; }
+            .footer { padding: 30px 20px !important; }
+            .hero-title { font-size: 28px !important; }
+            .hero-subtitle { font-size: 16px !important; }
+            .features-grid { grid-template-columns: 1fr !important; gap: 16px !important; }
+            .feature-item { padding: 16px !important; }
+            .cta-button { padding: 16px 28px !important; font-size: 16px !important; }
+            .value-prop { padding: 24px 20px !important; }
+            .support { padding: 20px !important; }
+        }
+        
+        /* Dark mode support */
+        @media (prefers-color-scheme: dark) {
+            .email-container { background-color: #ffffff !important; }
+            .hero { background: linear-gradient(135deg, #f8fafc 0%, #fef7ed 100%) !important; }
+            .value-prop { background: linear-gradient(135deg, #eff6ff 0%, #fef7ed 100%) !important; }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <!-- Header -->
+        <div class="header">
+            <div class="logo">🚀 TestingVala</div>
+            <div class="tagline">Enterprise QA Excellence Platform</div>
+        </div>
+        
+        <!-- Hero Section -->
+        <div class="hero">
+            <div class="hero-icon">
+                <span style="color: white; font-size: 32px;">🔐</span>
+            </div>
+            <h1 class="hero-title">Account Verification Required</h1>
+            <p class="hero-subtitle">Secure your access to the premier QA professional network and unlock enterprise-grade testing resources.</p>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="content">
+            <p class="welcome-text">
+                <strong>Welcome to TestingVala Professional Network</strong><br><br>
+                You're joining an exclusive community of senior QA engineers, test architects, and quality assurance leaders who are shaping the future of software testing through advanced methodologies and industry best practices.
+            </p>
+            
+            <!-- CTA Button -->
+            <div class="cta-container">
+                <a href="{{ .ConfirmationURL }}" class="cta-button">
+                    🔐 Verify Account & Access Platform
+                </a>
+            </div>
+            
+            <!-- Alternative Link -->
+            <div class="alt-link">
+                <div class="alt-link-title">Can't click the button? Copy this link:</div>
+                <div class="alt-link-url">{{ .ConfirmationURL }}</div>
+            </div>
+            
+            <!-- Value Proposition -->
+            <div class="value-prop">
+                <h2 class="value-title">Why Leading QA Professionals Choose TestingVala</h2>
+                <p class="value-text">
+                    Access cutting-edge testing frameworks, participate in high-stakes technical competitions, and collaborate with industry experts on complex quality assurance challenges.
+                </p>
+            </div>
+            
+            <!-- Features -->
+            <div class="features">
+                <h2 class="features-title">Platform Capabilities</h2>
+                <div class="features-grid">
+                    <div class="feature-item">
+                        <div class="feature-icon">
+                            <span style="color: white; font-size: 16px;">🤖</span>
+                        </div>
+                        <div class="feature-text">
+                            <div class="feature-title">AI-Powered Resume Builder</div>
+                            Generate professional QA resumes with intelligent skill matching and industry-specific optimization.
+                        </div>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon">
+                            <span style="color: white; font-size: 16px;">🏆</span>
+                        </div>
+                        <div class="feature-text">
+                            <div class="feature-title">Technical Competitions</div>
+                            Compete in monthly challenges with substantial rewards and industry recognition.
+                        </div>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon">
+                            <span style="color: white; font-size: 16px;">💼</span>
+                        </div>
+                        <div class="feature-text">
+                            <div class="feature-title">Professional Networking</div>
+                            Connect with senior QA professionals and thought leaders across global enterprises.
+                        </div>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon">
+                            <span style="color: white; font-size: 16px;">📚</span>
+                        </div>
+                        <div class="feature-text">
+                            <div class="feature-title">Knowledge Repository</div>
+                            Access curated testing methodologies, frameworks, and best practices from industry experts.
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Security Notice -->
+            <div class="security">
+                <div class="security-icon">
+                    <span style="color: white; font-size: 12px;">🔒</span>
+                </div>
+                <div class="security-content">
+                    <div class="security-title">Security & Privacy</div>
+                    <div class="security-text">
+                        This verification link expires in 24 hours for your security. Your data is protected with enterprise-grade encryption and privacy controls.
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Support Section -->
+            <div class="support">
+                <div class="support-title">Need Assistance?</div>
+                <div class="support-text">Our technical support team is available to help with account verification and platform access.</div>
+                <a href="mailto:info@testingvala.com" class="support-email">
+                    <span style="font-size: 16px;">📧</span>
+                    info@testingvala.com
+                </a>
+            </div>
+        </div>
+        
+        <!-- Footer -->
+        <div class="footer">
+            <div class="footer-content">
+                <div class="footer-logo">TestingVala</div>
+                <p class="footer-text">
+                    The enterprise platform for QA professionals to advance their careers through expert knowledge sharing, technical competitions, and industry networking.
+                </p>
+                <div class="social-links">
+                    <a href="https://testingvala.com" class="social-link">Platform</a>
+                    <a href="https://instagram.com/testingvala" class="social-link">Instagram</a>
+                    <a href="https://youtube.com/@TestingvalaOfficial" class="social-link">YouTube</a>
+                    <a href="https://linkedin.com/company/testingvala" class="social-link">LinkedIn</a>
+                </div>
+                <div class="copyright">
+                    © 2025 TestingVala. All rights reserved.<br>
+                    Enterprise QA Excellence Platform | Trusted by Industry Leaders
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -47,6 +47,16 @@ const Footer = () => {
   }
 
   const footer = { ...defaultFooter, ...data?.footer }
+  
+  // Ensure social media links are properly merged
+  if (data?.contact?.socialMedia) {
+    footer.socialMedia = { ...footer.socialMedia, ...data.contact.socialMedia }
+  }
+  
+  // Ensure contact info is properly merged
+  if (data?.contact) {
+    footer.contact = { ...footer.contact, ...data.contact }
+  }
 
   return (
     <footer className="bg-gray-900 text-white">
@@ -155,24 +165,10 @@ const Footer = () => {
 
         {/* Bottom Section */}
         <div className="border-t border-gray-800 mt-12 pt-8">
-          <div className="flex flex-col lg:flex-row justify-between items-center">
-            <p className="text-gray-400 text-sm mb-4 lg:mb-0">
+          <div className="text-center">
+            <p className="text-gray-400 text-sm">
               {footer.copyright}
             </p>
-            <div className="flex items-center gap-6">
-              <div className="flex items-center gap-2 text-gray-400 text-sm">
-                <Shield className="w-4 h-4" />
-                <span>Enterprise Security</span>
-              </div>
-              <div className="flex items-center gap-2 text-gray-400 text-sm">
-                <Users className="w-4 h-4" />
-                <span>25,000+ Members</span>
-              </div>
-              <div className="flex items-center gap-2 text-gray-400 text-sm">
-                <Globe className="w-4 h-4" />
-                <span>85+ Countries</span>
-              </div>
-            </div>
           </div>
         </div>
       </div>

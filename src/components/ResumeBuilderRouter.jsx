@@ -17,30 +17,44 @@ const ResumeBuilderRouter = ({ isOpen, onClose }) => {
   const [formData, setFormData] = useState({ name: '', phone: '', transactionId: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
+  const [hasError, setHasError] = useState(false);
   const { user, isVerified, loading } = useAuth();
 
   useEffect(() => {
-    if (isOpen) {
-      loadPaymentConfig();
+    try {
+      if (isOpen) {
+        loadPaymentConfig();
+      }
+      
+      const handleNavigateToAI = (event) => {
+        try {
+          setUserEmail(event.detail.userEmail);
+          setCurrentPage('ai-builder');
+        } catch (error) {
+          console.error('Navigate to AI error:', error);
+        }
+      };
+
+      const handleNavigateToQA = (event) => {
+        try {
+          setUserEmail(event.detail.userEmail);
+          setCurrentPage('qa-builder');
+        } catch (error) {
+          console.error('Navigate to QA error:', error);
+        }
+      };
+
+      window.addEventListener('navigate-to-ai-builder', handleNavigateToAI);
+      window.addEventListener('navigate-to-qa-builder', handleNavigateToQA);
+
+      return () => {
+        window.removeEventListener('navigate-to-ai-builder', handleNavigateToAI);
+        window.removeEventListener('navigate-to-qa-builder', handleNavigateToQA);
+      };
+    } catch (error) {
+      console.error('ResumeBuilderRouter useEffect error:', error);
+      setHasError(true);
     }
-    
-    const handleNavigateToAI = (event) => {
-      setUserEmail(event.detail.userEmail);
-      setCurrentPage('ai-builder');
-    };
-
-    const handleNavigateToQA = (event) => {
-      setUserEmail(event.detail.userEmail);
-      setCurrentPage('qa-builder');
-    };
-
-    window.addEventListener('navigate-to-ai-builder', handleNavigateToAI);
-    window.addEventListener('navigate-to-qa-builder', handleNavigateToQA);
-
-    return () => {
-      window.removeEventListener('navigate-to-ai-builder', handleNavigateToAI);
-      window.removeEventListener('navigate-to-qa-builder', handleNavigateToQA);
-    };
   }, [isOpen]);
 
   const handleBack = () => {
@@ -49,14 +63,24 @@ const ResumeBuilderRouter = ({ isOpen, onClose }) => {
 
   const loadPaymentConfig = async () => {
     try {
+      if (!supabase) {
+        console.warn('Supabase not configured, using default payment config');
+        setPaymentConfig({ monthly_price: 99, upi_id: 'testingvala@paytm' });
+        return;
+      }
       const { data } = await supabase
         .from('payment_config')
         .select('*')
         .eq('id', 1)
         .single();
-      if (data) setPaymentConfig(data);
+      if (data) {
+        setPaymentConfig(data);
+      } else {
+        setPaymentConfig({ monthly_price: 99, upi_id: 'testingvala@paytm' });
+      }
     } catch (error) {
       console.error('Error loading payment config:', error);
+      setPaymentConfig({ monthly_price: 99, upi_id: 'testingvala@paytm' });
     }
   };
 
@@ -82,6 +106,11 @@ const ResumeBuilderRouter = ({ isOpen, onClose }) => {
     setIsSubmitting(true);
     
     try {
+      if (!supabase) {
+        toast.error('Database not configured. Please contact support.');
+        return;
+      }
+      
       const { error } = await supabase.from('payment_requests').insert({
         user_name: formData.name,
         user_email: user?.email || userEmail,
@@ -99,6 +128,7 @@ const ResumeBuilderRouter = ({ isOpen, onClose }) => {
       setPaymentStep('success');
       
     } catch (error) {
+      console.error('Payment submission error:', error);
       toast.error('Submission failed. Please try again.');
     } finally {
       setIsSubmitting(false);
@@ -123,45 +153,91 @@ const ResumeBuilderRouter = ({ isOpen, onClose }) => {
   };
 
   const handleBuilderAccess = (builderType) => {
-    if (builderType === 'ai-payment') {
+    try {
+      if (builderType === 'ai-payment') {
+        if (!user || !isVerified) {
+          setPendingAction('ai-payment');
+          setShowAuthModal(true);
+          return;
+        }
+        setUserEmail(user.email);
+        setCurrentPage('ai-payment');
+        return;
+      }
+      
       if (!user || !isVerified) {
-        setPendingAction('ai-payment');
+        setPendingAction(builderType);
         setShowAuthModal(true);
         return;
       }
+      
       setUserEmail(user.email);
-      setCurrentPage('ai-payment');
-      return;
+      setCurrentPage(builderType);
+    } catch (error) {
+      console.error('Builder access error:', error);
+      toast.error('Failed to access resume builder. Please try again.');
+      setHasError(true);
     }
-    
-    if (!user || !isVerified) {
-      setPendingAction(builderType);
-      setShowAuthModal(true);
-      return;
-    }
-    
-    setUserEmail(user.email);
-    setCurrentPage(builderType);
   };
 
   const handleAuthSuccess = () => {
-    setShowAuthModal(false);
-    if (pendingAction && user && isVerified) {
-      setUserEmail(user.email);
-      setCurrentPage(pendingAction);
-      setPendingAction(null);
+    try {
+      setShowAuthModal(false);
+      if (pendingAction && user && isVerified) {
+        setUserEmail(user.email);
+        setCurrentPage(pendingAction);
+        setPendingAction(null);
+      }
+    } catch (error) {
+      console.error('Auth success handling error:', error);
+      toast.error('Authentication successful, but failed to proceed. Please try again.');
+      setHasError(true);
     }
   };
 
   // Check verification status when user changes
   useEffect(() => {
-    if (user && isVerified && pendingAction) {
-      setUserEmail(user.email);
-      setCurrentPage(pendingAction);
-      setPendingAction(null);
-      setShowAuthModal(false);
+    try {
+      if (user && isVerified && pendingAction) {
+        setUserEmail(user.email);
+        setCurrentPage(pendingAction);
+        setPendingAction(null);
+        setShowAuthModal(false);
+      }
+    } catch (error) {
+      console.error('Auth status check error:', error);
+      setHasError(true);
     }
   }, [user, isVerified, pendingAction]);
+
+  // Error boundary
+  if (hasError) {
+    return (
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[10000] flex items-center justify-center p-4">
+        <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 text-center">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <AlertCircle className="w-8 h-8 text-red-600" />
+          </div>
+          <h3 className="text-xl font-bold text-gray-900 mb-2">Something went wrong</h3>
+          <p className="text-gray-600 mb-4">We encountered an error loading the resume builder.</p>
+          <div className="flex gap-3">
+            <button
+              onClick={() => setHasError(false)}
+              className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Try Again
+            </button>
+            <button
+              onClick={onClose}
+              className="flex-1 bg-gray-200 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!isOpen) return null;
 
@@ -502,8 +578,9 @@ const ResumeBuilderRouter = ({ isOpen, onClose }) => {
   }
 
   // Selection Screen - Professional Full Page Layout
-  return (
-    <div className="fixed inset-0 bg-white z-[10000]">
+  try {
+    return (
+      <div className="fixed inset-0 bg-white z-[10000]">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -654,8 +731,13 @@ const ResumeBuilderRouter = ({ isOpen, onClose }) => {
         onSuccess={handleAuthSuccess}
         action="resume"
       />
-    </div>
-  );
+      </div>
+    );
+  } catch (error) {
+    console.error('ResumeBuilderRouter render error:', error);
+    setHasError(true);
+    return null;
+  }
 };
 
 export default ResumeBuilderRouter;

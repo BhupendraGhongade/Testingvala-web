@@ -622,6 +622,84 @@ export const checkIfPostSaved = async (boardId, postId) => {
 };
 
 // ============================================================================
+// CONTEST SUBMISSIONS FUNCTIONS
+// ============================================================================
+
+// Get all contest submissions
+export const getContestSubmissions = async () => {
+  try {
+    if (!supabase) {
+      console.warn('getContestSubmissions: Supabase not configured — returning empty list');
+      return [];
+    }
+    const { data, error } = await supabase
+      .from(TABLES.CONTEST_SUBMISSIONS)
+      .select('*')
+      .order('submission_date', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching contest submissions:', error);
+    return [];
+  }
+};
+
+// Create contest submission
+export const createContestSubmission = async (submissionData) => {
+  try {
+    if (!supabase) throw new Error('Supabase not configured');
+    const { data, error } = await supabase
+      .from(TABLES.CONTEST_SUBMISSIONS)
+      .insert([submissionData])
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error creating contest submission:', error);
+    throw error;
+  }
+};
+
+// Update contest submission status
+export const updateContestSubmissionStatus = async (submissionId, status) => {
+  try {
+    if (!supabase) throw new Error('Supabase not configured');
+    const { data, error } = await supabase
+      .from(TABLES.CONTEST_SUBMISSIONS)
+      .update({ 
+        status,
+        reviewed_at: new Date().toISOString()
+      })
+      .eq('id', submissionId)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error updating contest submission:', error);
+    throw error;
+  }
+};
+
+// Get contest submissions by status
+export const getContestSubmissionsByStatus = async (status) => {
+  try {
+    if (!supabase) return [];
+    const { data, error } = await supabase
+      .from(TABLES.CONTEST_SUBMISSIONS)
+      .select('*')
+      .eq('status', status)
+      .order('submission_date', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching contest submissions by status:', error);
+    return [];
+  }
+};
+
+// ============================================================================
 // RESUME MANAGEMENT FUNCTIONS
 // ============================================================================
 

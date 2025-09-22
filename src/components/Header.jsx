@@ -3,8 +3,9 @@ import { createPortal } from 'react-dom';
 import { Menu, X, Trophy, Bookmark, FileText, FolderOpen } from 'lucide-react';
 import TestingValaLogo from './TestingValaLogo';
 import AuthModal from './AuthModal';
-import ResumeBuilder from './ResumeBuilder';
+import ResumeBuilderRouter from './ResumeBuilderRouter';
 import ResumeManagement from './ResumeManagement';
+import ContestSubmissionForm from './ContestSubmissionForm';
 import { useAuth } from '../contexts/AuthContext';
 
 const Header = () => {
@@ -12,6 +13,7 @@ const Header = () => {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showResumeBuilder, setShowResumeBuilder] = useState(false);
   const [showResumeManagement, setShowResumeManagement] = useState(false);
+  const [showContestForm, setShowContestForm] = useState(false);
   const [resumeToEdit, setResumeToEdit] = useState(null);
   const { user, isVerified } = useAuth();
 
@@ -64,8 +66,7 @@ const Header = () => {
   };
 
   const openContestForm = () => {
-    const contestUrl = 'https://docs.google.com/forms/d/e/1FAIpQLSdVsoGqy4FaSV5bHaCAQN4oCxxhG36NoiG4eGdNp8mjQMsJzw/viewform?usp=header';
-    window.open(contestUrl, '_blank');
+    setShowContestForm(true);
   };
 
   // navigation will be handled by the navigateTo helper
@@ -235,13 +236,12 @@ const Header = () => {
           />
         )}
         {showResumeBuilder && (
-          <ResumeBuilder
+          <ResumeBuilderRouter
             isOpen={showResumeBuilder}
             onClose={() => {
               setShowResumeBuilder(false);
               setResumeToEdit(null);
             }}
-            initialData={resumeToEdit}
           />
         )}
         {showResumeManagement && isVerified && (
@@ -253,6 +253,14 @@ const Header = () => {
             onClose={() => setShowResumeManagement(false)}
           />
         )}
+        <ContestSubmissionForm 
+          isOpen={showContestForm}
+          onClose={() => setShowContestForm(false)}
+          contestData={{
+            theme: 'Advanced Testing Methodologies',
+            deadline: new Date().toISOString().split('T')[0]
+          }}
+        />
       </>
     );
   }

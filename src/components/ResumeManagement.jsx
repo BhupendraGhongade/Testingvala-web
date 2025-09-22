@@ -6,6 +6,7 @@ import {
   ExternalLink, RefreshCw, Archive, BookOpen, Target, Award, FolderOpen, X
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import ConfirmationModal from './ConfirmationModal';
 import { 
   getUserResumes, deleteResume, getResumeVersions, shareResume, 
   getResumeShares, revokeResumeShare, getResumeAnalytics, 
@@ -25,6 +26,7 @@ const ResumeManagement = ({ userEmail, onCreateNew, onEditResume, isOpen, onClos
   const [showVersions, setShowVersions] = useState(false);
   const [expandedCards, setExpandedCards] = useState(new Set());
   const [hasDraft, setHasDraft] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(null);
 
   // Load resumes and check for drafts
   useEffect(() => {
@@ -55,13 +57,19 @@ const ResumeManagement = ({ userEmail, onCreateNew, onEditResume, isOpen, onClos
   };
 
   const handleDeleteResume = async (resumeId, resumeTitle) => {
-    if (!window.confirm(`Are you sure you want to delete "${resumeTitle}"? This action cannot be undone.`)) {
-      return;
-    }
+    const resume = resumes.find(r => r.id === resumeId);
+    if (!resume) return;
+    
+    setShowDeleteModal(resume);
+  };
+
+  const confirmDeleteResume = async () => {
+    if (!showDeleteModal) return;
 
     try {
-      await deleteResume(resumeId);
-      setResumes(resumes.filter(r => r.id !== resumeId));
+      await deleteResume(showDeleteModal.id);
+      setResumes(resumes.filter(r => r.id !== showDeleteModal.id));
+      setShowDeleteModal(null);
       toast.success('Resume deleted successfully');
     } catch (error) {
       console.error('Error deleting resume:', error);
@@ -548,6 +556,20 @@ const ResumeManagement = ({ userEmail, onCreateNew, onEditResume, isOpen, onClos
           </div>
         </div>
       )}
+
+      {/* Delete Resume Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={!!showDeleteModal}
+        onClose={() => setShowDeleteModal(null)}
+        onConfirm={confirmDeleteResume}
+        title="Delete Resume"
+        message="Are you sure you want to delete this resume? This action cannot be undone and all associated data will be permanently removed."
+        confirmText="Delete Resume"
+        cancelText="Cancel"
+        type="danger"
+        itemName={showDeleteModal?.title}
+        itemDescription={`Created on ${showDeleteModal ? new Date(showDeleteModal.created_at).toLocaleDateString() : ''} • ${showDeleteModal?.status || 'Unknown status'}`}
+      />
         </div>
       </div>
     </div>

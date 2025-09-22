@@ -137,7 +137,7 @@ const PublicBoardsPage = ({ user, onBack, onViewBoard }) => {
                   onClick={() => onViewBoard(board.id)}
                   className="group bg-white rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-300 cursor-pointer overflow-hidden transform hover:-translate-y-2 hover:scale-105 border border-gray-100"
                 >
-                  <div className="relative h-40 bg-gradient-to-br from-green-500 via-blue-600 to-purple-500 overflow-hidden">
+                  <div className="relative h-40 bg-[#0057B7] overflow-hidden">
                     {board.cover_image_url ? (
                       <>
                         <img
@@ -150,7 +150,7 @@ const PublicBoardsPage = ({ user, onBack, onViewBoard }) => {
                     ) : (
                       <>
                         <div className="w-full h-full flex items-center justify-center relative overflow-hidden">
-                          <div className="absolute inset-0 bg-gradient-to-br from-green-400 via-blue-500 to-purple-500 animate-pulse"></div>
+                          <div className="absolute inset-0 bg-[#0057B7] opacity-90"></div>
                           <Bookmark className="w-16 h-16 text-white opacity-80 relative z-10 group-hover:scale-125 transition-transform duration-300" />
                         </div>
                         <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
@@ -188,7 +188,7 @@ const PublicBoardsPage = ({ user, onBack, onViewBoard }) => {
                     
                     <div className="flex items-center justify-between pt-3 border-t border-gray-100">
                       <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 bg-gradient-to-br from-green-500 to-blue-600 rounded-full flex items-center justify-center">
+                        <div className="w-6 h-6 bg-[#0057B7] rounded-full flex items-center justify-center">
                           <User className="w-3 h-3 text-white" />
                         </div>
                         <div className="text-xs text-gray-600">
@@ -212,7 +212,7 @@ const PublicBoardsPage = ({ user, onBack, onViewBoard }) => {
                   </div>
 
                   {/* Hover Glow Effect */}
-                  <div className="absolute inset-0 rounded-3xl bg-gradient-to-r from-green-400/0 via-blue-400/0 to-purple-400/0 group-hover:from-green-400/10 group-hover:via-blue-400/10 group-hover:to-purple-400/10 transition-all duration-500 pointer-events-none"></div>
+                  <div className="absolute inset-0 rounded-3xl bg-[#0057B7]/0 group-hover:bg-[#0057B7]/5 transition-all duration-300 pointer-events-none"></div>
                 </div>
               ))}
             </div>

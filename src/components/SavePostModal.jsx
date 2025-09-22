@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Plus, Bookmark, Image, Lock, Globe, AlertCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { useModalScrollLock } from '../hooks/useModalScrollLock';
 import toast from 'react-hot-toast';
 
 // URL validation utility
@@ -23,6 +24,9 @@ const SavePostModal = ({ isOpen, onClose, post, user }) => {
   const [newBoardPrivate, setNewBoardPrivate] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  // Prevent background scrolling
+  useModalScrollLock(isOpen);
 
   if (!user?.id || !user?.email_confirmed_at || !post?.id) {
     return null;
@@ -274,7 +278,7 @@ const SavePostModal = ({ isOpen, onClose, post, user }) => {
         <div className="flex-1 overflow-y-auto p-6">
 
           {/* Post Preview */}
-          <div className="mb-4 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-100">
+          <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-100">
             <h4 className="font-medium text-gray-900 mb-2 text-sm leading-tight">
               <span className="block line-clamp-1" title={post?.title || 'Untitled Post'}>
                 {post?.title || 'Untitled Post'}
@@ -460,7 +464,7 @@ const SavePostModal = ({ isOpen, onClose, post, user }) => {
               <button
                 onClick={saveToBoard}
                 disabled={!selectedBoard || loading}
-                className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium shadow-lg hover:shadow-xl"
+                className="flex-1 px-6 py-3 bg-[#0057B7] text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium shadow-lg hover:shadow-xl"
               >
                 {loading ? (
                   <div className="flex items-center justify-center gap-2">
@@ -497,7 +501,7 @@ const SavePostModal = ({ isOpen, onClose, post, user }) => {
               <button
                 onClick={createBoard}
                 disabled={!newBoardName.trim() || loading}
-                className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 font-medium"
+                className="flex-1 px-4 py-3 bg-[#0057B7] text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 font-medium"
               >
                 {loading ? (
                   <>

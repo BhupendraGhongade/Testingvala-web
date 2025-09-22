@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { X, Send, Image as ImageIcon } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { trackUserEvent } from '../services/enterpriseAnalytics';
+import { useModalScrollLock } from '../hooks/useModalScrollLock';
 import toast from 'react-hot-toast';
 
 const CreatePostModal = ({ isOpen, onClose, categories = [], onPostCreated }) => {
@@ -15,6 +17,9 @@ const CreatePostModal = ({ isOpen, onClose, categories = [], onPostCreated }) =>
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [magicLinkSent, setMagicLinkSent] = useState(false);
 
+  // Prevent background scrolling
+  useModalScrollLock(isOpen);
+
   useEffect(() => {
     let mounted = true;
     const init = async () => {
@@ -27,23 +32,33 @@ const CreatePostModal = ({ isOpen, onClose, categories = [], onPostCreated }) =>
         const { data } = await supabase.auth.getUser();
         if (mounted) {
           setAuthUser(data?.user || null);
-          // Set default author name when user is loaded
-          if (data?.user && !formData.author_name) {
-            setFormData(prev => ({
-              ...prev,
-              author_name: data.user.email?.split('@')[0] || ''
-            }));
+          // Set default author name when user is loaded (only if completely empty)
+          if (data?.user) {
+            setFormData(prev => {
+              if (prev.author_name === '') {
+                return {
+                  ...prev,
+                  author_name: data.user.email?.split('@')[0] || ''
+                };
+              }
+              return prev;
+            });
           }
         }
 
         const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
           setAuthUser(session?.user || null);
-          // Update author name when auth state changes
-          if (session?.user && !formData.author_name) {
-            setFormData(prev => ({
-              ...prev,
-              author_name: session.user.email?.split('@')[0] || ''
-            }));
+          // Update author name when auth state changes (only if completely empty)
+          if (session?.user) {
+            setFormData(prev => {
+              if (prev.author_name === '') {
+                return {
+                  ...prev,
+                  author_name: session.user.email?.split('@')[0] || ''
+                };
+              }
+              return prev;
+            });
           }
         });
 
@@ -121,6 +136,15 @@ const CreatePostModal = ({ isOpen, onClose, categories = [], onPostCreated }) =>
         localStorage.setItem('local_forum_posts', JSON.stringify(local));
         
         toast.success('Post created successfully!');
+        
+        // Track community post creation (local)
+        const categoryName = categories.find(c => c.id === formData.category_id)?.name || 'Unknown';
+        try {
+          trackUserEvent.community.postCreate(categoryName);
+        } catch (error) {
+          console.warn('Analytics tracking failed:', error);
+        }
+        
         setFormData({ title: '', content: '', category_id: '', image_url: '', is_anonymous: false, author_name: '' });
         
         // Refresh posts immediately
@@ -195,7 +219,16 @@ const CreatePostModal = ({ isOpen, onClose, categories = [], onPostCreated }) =>
 
       console.log('✅ Post created successfully in database');
       toast.success('Post created successfully!');
-      setFormData({ title: '', content: '', category_id: '', image_url: '', is_anonymous: false, author_name: authUser?.email?.split('@')[0] || '' });
+      
+      // Track community post creation
+      const categoryName = categories.find(c => c.id === resolvedCategoryId)?.name || 'Unknown';
+      try {
+        trackUserEvent.community.postCreate(categoryName);
+      } catch (error) {
+        console.warn('Analytics tracking failed:', error);
+      }
+      
+setFormData({ title: '', content: '', category_id: '', image_url: '', is_anonymous: false, author_name: '' });
       
       // Refresh posts immediately
       if (onPostCreated) {
@@ -261,16 +294,36 @@ const CreatePostModal = ({ isOpen, onClose, categories = [], onPostCreated }) =>
     if (!emailForLogin) return toast.error('Please enter your email');
     try {
       setSendingMagicLink(true);
-      const { error } = await supabase.auth.signInWithOtp({ email: emailForLogin });
-      if (error) {
-        toast.error(error.message);
-      } else {
-        setMagicLinkSent(true);
-        toast.success('Magic link sent — check your email');
+      
+      // Use custom API instead of Supabase direct
+      const response = await fetch('/api/send-magic-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          email: emailForLogin.trim().toLowerCase(),
+          deviceId: 'create-post-modal'
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to send magic link');
       }
+      
+      setMagicLinkSent(true);
+      toast.success('Magic link sent — check your email');
+      
+      // Track magic link request
+      try {
+        trackUserEvent.magicLinkSent(emailForLogin.trim().toLowerCase());
+      } catch (error) {
+        console.warn('Analytics tracking failed:', error);
+      }
+      
     } catch (err) {
       console.error('Magic link error:', err);
-      toast.error('Failed to send magic link');
+      toast.error(err.message || 'Failed to send magic link');
     } finally { setSendingMagicLink(false); }
   };
 
@@ -289,7 +342,7 @@ const CreatePostModal = ({ isOpen, onClose, categories = [], onPostCreated }) =>
   // Remove the Supabase check - allow local posting
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start sm:items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start sm:items-center justify-center z-50 p-4 overflow-hidden">
       <div className="bg-white rounded-xl shadow-lg max-w-xl w-full max-h-[90vh] sm:max-h-[85vh] flex flex-col overflow-hidden">
         <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-[#FF6600] to-[#E55A00]">
           <div>
@@ -301,7 +354,7 @@ const CreatePostModal = ({ isOpen, onClose, categories = [], onPostCreated }) =>
           </button>
         </div>
 
-        <div className="p-4 overflow-y-auto flex-1">
+        <div className="p-4 overflow-y-auto flex-1" style={{ overscrollBehavior: 'contain' }}>
           {authLoading ? (
             <div className="text-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand mx-auto mb-4"></div>

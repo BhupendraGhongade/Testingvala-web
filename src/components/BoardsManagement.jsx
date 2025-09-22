@@ -447,6 +447,20 @@ const BoardsManagement = () => {
           </div>
         </div>
       </div>
+
+      {/* Delete Board Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={!!showDeleteModal}
+        onClose={() => setShowDeleteModal(null)}
+        onConfirm={confirmDeleteBoard}
+        title="Delete Board"
+        message="Are you sure you want to delete this board? This will also permanently delete all saves in this board."
+        confirmText="Delete Board"
+        cancelText="Cancel"
+        type="danger"
+        itemName={showDeleteModal?.name}
+        itemDescription={`${showDeleteModal?.save_count || 0} saves • Created by ${showDeleteModal?.user_profiles?.full_name || showDeleteModal?.user_profiles?.email || 'Unknown User'}`}
+      />
     </div>
   );
 };

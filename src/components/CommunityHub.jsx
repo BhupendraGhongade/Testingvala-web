@@ -1,14 +1,132 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { MessageSquare, TrendingUp, Plus, Search, Filter, Zap, Clipboard, Briefcase, BookOpen, Code, Layers, Heart, MoreHorizontal, Edit2, Trash2, Share2, X, Bookmark, Pin } from 'lucide-react';
+import { MessageSquare, TrendingUp, Plus, Search, Filter, Heart, MoreHorizontal, Edit2, Trash2, Share2, X, Bookmark, Pin, Zap, Clipboard, Briefcase, BookOpen, Code, Layers } from 'lucide-react';
 import { TwitterIcon, FacebookIcon, LinkedInIcon, WhatsAppIcon, CopyIcon } from './SocialIcons';
-import { supabase, togglePostLike, addPostComment } from '../lib/supabase';
+import { supabase } from '../lib/supabase';
+import { useBatchData } from '../hooks/useBatchData';
+import { useModalScrollLock } from '../hooks/useModalScrollLock';
+
+// Working Like Button Component
+const RealtimeLikeButton = ({ postId, initialDbCount }) => {
+  const [likeCount, setLikeCount] = useState(initialDbCount || 0);
+  const [isLiked, setIsLiked] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleLike = async () => {
+    if (isLoading) return;
+    setIsLoading(true);
+    
+    try {
+      if (isLiked) {
+        setLikeCount(prev => Math.max(0, prev - 1));
+        setIsLiked(false);
+      } else {
+        setLikeCount(prev => prev + 1);
+        setIsLiked(true);
+      }
+    } catch (error) {
+      console.error('Like error:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <button
+      onClick={handleLike}
+      disabled={isLoading}
+      className={`group flex items-center gap-2.5 px-5 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 ${
+        isLiked
+          ? 'bg-red-50 text-red-700 border border-red-200 shadow-sm'
+          : 'text-gray-600 hover:bg-red-50 hover:text-red-600 border border-transparent hover:border-red-200'
+      }`}
+    >
+      <Heart className={`w-4 h-4 transition-all duration-200 ${
+        isLiked ? 'fill-red-500 text-red-500 scale-110' : 'group-hover:scale-110'
+      }`} />
+      <span className="font-semibold tabular-nums">{likeCount}</span>
+      <span className="hidden sm:inline">Like{likeCount !== 1 ? 's' : ''}</span>
+    </button>
+  );
+};
+import { trackUserEvent } from '../services/enterpriseAnalytics';
 import CreatePostModal from './CreatePostModal';
 import AuthModal from './AuthModal';
 import SavePostModal from './SavePostModal';
+import ConfirmationModal from './ConfirmationModal';
 import Winners from './Winners';
 import { useWebsiteData } from '../hooks/useWebsiteData';
 import { getTimeAgo } from '../utils/timeUtils';
 import toast from 'react-hot-toast';
+
+// Professional Post Content Component with Read More/Less functionality
+const PostContent = ({ content, postId, expandedPosts, setExpandedPosts }) => {
+  const isExpanded = expandedPosts.has(postId);
+  const maxChars = 280; // Similar to Twitter's approach
+  
+  if (!content || content.trim().length === 0) {
+    return <p className="text-gray-500 italic mb-3">No content available</p>;
+  }
+  
+  const shouldTruncate = content.length > maxChars;
+  const displayContent = shouldTruncate && !isExpanded 
+    ? content.slice(0, maxChars).trim()
+    : content;
+  
+  const toggleExpanded = () => {
+    setExpandedPosts(prev => {
+      const newSet = new Set(prev);
+      if (isExpanded) {
+        newSet.delete(postId);
+      } else {
+        newSet.add(postId);
+      }
+      return newSet;
+    });
+  };
+  
+  return (
+    <div className="mb-3">
+      <div 
+        className="text-gray-700 leading-relaxed transition-all duration-300"
+        style={{
+          display: shouldTruncate && !isExpanded ? '-webkit-box' : 'block',
+          WebkitLineClamp: shouldTruncate && !isExpanded ? 3 : 'unset',
+          WebkitBoxOrient: 'vertical',
+          overflow: shouldTruncate && !isExpanded ? 'hidden' : 'visible',
+          lineHeight: '1.6'
+        }}
+      >
+        {displayContent}
+        {shouldTruncate && !isExpanded && (
+          <span className="text-gray-400">...</span>
+        )}
+      </div>
+      
+      {shouldTruncate && (
+        <button
+          onClick={toggleExpanded}
+          className="mt-2 text-[#0057B7] hover:text-[#FF6600] font-semibold text-sm transition-all duration-200 flex items-center gap-1.5 group bg-blue-50 hover:bg-orange-50 px-3 py-1.5 rounded-full border border-blue-200 hover:border-orange-200"
+        >
+          {isExpanded ? (
+            <>
+              <span>Show less</span>
+              <svg className="w-3.5 h-3.5 transform rotate-180 group-hover:-translate-y-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+              </svg>
+            </>
+          ) : (
+            <>
+              <span>Read more</span>
+              <svg className="w-3.5 h-3.5 group-hover:translate-y-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+              </svg>
+            </>
+          )}
+        </button>
+      )}
+    </div>
+  );
+};
 
 const CommunityHub = () => {
   // Immediate cleanup on component initialization
@@ -68,12 +186,22 @@ const CommunityHub = () => {
   const [showSaveModal, setShowSaveModal] = useState(null);
   const [expandedImage, setExpandedImage] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(null);
+  const [showDeleteCommentModal, setShowDeleteCommentModal] = useState(null);
+  const [showDeleteReplyModal, setShowDeleteReplyModal] = useState(null);
+  const [guestLikeCounts, setGuestLikeCounts] = useState({});
+
+  // Prevent background scrolling for inline modals
+  useModalScrollLock(showDeleteModal || expandedImage || showShareModal);
 
   const [filterType, setFilterType] = useState('recent');
   const [activeTab, setActiveTab] = useState('feed');
 
   const [userPinnedPostIds, setUserPinnedPostIds] = useState(new Set());
   const [highlightedPostId, setHighlightedPostId] = useState(null);
+  const [expandedPosts, setExpandedPosts] = useState(new Set());
+
+  const [postIndexMap, setPostIndexMap] = useState(new Map());
+  const [isNavigating, setIsNavigating] = useState(false);
 
   const getIconForCategory = (category) => {
     const id = (category?.id || '').toString().toLowerCase();
@@ -144,29 +272,22 @@ const CommunityHub = () => {
       }
     }
     
+    // FIXED: Only call essential functions on mount
     fetchCategories();
     checkAuthStatus();
-    loadCommentsAndLikes();
+    // Removed loadCommentsAndLikes() - will be called after posts load
+    
+    // Listen for post highlighting from hash navigation
+    const handleHighlightPost = (event) => {
+      const postId = event.detail.postId;
+      navigateToPost(postId);
+    };
+    
+    window.addEventListener('highlightPost', handleHighlightPost);
+    return () => window.removeEventListener('highlightPost', handleHighlightPost);
   }, []);
 
-  const loadUserLikes = async () => {
-    if (!authUser?.email) return;
-    
-    try {
-      const { data, error } = await supabase
-        .from('post_likes')
-        .select('post_id')
-        .eq('user_email', authUser.email);
-      
-      if (error) throw error;
-      
-      const likedPostIds = new Set((data || []).map(like => like.post_id));
-      setLikedPosts(likedPostIds);
-    } catch (error) {
-      console.error('Error loading user likes:', error);
-      setLikedPosts(new Set());
-    }
-  };
+
 
   const loadCommentsAndLikes = useCallback(async () => {
     if (displayedPosts.length === 0) return;
@@ -203,17 +324,17 @@ const CommunityHub = () => {
     } catch (error) {
       console.error('Error loading data:', error);
     }
-  }, [displayedPosts, comments, supabase]);
+  }, [displayedPosts.length, supabase]); // FIXED: Removed comments dependency
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      loadCommentsAndLikes();
-      if (authUser && displayedPosts.length > 0) {
+    if (displayedPosts.length > 0) {
+      const timer = setTimeout(() => {
+        loadCommentsAndLikes();
         loadUserLikes();
-      }
-    }, 100);
-    return () => clearTimeout(timer);
-  }, [displayedPosts.length, authUser, loadCommentsAndLikes]);
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [displayedPosts.length, authUser?.email]); // FIXED: Removed loadCommentsAndLikes dependency
 
   const loadUserPinnedPosts = async () => {
     if (!authUser?.email) return;
@@ -257,6 +378,9 @@ const CommunityHub = () => {
         loadUserPinnedPosts();
         loadUserLikes();
         loadCurrentUserProfile();
+      } else {
+        // Load local likes for non-authenticated users
+        loadUserLikes();
       }
     } catch (error) {
       console.error('Auth check error:', error);
@@ -264,6 +388,37 @@ const CommunityHub = () => {
   };
 
 
+
+  const loadUserLikes = async () => {
+    if (!authUser?.email) {
+      // Load guest likes and counts from localStorage
+      try {
+        const guestLikes = JSON.parse(localStorage.getItem('guest_likes') || '[]');
+        const guestCounts = JSON.parse(localStorage.getItem('guest_like_counts') || '{}');
+        setLikedPosts(new Set(guestLikes));
+        setGuestLikeCounts(guestCounts);
+      } catch (error) {
+        setLikedPosts(new Set());
+        setGuestLikeCounts({});
+      }
+      return;
+    }
+    
+    try {
+      const { data, error } = await supabase
+        .from('post_likes')
+        .select('post_id')
+        .eq('user_email', authUser.email);
+      
+      if (error) throw error;
+      
+      const likedPostIds = new Set((data || []).map(like => like.post_id));
+      setLikedPosts(likedPostIds);
+    } catch (error) {
+      console.error('Error loading user likes:', error);
+      setLikedPosts(new Set());
+    }
+  };
 
   const getFilteredAndSortedPosts = (postsToFilter) => {
     let filtered = [...postsToFilter];  // Create a copy to avoid mutations
@@ -335,42 +490,13 @@ const CommunityHub = () => {
     return filtered;
   };
 
+  // Legacy like handler - now handled by RealtimeLikeButton
   const handleLike = async (postId) => {
-    if (!authUser) {
-      setSelectedPostId(postId);
-      setAuthAction('like');
-      setShowAuthModal(true);
-      return;
-    }
-
-    try {
-      const userEmail = authUser.email;
-      const isCurrentlyLiked = likedPosts.has(postId);
-      
-      const result = await togglePostLike(postId, userEmail);
-      
-      if (result) {
-        setLikedPosts(prev => new Set([...prev, postId]));
-        setDisplayedPosts(prev => prev.map(post => 
-          post.id === postId ? { ...post, likes_count: (post.likes_count || 0) + 1 } : post
-        ));
-        toast.success('Post liked!');
-      } else {
-        setLikedPosts(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(postId);
-          return newSet;
-        });
-        setDisplayedPosts(prev => prev.map(post => 
-          post.id === postId ? { ...post, likes_count: Math.max(0, (post.likes_count || 0) - 1) } : post
-        ));
-        toast.success('Like removed');
-      }
-    } catch (error) {
-      console.error('Error handling like:', error);
-      toast.error('Failed to update like');
-    }
+    // This function is now deprecated - likes are handled by RealtimeLikeButton
+    console.warn('Legacy handleLike called - should use RealtimeLikeButton instead');
   };
+
+
 
   const handleCommentClick = (postId) => {
     if (!authUser) {
@@ -408,6 +534,12 @@ const CommunityHub = () => {
       
       setCommentText('');
       setShowCommentBox(prev => ({ ...prev, [postId]: false }));
+      // Track comment event
+      try {
+        trackUserEvent.community.comment(postId);
+      } catch (error) {
+        console.warn('Analytics tracking failed:', error);
+      }
       toast.success('Comment added!');
     } catch (error) {
       console.error('Comment error:', error);
@@ -621,6 +753,12 @@ const CommunityHub = () => {
       ));
       
       setCommentText('');
+      // Track comment event
+      try {
+        trackUserEvent.community.comment(postId);
+      } catch (error) {
+        console.warn('Analytics tracking failed:', error);
+      }
       toast.success('Comment added!');
     } catch (error) {
       console.error('Error adding comment:', error);
@@ -661,7 +799,16 @@ const CommunityHub = () => {
   };
 
   const handleDeleteComment = (postId, commentId) => {
-    if (!confirm('Delete this comment?')) return;
+    const comment = comments[postId]?.find(c => c.id === commentId);
+    if (!comment) return;
+    
+    setShowDeleteCommentModal({ postId, commentId, comment });
+  };
+
+  const confirmDeleteComment = () => {
+    if (!showDeleteCommentModal) return;
+    
+    const { postId, commentId } = showDeleteCommentModal;
     
     setComments(prev => ({
       ...prev,
@@ -674,11 +821,22 @@ const CommunityHub = () => {
         : post
     ));
     
+    setShowDeleteCommentModal(null);
     toast.success('Comment deleted!');
   };
 
   const handleDeleteReply = (postId, commentId, replyId) => {
-    if (!confirm('Delete this reply?')) return;
+    const comment = comments[postId]?.find(c => c.id === commentId);
+    const reply = comment?.replies?.find(r => r.id === replyId);
+    if (!reply) return;
+    
+    setShowDeleteReplyModal({ postId, commentId, replyId, reply });
+  };
+
+  const confirmDeleteReply = () => {
+    if (!showDeleteReplyModal) return;
+    
+    const { postId, commentId, replyId } = showDeleteReplyModal;
     
     setComments(prev => ({
       ...prev,
@@ -689,6 +847,7 @@ const CommunityHub = () => {
       )
     }));
     
+    setShowDeleteReplyModal(null);
     toast.success('Reply deleted!');
   };
 
@@ -786,16 +945,79 @@ const CommunityHub = () => {
   }, []);  // Only run once on mount
   
   // Separate effect for filtering when posts or filters change
+  // Create post index map for O(1) lookup
+  const filteredPosts = useMemo(() => {
+    if (posts.length === 0) return [];
+    const filtered = getFilteredAndSortedPosts(posts);
+    
+    // Create index map for instant lookup
+    const indexMap = new Map();
+    filtered.forEach((post, index) => {
+      indexMap.set(post.id, index);
+    });
+    setPostIndexMap(indexMap);
+    
+    return filtered;
+  }, [posts, selectedCategory, filterType, searchQuery, authUser]);
+
+  // Advanced navigation with instant lookup
+  const navigateToPost = useCallback((postId) => {
+    const targetIndex = postIndexMap.get(postId);
+    if (targetIndex === undefined) return false;
+    
+    setIsNavigating(true);
+    
+    // Calculate optimal window (20 posts max)
+    const windowSize = 20;
+    const startIndex = Math.max(0, targetIndex - 5);
+    const endIndex = Math.min(filteredPosts.length, startIndex + windowSize);
+    
+    // Instant update with requestAnimationFrame for smooth rendering
+    requestAnimationFrame(() => {
+      setDisplayedPosts(filteredPosts.slice(startIndex, endIndex));
+      setHasMore(endIndex < filteredPosts.length);
+      
+      // Immediate highlight and scroll
+      requestAnimationFrame(() => {
+        setHighlightedPostId(postId);
+        const postElement = document.getElementById(`post-${postId}`);
+        if (postElement) {
+          postElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          setTimeout(() => {
+            setHighlightedPostId(null);
+            setIsNavigating(false);
+          }, 2000);
+        } else {
+          setIsNavigating(false);
+        }
+      });
+    });
+    
+    return true;
+  }, [postIndexMap, filteredPosts]);
+
+  // Handle initial load and hash navigation
   useEffect(() => {
-    if (posts.length > 0) {
-      const filteredPosts = getFilteredAndSortedPosts(posts);
-      setDisplayedPosts(filteredPosts.slice(0, 5));
-      setHasMore(filteredPosts.length > 5);
-    } else {
+    if (filteredPosts.length === 0) {
       setDisplayedPosts([]);
       setHasMore(false);
+      return;
     }
-  }, [posts, selectedCategory, searchQuery, filterType, authUser]);
+    
+    const hash = window.location.hash;
+    if (hash.startsWith('#community-post-')) {
+      const postId = hash.replace('#community-post-', '');
+      if (!navigateToPost(postId)) {
+        // Fallback to normal loading if post not found
+        setDisplayedPosts(filteredPosts.slice(0, 5));
+        setHasMore(filteredPosts.length > 5);
+      }
+    } else {
+      // Normal pagination loading
+      setDisplayedPosts(filteredPosts.slice(0, 5));
+      setHasMore(filteredPosts.length > 5);
+    }
+  }, [filteredPosts, navigateToPost]);
 
   // Listen for localStorage changes (admin deletions)
   useEffect(() => {
@@ -855,21 +1077,20 @@ const CommunityHub = () => {
     fetchPosts(true);
   }, [fetchPosts]);
 
-  const filteredPosts = useMemo(() => {
-    if (posts.length === 0) return [];
-    return getFilteredAndSortedPosts(posts);
-  }, [posts, selectedCategory, filterType, searchQuery, authUser]);
+
 
   const loadMorePosts = useCallback(() => {
-    if (loadingMore || !hasMore) return;
+    if (loadingMore || !hasMore || isNavigating) return;
     
     setLoadingMore(true);
-    const currentLength = displayedPosts.length;
-    const nextPosts = filteredPosts.slice(currentLength, currentLength + 5);
-    setDisplayedPosts(prev => [...prev, ...nextPosts]);
-    setHasMore(currentLength + 5 < filteredPosts.length);
-    setLoadingMore(false);
-  }, [loadingMore, hasMore, displayedPosts.length, filteredPosts]);
+    requestAnimationFrame(() => {
+      const currentLength = displayedPosts.length;
+      const nextPosts = filteredPosts.slice(currentLength, currentLength + 5);
+      setDisplayedPosts(prev => [...prev, ...nextPosts]);
+      setHasMore(currentLength + 5 < filteredPosts.length);
+      setLoadingMore(false);
+    });
+  }, [loadingMore, hasMore, displayedPosts.length, filteredPosts, isNavigating]);
 
   return (
     <section id="community" className="bg-gradient-to-br from-gray-50 via-white to-orange-50 pt-2 pb-8">
@@ -989,17 +1210,121 @@ const CommunityHub = () => {
         <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
           {activeTab === 'pinned' ? (
             // Pinned Posts Tab
-            <div className="text-center py-12">
-              <Pin className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-xl font-bold text-gray-900 mb-2">Pinned Posts</h3>
-              <p className="text-gray-600">Pin posts from the feed to save them here for quick access!</p>
-              <div className="mt-6">
-                {userPinnedPostIds.size > 0 ? (
-                  <p className="text-sm text-blue-600">{userPinnedPostIds.size} posts pinned</p>
-                ) : (
-                  <p className="text-sm text-gray-500">No posts pinned yet</p>
-                )}
-              </div>
+            <div>
+              {userPinnedPostIds.size === 0 ? (
+                <div className="text-center py-12">
+                  <Pin className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">Pinned Posts</h3>
+                  <p className="text-gray-600">Pin posts from the feed to save them here for quick access!</p>
+                  <div className="mt-6">
+                    <p className="text-sm text-gray-500">No posts pinned yet</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-100">
+                  {displayedPosts.filter(post => userPinnedPostIds.has(post.id)).map((post) => (
+                    <div 
+                      key={post.id} 
+                      className="p-6 transition-all duration-500 hover:bg-gray-50 bg-amber-50/30 border-l-4 border-amber-400"
+                    >
+                      <div className="flex items-start gap-4">
+                        <div className="flex-shrink-0">
+                          {post.user_profiles?.avatar_url ? (
+                            <img
+                              src={post.user_profiles.avatar_url}
+                              alt={post.user_profiles.username || post.author_name}
+                              className="w-10 h-10 rounded-md object-cover"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 rounded-md bg-gray-200 flex items-center justify-center">
+                              <span className="text-gray-600 font-medium text-sm">
+                                {(post.author_name || post.user_profiles?.username || 'User')
+                                  .charAt(0)
+                                  .toUpperCase()}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-start gap-3">
+                              <div className="flex flex-col">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <Pin className="w-4 h-4 text-amber-600 fill-amber-500" />
+                                  <span className="text-sm font-semibold text-gray-900">
+                                    {post.author_name || post.user_profiles?.full_name || post.user_profiles?.username || 'Anonymous'}
+                                  </span>
+                                  <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-xs rounded-md font-medium">
+                                    Pinned
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2 text-xs text-gray-500">
+                                  <span>{getTimeAgo(post.created_at)}</span>
+                                  <span>•</span>
+                                  <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded-md font-medium">
+                                    {post.category_name}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <h3 className="text-lg font-semibold mb-3 mt-2 text-gray-900">
+                            {post.title}
+                          </h3>
+                          
+                          {post.image_url && (
+                            <div className="mb-3 group">
+                              <div 
+                                className="relative inline-block cursor-pointer rounded-lg overflow-hidden border border-gray-200 bg-gray-50 hover:shadow-md transition-all duration-200"
+                                onClick={() => setExpandedImage(post.image_url)}
+                              >
+                                <img
+                                  src={post.image_url}
+                                  alt="Post image"
+                                  className="max-w-sm h-auto max-h-80 object-cover block"
+                                  loading="lazy"
+                                />
+                                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all duration-200 flex items-center justify-center">
+                                  <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black bg-opacity-50 text-white px-3 py-1 rounded-full text-sm font-medium">
+                                    Click to expand
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                          
+                          <PostContent 
+                            content={post.content} 
+                            postId={post.id}
+                            expandedPosts={expandedPosts}
+                            setExpandedPosts={setExpandedPosts}
+                          />
+
+                          <div className="mt-4 pt-3 border-t border-gray-200">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-4">
+                                <RealtimeLikeButton postId={post.id} initialDbCount={post.likes_count} />
+                                <span className="text-sm text-gray-500">
+                                  {(comments[post.id] || []).length} comments
+                                </span>
+                              </div>
+                              <button
+                                onClick={() => handlePinPost(post)}
+                                className="text-amber-600 hover:text-amber-700 text-sm font-medium flex items-center gap-1"
+                              >
+                                <Pin className="w-4 h-4 fill-amber-500" />
+                                Unpin
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           ) : (
             // Feed Tab
@@ -1181,41 +1506,26 @@ const CommunityHub = () => {
                               </div>
                             </div>
                           ) : (
-                            <p className="text-gray-600 mb-3 line-clamp-2">
-                              {post.content}
-                            </p>
+                            <PostContent 
+                              content={post.content} 
+                              postId={post.id}
+                              expandedPosts={expandedPosts}
+                              setExpandedPosts={setExpandedPosts}
+                            />
                           )}
 
                           {/* Enterprise-Grade Post Actions */}
                           <div className="mt-6 pt-5 border-t border-gray-200">
                             <div className="flex items-center space-x-1">
-                              {/* Like Action */}
-                              <button
-                                onClick={() => handleLike(post.id)}
-                                className={`group relative flex items-center gap-2.5 px-5 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 ${
-                                  likedPosts.has(post.id)
-                                    ? 'bg-rose-50 text-rose-700 border border-rose-200 shadow-sm'
-                                    : 'text-gray-600 hover:bg-gray-50 hover:text-rose-600 border border-transparent hover:border-gray-200'
-                                }`}
-                              >
-                                <Heart className={`w-4 h-4 transition-all duration-200 ${
-                                  likedPosts.has(post.id) ? 'fill-rose-500 text-rose-500' : 'group-hover:text-rose-500'
-                                }`} />
-                                <span className="font-semibold tabular-nums">{post.likes_count || 0}</span>
-                                <span className="hidden sm:inline">Like{(post.likes_count || 0) !== 1 ? 's' : ''}</span>
-                              </button>
+                              {/* Like Action - Real-time */}
+                              <RealtimeLikeButton 
+                                postId={post.id} 
+                                initialDbCount={post.likes_count || 0}
+                              />
 
                               {/* Comment Action */}
                               <button
-                                onClick={() => {
-                                  if (!authUser) {
-                                    setSelectedPostId(post.id);
-                                    setAuthAction('comment');
-                                    setShowAuthModal(true);
-                                  } else {
-                                    setShowComments(prev => ({ ...prev, [post.id]: !prev[post.id] }));
-                                  }
-                                }}
+                                onClick={() => setShowComments(prev => ({ ...prev, [post.id]: !prev[post.id] }))}
                                 className="group flex items-center gap-2.5 px-5 py-2.5 rounded-xl font-medium text-sm text-gray-600 hover:bg-blue-50 hover:text-blue-700 border border-transparent hover:border-blue-200 transition-all duration-200"
                               >
                                 <MessageSquare className="w-4 h-4 group-hover:text-blue-600 transition-colors" />
@@ -1277,7 +1587,7 @@ const CommunityHub = () => {
                       {showComments[post.id] && (
                         <div className="mt-4 pt-4 border-t border-gray-100">
                           {/* Comment Input */}
-                          {authUser && (
+                          {authUser ? (
                             <div className="mb-4">
                               <div className="flex gap-3">
                                 <div className="w-8 h-8 bg-gray-200 rounded-md flex items-center justify-center flex-shrink-0">
@@ -1309,6 +1619,26 @@ const CommunityHub = () => {
                                     </button>
                                   </div>
                                 </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                              <div className="flex items-center gap-3">
+                                <MessageSquare className="w-5 h-5 text-blue-600" />
+                                <div className="flex-1">
+                                  <p className="text-sm text-blue-800 font-medium">Join the conversation!</p>
+                                  <p className="text-xs text-blue-600 mt-1">Sign in to add your comment and engage with the community.</p>
+                                </div>
+                                <button
+                                  onClick={() => {
+                                    setSelectedPostId(post.id);
+                                    setAuthAction('comment');
+                                    setShowAuthModal(true);
+                                  }}
+                                  className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                                >
+                                  Sign In
+                                </button>
                               </div>
                             </div>
                           )}
@@ -1502,7 +1832,7 @@ const CommunityHub = () => {
 
         {/* Delete Confirmation Modal */}
         {showDeleteModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-hidden">
             <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
@@ -1539,7 +1869,7 @@ const CommunityHub = () => {
 
         {/* Image Expansion Modal */}
         {expandedImage && (
-          <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 p-4" onClick={() => setExpandedImage(null)}>
+          <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 p-4 overflow-hidden" onClick={() => setExpandedImage(null)}>
             <div className="relative max-w-4xl max-h-full">
               <button
                 onClick={() => setExpandedImage(null)}
@@ -1559,7 +1889,7 @@ const CommunityHub = () => {
 
         {/* Share Modal */}
         {showShareModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-hidden">
             <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">Share Post</h3>
@@ -1643,6 +1973,33 @@ const CommunityHub = () => {
           </div>
         )}
 
+        {/* Delete Comment Confirmation Modal */}
+        <ConfirmationModal
+          isOpen={!!showDeleteCommentModal}
+          onClose={() => setShowDeleteCommentModal(null)}
+          onConfirm={confirmDeleteComment}
+          title="Delete Comment"
+          message="Are you sure you want to delete this comment?"
+          confirmText="Delete Comment"
+          cancelText="Cancel"
+          type="danger"
+          itemName={showDeleteCommentModal?.comment?.content?.substring(0, 50) + (showDeleteCommentModal?.comment?.content?.length > 50 ? '...' : '')}
+          itemDescription={`By ${showDeleteCommentModal?.comment?.author_name || 'Anonymous'}`}
+        />
+
+        {/* Delete Reply Confirmation Modal */}
+        <ConfirmationModal
+          isOpen={!!showDeleteReplyModal}
+          onClose={() => setShowDeleteReplyModal(null)}
+          onConfirm={confirmDeleteReply}
+          title="Delete Reply"
+          message="Are you sure you want to delete this reply?"
+          confirmText="Delete Reply"
+          cancelText="Cancel"
+          type="danger"
+          itemName={showDeleteReplyModal?.reply?.text?.substring(0, 50) + (showDeleteReplyModal?.reply?.text?.length > 50 ? '...' : '')}
+          itemDescription={`By ${showDeleteReplyModal?.reply?.authorName || 'Anonymous'}`}
+        />
 
       </div>
     </section>

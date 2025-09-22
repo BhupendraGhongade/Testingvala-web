@@ -1,8 +1,45 @@
 {
+  "functions": {
+    "api/send-magic-link.js": {
+      "runtime": "nodejs18.x",
+      "maxDuration": 30
+    },
+    "api/send-magic-link-enhanced.js": {
+      "runtime": "nodejs18.x",
+      "maxDuration": 30
+    },
+    "api/verify-token.js": {
+      "runtime": "nodejs18.x",
+      "maxDuration": 15
+    }
+  },
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/api/(.*)",
+      "destination": "/api/$1"
+    },
+    {
+      "source": "/((?!api).*)",
       "destination": "/index.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, POST, PUT, DELETE, OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "Content-Type, Authorization"
+        }
+      ]
     }
   ]
 }

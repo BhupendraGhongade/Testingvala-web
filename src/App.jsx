@@ -13,9 +13,12 @@ import EventsPage from './components/EventsPage';
 import BoardsPage from './components/BoardsPage';
 import BoardDetailPage from './components/BoardDetailPage';
 import PublicBoardsPage from './components/PublicBoardsPage';
+import AuthCallback from './components/AuthCallback';
+import AuthVerify from './components/AuthVerify';
 
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { useWebsiteData } from './hooks/useWebsiteData';
+import { enterpriseAnalytics, trackUserEvent } from './services/enterpriseAnalytics';
 import { Wifi, WifiOff, AlertCircle } from 'lucide-react';
 
 const AppContent = () => {
@@ -25,9 +28,30 @@ const AppContent = () => {
   const { user, isVerified } = useAuth();
   const { data, loading, error, isOnline } = useWebsiteData();
 
+  // Track user authentication state changes
+  useEffect(() => {
+    if (user && isVerified) {
+      try {
+        trackUserEvent.loginAttempt(user.email, true);
+        trackUserEvent.emailVerified(user.email);
+      } catch (error) {
+        console.warn('Analytics tracking failed:', error);
+      }
+    }
+  }, [user, isVerified]);
+
   React.useEffect(() => {
     const handler = () => {
-      setCurrentPath(window.location.pathname);
+      const newPath = window.location.pathname;
+      setCurrentPath(newPath);
+      
+      // Track page views
+      try {
+        trackUserEvent.pageView(newPath);
+      } catch (error) {
+        console.warn('Analytics tracking failed:', error);
+      }
+      
       // Check for post hash in URL
       const hash = window.location.hash;
       if (hash.startsWith('#community-post-')) {
@@ -73,7 +97,13 @@ const AppContent = () => {
       prizes: '1st Place: $500 | 2nd Place: $300 | 3rd Place: $200',
       submission: 'Share your QA trick with detailed explanation and impact',
       deadline: '2025-01-31',
-      status: 'Active Now'
+      status: 'Active Now',
+      stats: {
+        participants: '2,500+',
+        countries: '45+',
+        submissions: '1,200+',
+        winners: '36'
+      }
     },
     winners: [
       {
@@ -217,7 +247,11 @@ const AppContent = () => {
       <Header />
       
       <main style={{ paddingTop: '80px' }}>
-        {currentPath === '/events' ? (
+        {currentPath === '/auth/callback' ? (
+          <AuthCallback />
+        ) : currentPath === '/auth/verify' ? (
+          <AuthVerify />
+        ) : currentPath === '/events' ? (
           <EventsPage />
         ) : currentPath === '/boards' ? (
           boardView.type === 'detail' ? (
@@ -251,7 +285,7 @@ const AppContent = () => {
             <Hero data={validatedData.hero} />
             <UpcomingEvents key={`events-${Date.now()}`} />
             <CommunityHub />
-            <ContestSection data={validatedData.contest} />
+            <ContestSection contestData={validatedData.contest} />
             <AboutUs data={validatedData.about} />
             <Contact data={validatedData.contact} />
           </>

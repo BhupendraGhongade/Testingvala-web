@@ -1,0 +1,58 @@
+<!-- TestingVala Magic Link Email Template -->
+<!-- Copy this into Supabase Dashboard > Authentication > Settings > Email Templates > Magic Link -->
+
+Subject: Welcome to TestingVala - Verify Your Email
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to TestingVala</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+        .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+        .button { display: inline-block; background: #667eea; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; font-weight: bold; }
+        .footer { text-align: center; margin-top: 30px; color: #666; font-size: 14px; }
+        .logo { font-size: 24px; font-weight: bold; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">🚀 TestingVala</div>
+            <h1>Welcome to the QA Community!</h1>
+            <p>Join thousands of QA professionals worldwide</p>
+        </div>
+        <div class="content">
+            <h2>Verify Your Email Address</h2>
+            <p>Hi there!</p>
+            <p>Welcome to TestingVala, the premier platform for QA professionals to showcase skills, participate in contests, and connect with the global testing community.</p>
+            <p>Click the button below to verify your email and start participating:</p>
+            <a href="{{ .ConfirmationURL }}" class="button">Verify Email & Join Community</a>
+            <p>Or copy and paste this link in your browser:</p>
+            <p style="word-break: break-all; background: #eee; padding: 10px; border-radius: 5px; font-size: 12px;">{{ .ConfirmationURL }}</p>
+            <p><strong>What you can do after verification:</strong></p>
+            <ul>
+                <li>💬 Comment on community posts</li>
+                <li>❤️ Like and save posts to your boards</li>
+                <li>🏆 Participate in monthly QA contests</li>
+                <li>📝 Share your testing expertise</li>
+                <li>🎯 Build your professional network</li>
+            </ul>
+        </div>
+        <div class="footer">
+            <p>This link will expire in 24 hours for security reasons.</p>
+            <p>If you didn't request this, you can safely ignore this email.</p>
+            <p>© 2025 TestingVala - Empowering QA Professionals Worldwide</p>
+            <p>
+                <a href="https://testingvala.com">Website</a> | 
+                <a href="https://instagram.com/testingvala">Instagram</a> | 
+                <a href="https://youtube.com/@TestingvalaOfficial">YouTube</a>
+            </p>
+        </div>
+    </div>
+</body>
+</html>

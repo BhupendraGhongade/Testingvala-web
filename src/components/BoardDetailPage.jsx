@@ -1,13 +1,23 @@
-import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Bookmark, Lock, Globe, Plus, MoreHorizontal, Trash2, Share2, Download, FileText, ExternalLink } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { ArrowLeft, Bookmark, Lock, Globe, Plus, MoreHorizontal, Trash2, Share2, Download, FileText, ExternalLink, GripVertical, ArrowUp, ArrowDown } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
+import ConfirmationModal from './ConfirmationModal';
 
 const BoardDetailPage = ({ boardId, user, onBack }) => {
   const [board, setBoard] = useState(null);
   const [saves, setSaves] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showRemoveModal, setShowRemoveModal] = useState(null);
+  const [dragState, setDragState] = useState({
+    draggedIndex: null,
+    dragOverIndex: null,
+    isDragging: false,
+    dragStartPos: null
+  });
+  const dragTimeoutRef = useRef(null);
+  const dragPreviewRef = useRef(null);
 
   useEffect(() => {
     loadBoardDetails();
@@ -81,14 +91,17 @@ const BoardDetailPage = ({ boardId, user, onBack }) => {
         }
       } else {
         // Ensure saves have proper content
-        const processedSaves = (savesData || []).map(save => ({
-          ...save,
-          post_title: save.post_title || 'Untitled Post',
-          post_content: save.post_content || 'No content available',
-          post_author: save.post_author || 'Anonymous',
-          post_category: save.post_category || 'General',
-          post_image_url: save.post_image_url || null
-        }));
+        const processedSaves = (savesData || [])
+          .map(save => ({
+            ...save,
+            post_title: save.post_title || 'Untitled Post',
+            post_content: save.post_content || 'No content available',
+            post_author: save.post_author || 'Anonymous',
+            post_category: save.post_category || 'General',
+            post_image_url: save.post_image_url || null,
+            position: save.position || 0
+          }))
+          .sort((a, b) => (a.position || 0) - (b.position || 0));
         
         setSaves(processedSaves);
       }
@@ -101,22 +114,163 @@ const BoardDetailPage = ({ boardId, user, onBack }) => {
   };
 
   const removeSave = async (saveId) => {
-    if (!confirm('Remove this save from the board?')) return;
+    const save = saves.find(s => s.id === saveId);
+    if (!save) return;
+    
+    setShowRemoveModal(save);
+  };
+
+  const confirmRemoveSave = async () => {
+    if (!showRemoveModal) return;
 
     try {
       const { error } = await supabase
         .from('board_pins')
         .delete()
-        .eq('id', saveId);
+        .eq('id', showRemoveModal.id);
 
       if (error) throw error;
 
-      setSaves(prev => prev.filter(p => p.id !== saveId));
+      setSaves(prev => prev.filter(p => p.id !== showRemoveModal.id));
+      setShowRemoveModal(null);
       toast.success('Save removed');
     } catch (error) {
       console.error('Error removing save:', error);
       toast.error('Failed to remove save');
     }
+  };
+
+  const reorderSaves = useCallback(async (fromIndex, toIndex) => {
+    if (fromIndex === toIndex) return;
+    
+    const newSaves = [...saves];
+    const [movedItem] = newSaves.splice(fromIndex, 1);
+    newSaves.splice(toIndex, 0, movedItem);
+    
+    setSaves(newSaves);
+    
+    try {
+      const updates = newSaves.map((save, index) => 
+        supabase.from('board_pins').update({ position: index }).eq('id', save.id)
+      );
+      await Promise.all(updates);
+      toast.success('Order updated');
+    } catch (error) {
+      setSaves(saves);
+      toast.error('Failed to update order');
+    }
+  }, [saves]);
+
+  const handleDragStart = useCallback((e, index) => {
+    const save = saves[index];
+    
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', JSON.stringify({ index, id: save.id }));
+    
+    const preview = document.createElement('div');
+    preview.className = 'fixed pointer-events-none z-[9999] bg-white border-2 border-[#0057B7] rounded-lg p-3 shadow-2xl max-w-xs transform rotate-1 opacity-90';
+    preview.innerHTML = `
+      <div class="flex items-center gap-2">
+        <div class="w-6 h-6 bg-gradient-to-br from-[#0057B7] to-blue-600 rounded flex items-center justify-center">
+          <span class="text-white text-xs font-bold">${index + 1}</span>
+        </div>
+        <div class="flex-1 min-w-0">
+          <h4 class="font-semibold text-gray-900 truncate text-sm">${save.post_title}</h4>
+          <p class="text-xs text-blue-600 font-medium">Moving...</p>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(preview);
+    preview.style.left = '-9999px';
+    preview.style.top = '-9999px';
+    
+    e.dataTransfer.setDragImage(preview, 100, 30);
+    dragPreviewRef.current = preview;
+    
+    requestAnimationFrame(() => {
+      setDragState({
+        draggedIndex: index,
+        dragOverIndex: null,
+        isDragging: true,
+        dragStartPos: { x: e.clientX, y: e.clientY }
+      });
+    });
+    
+    dragTimeoutRef.current = setTimeout(() => {
+      if (dragPreviewRef.current && document.body.contains(dragPreviewRef.current)) {
+        document.body.removeChild(dragPreviewRef.current);
+        dragPreviewRef.current = null;
+      }
+    }, 50);
+  }, [saves]);
+
+  const handleDragEnd = useCallback(() => {
+    if (dragTimeoutRef.current) {
+      clearTimeout(dragTimeoutRef.current);
+    }
+    if (dragPreviewRef.current && document.body.contains(dragPreviewRef.current)) {
+      document.body.removeChild(dragPreviewRef.current);
+      dragPreviewRef.current = null;
+    }
+    
+    setDragState({
+      draggedIndex: null,
+      dragOverIndex: null,
+      isDragging: false,
+      dragStartPos: null
+    });
+  }, []);
+
+  const handleDragOver = useCallback((e, index) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    
+    if (dragState.draggedIndex !== null && dragState.draggedIndex !== index) {
+      setDragState(prev => ({ ...prev, dragOverIndex: index }));
+    }
+  }, [dragState.draggedIndex]);
+
+  const handleDragEnter = useCallback((e, index) => {
+    e.preventDefault();
+    if (dragState.draggedIndex !== null && dragState.draggedIndex !== index) {
+      setDragState(prev => ({ ...prev, dragOverIndex: index }));
+    }
+  }, [dragState.draggedIndex]);
+
+  const handleDragLeave = useCallback((e) => {
+    e.preventDefault();
+    const rect = e.currentTarget.getBoundingClientRect();
+    const { clientX: x, clientY: y } = e;
+    
+    if (x < rect.left - 5 || x > rect.right + 5 || y < rect.top - 5 || y > rect.bottom + 5) {
+      setDragState(prev => ({ ...prev, dragOverIndex: null }));
+    }
+  }, []);
+
+  const handleDrop = useCallback((e, dropIndex) => {
+    e.preventDefault();
+    
+    try {
+      const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+      const draggedIndex = data.index;
+      
+      if (draggedIndex !== dropIndex && draggedIndex >= 0 && dropIndex >= 0) {
+        reorderSaves(draggedIndex, dropIndex);
+      }
+    } catch (error) {
+      console.warn('Drop data parsing failed:', error);
+    }
+    
+    setDragState(prev => ({ ...prev, dragOverIndex: null }));
+  }, [reorderSaves]);
+
+  const moveUp = (index) => {
+    if (index > 0) reorderSaves(index, index - 1);
+  };
+
+  const moveDown = (index) => {
+    if (index < saves.length - 1) reorderSaves(index, index + 1);
   };
 
   const toggleBoardVisibility = async () => {
@@ -316,90 +470,210 @@ const BoardDetailPage = ({ boardId, user, onBack }) => {
             </p>
           </div>
         ) : (
-          <div className="space-y-6">
+          <div className={`transition-all duration-300 ${
+            dragState.isDragging ? 'space-y-1' : 'space-y-6'
+          }`}>
             {saves.map((save, index) => (
-              <div key={save.id} className="bg-white rounded-lg shadow-sm border border-gray-200">
-                <div className="p-6">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <span className="bg-blue-100 text-blue-800 text-sm font-medium px-3 py-1 rounded-full">
-                        {index + 1}
-                      </span>
-                      <h3 className="text-xl font-bold text-gray-900">
-                        {save.post_title || 'Untitled Post'}
-                      </h3>
+              <div 
+                key={save.id} 
+                draggable={isOwner}
+                onDragStart={(e) => handleDragStart(e, index)}
+                onDragEnd={handleDragEnd}
+                onDragOver={(e) => handleDragOver(e, index)}
+                onDragEnter={(e) => handleDragEnter(e, index)}
+                onDragLeave={handleDragLeave}
+                onDrop={(e) => handleDrop(e, index)}
+                className={`relative bg-white rounded-lg shadow-sm border transition-all duration-200 ${
+                  dragState.dragOverIndex === index && dragState.draggedIndex !== index 
+                    ? 'border-[#0057B7] shadow-lg bg-blue-50 transform scale-[1.01]' 
+                    : 'border-gray-200'
+                } ${
+                  dragState.draggedIndex === index 
+                    ? 'opacity-50 transform scale-95 shadow-xl border-[#0057B7] z-50' 
+                    : ''
+                } ${
+                  isOwner ? 'hover:shadow-md hover:border-gray-300' : ''
+                } ${
+                  dragState.isDragging && dragState.draggedIndex !== index 
+                    ? 'transform scale-98 shadow-sm' 
+                    : ''
+                }`}
+              >
+                {/* Drop Zone Indicator */}
+                {dragState.dragOverIndex === index && dragState.draggedIndex !== index && (
+                  <div className="absolute -top-1 left-0 right-0 h-1 bg-[#0057B7] rounded-full animate-pulse z-10" />
+                )}
+                
+                {/* Conditional Rendering: Full View or Strip View */}
+                {dragState.isDragging ? (
+                  /* Vertical Strip View (During Drag) */
+                  <div className="p-2 border-l-4 border-l-[#0057B7]">
+                    <div className="flex items-center gap-2">
+                      {isOwner && dragState.draggedIndex === index && (
+                        <div className="p-1 rounded bg-[#0057B7] cursor-grabbing">
+                          <GripVertical className="w-3 h-3 text-white" />
+                        </div>
+                      )}
+                      <div className="w-6 h-6 bg-gradient-to-br from-[#0057B7] to-blue-600 rounded flex items-center justify-center flex-shrink-0">
+                        <span className="text-white text-xs font-bold">{index + 1}</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className={`font-medium truncate text-sm transition-colors ${
+                          dragState.draggedIndex === index ? 'text-[#0057B7]' : 'text-gray-900'
+                        }`}>
+                          {save.post_title}
+                        </h4>
+                        <div className="flex items-center gap-1 mt-0.5">
+                          <span className="text-xs text-gray-500 truncate">
+                            {save.post_category || 'General'}
+                          </span>
+                          <span className="text-xs text-gray-400">•</span>
+                          <span className="text-xs text-gray-500 truncate">
+                            {save.post_author || 'Anonymous'}
+                          </span>
+                        </div>
+                      </div>
+                      {dragState.draggedIndex === index && (
+                        <div className="flex items-center gap-1">
+                          <div className="w-1.5 h-1.5 bg-[#0057B7] rounded-full animate-pulse"></div>
+                          <span className="text-xs text-[#0057B7] font-medium">
+                            Moving
+                          </span>
+                        </div>
+                      )}
                     </div>
-                    {isOwner && (
-                      <button
-                        onClick={() => removeSave(save.id)}
-                        className="p-2 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
                   </div>
-                  
-                  <div className="mb-4 flex items-center gap-4 text-sm text-gray-500">
-                    <span>By <strong>{save.post_author || 'Anonymous'}</strong></span>
-                    <span>•</span>
-                    <span>Category: <strong>{save.post_category || 'General'}</strong></span>
-                    <span>•</span>
-                    <span>Saved: {new Date(save.created_at).toLocaleDateString()}</span>
-                    {save.post_id && (
-                      <>
-                        <span>•</span>
+                ) : (
+                  /* Normal Full View */
+                  <div className="p-6">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        {isOwner && (
+                          <div className="flex flex-col gap-1 group">
+                            <div 
+                              className="relative p-1 rounded-md bg-[#0057B7] hover:bg-blue-700 cursor-grab active:cursor-grabbing transition-all duration-200 hover:scale-110 hover:shadow-lg"
+                              title="Drag to reorder posts"
+                            >
+                              <GripVertical className="w-4 h-4 text-white" />
+                              <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none z-10">
+                                Drag to reorder
+                              </div>
+                            </div>
+                            <div className="flex flex-col gap-0.5">
+                              <button
+                                onClick={() => moveUp(index)}
+                                disabled={index === 0}
+                                className="p-1 text-[#0057B7] hover:text-white hover:bg-[#0057B7] disabled:opacity-30 disabled:cursor-not-allowed rounded transition-all duration-200"
+                                title="Move up"
+                              >
+                                <ArrowUp className="w-3 h-3" />
+                              </button>
+                              <button
+                                onClick={() => moveDown(index)}
+                                disabled={index === saves.length - 1}
+                                className="p-1 text-[#0057B7] hover:text-white hover:bg-[#0057B7] disabled:opacity-30 disabled:cursor-not-allowed rounded transition-all duration-200"
+                                title="Move down"
+                              >
+                                <ArrowDown className="w-3 h-3" />
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                        <span className="bg-blue-100 text-blue-800 text-sm font-medium px-3 py-1 rounded-full">
+                          {index + 1}
+                        </span>
+                        <h3 className="text-xl font-bold text-gray-900">
+                          {save.post_title || 'Untitled Post'}
+                        </h3>
+                      </div>
+                      {isOwner && (
                         <button
-                          onClick={() => {
-                            // Navigate to home page with post hash
-                            const targetUrl = `/#community-post-${save.post_id}`;
-                            if (window.location.pathname === '/') {
-                              // Already on home page, just update hash and trigger highlight
-                              window.location.hash = `community-post-${save.post_id}`;
-                              window.dispatchEvent(new CustomEvent('highlightPost', { detail: { postId: save.post_id } }));
-                            } else {
-                              // Navigate to home page with hash
-                              window.location.href = targetUrl;
-                            }
-                          }}
-                          className="text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1 transition-colors"
+                          onClick={() => removeSave(save.id)}
+                          className="p-2 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
                         >
-                          <ExternalLink className="w-3 h-3" />
-                          View Source
+                          <Trash2 className="w-4 h-4" />
                         </button>
-                      </>
+                      )}
+                    </div>
+                    
+                    <div className="mb-4 flex items-center gap-4 text-sm text-gray-500">
+                      <span>By <strong>{save.post_author || 'Anonymous'}</strong></span>
+                      <span>•</span>
+                      <span>Category: <strong>{save.post_category || 'General'}</strong></span>
+                      <span>•</span>
+                      <span>Saved: {new Date(save.created_at).toLocaleDateString()}</span>
+                      {save.post_id && (
+                        <>
+                          <span>•</span>
+                          <button
+                            onClick={() => {
+                              if (window.location.pathname === '/') {
+                                const communitySection = document.getElementById('community');
+                                if (communitySection) {
+                                  communitySection.scrollIntoView({ behavior: 'smooth' });
+                                  setTimeout(() => {
+                                    const postElement = document.getElementById(`post-${save.post_id}`);
+                                    if (postElement) {
+                                      postElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                      postElement.classList.add('ring-2', 'ring-blue-500', 'ring-opacity-50');
+                                      setTimeout(() => {
+                                        postElement.classList.remove('ring-2', 'ring-blue-500', 'ring-opacity-50');
+                                      }, 3000);
+                                    }
+                                  }, 500);
+                                }
+                              } else {
+                                window.location.href = `/#community-post-${save.post_id}`;
+                              }
+                            }}
+                            className="text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1 transition-colors"
+                          >
+                            <ExternalLink className="w-3 h-3" />
+                            View Source
+                          </button>
+                        </>
+                      )}
+                    </div>
+                    
+                    {save.post_image_url && (
+                      <div className="mb-4">
+                        <img
+                          src={save.post_image_url}
+                          alt="Post image"
+                          className="max-w-full h-auto rounded-lg border border-gray-200 shadow-sm"
+                          onError={(e) => e.target.style.display = 'none'}
+                        />
+                      </div>
                     )}
-                  </div>
-                  
-                  {save.post_image_url && (
-                    <div className="mb-4">
-                      <img
-                        src={save.post_image_url}
-                        alt="Post image"
-                        className="max-w-full h-auto rounded-lg border border-gray-200 shadow-sm"
-                        onError={(e) => {
-                          console.log('Image failed to load:', save.post_image_url);
-                          e.target.style.display = 'none';
-                        }}
-                        onLoad={() => {
-                          console.log('Image loaded successfully:', save.post_image_url);
-                        }}
-                      />
-                    </div>
-                  )}
-                  
-                  <div className="prose max-w-none">
-                    <div className="text-gray-700 leading-relaxed whitespace-pre-wrap">
-                      {save.post_content && save.post_content.trim() && save.post_content !== 'No content available' 
-                        ? save.post_content
-                        : 'No content available'
-                      }
+                    
+                    <div className="prose max-w-none">
+                      <div className="text-gray-700 leading-relaxed whitespace-pre-wrap">
+                        {save.post_content && save.post_content.trim() && save.post_content !== 'No content available' 
+                          ? save.post_content
+                          : 'No content available'
+                        }
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
               </div>
             ))}
           </div>
         )}
+
+        {/* Remove Save Confirmation Modal */}
+        <ConfirmationModal
+          isOpen={!!showRemoveModal}
+          onClose={() => setShowRemoveModal(null)}
+          onConfirm={confirmRemoveSave}
+          title="Remove Save"
+          message="Are you sure you want to remove this save from the board?"
+          confirmText="Remove Save"
+          cancelText="Cancel"
+          type="warning"
+          itemName={showRemoveModal?.post_title}
+          itemDescription={`By ${showRemoveModal?.post_author || 'Anonymous'} • ${showRemoveModal?.post_category || 'General'}`}
+        />
       </div>
     </div>
   );
