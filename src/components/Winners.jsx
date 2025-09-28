@@ -151,6 +151,13 @@ const Winners = ({ data }) => {
   const { winners: winnersData, loading } = useWinnersData();
   const [winners, setWinners] = useState([]);
 
+  // Get last month name dynamically
+  const getLastMonthName = () => {
+    const now = new Date();
+    const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    return lastMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  };
+
   const defaultData = {
     winners: [],
     stats: {
@@ -289,7 +296,7 @@ const Winners = ({ data }) => {
 
   return (
     <>
-      <section id="winners" className="py-16 bg-gradient-to-br from-gray-50 via-white to-orange-50 relative overflow-hidden">
+      <section id="winners" data-section="winners" className="py-16 bg-gradient-to-br from-gray-50 via-white to-orange-50 relative overflow-hidden">
         {/* Background Pattern */}
         <div className="absolute inset-0 opacity-5">
           <div className="absolute top-20 left-20 w-32 h-32 bg-[#FF6600] rounded-full blur-3xl"></div>
@@ -306,10 +313,10 @@ const Winners = ({ data }) => {
               </div>
             </div>
             <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6 bg-gradient-to-r from-gray-900 via-[#0057B7] to-[#FF6600] bg-clip-text text-transparent">
-              Previous Winners
+              Last Month Contest Winners
             </h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
-              Meet the exceptional QA professionals who have won our monthly contests and shared their innovative testing techniques with the community.
+              Congratulations to our {getLastMonthName()} contest winners! These exceptional QA professionals showcased innovative testing techniques and earned recognition in our community.
             </p>
           </div>
 

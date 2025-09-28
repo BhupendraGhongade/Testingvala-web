@@ -32,6 +32,12 @@ export const useAuth = () => {
 };
 
 export const AuthProvider = ({ children }) => {
+  // Add defensive check for React hooks
+  if (!React || !useState) {
+    console.error('React hooks not available in AuthProvider');
+    return children;
+  }
+
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [authStatus, setAuthStatus] = useState(null);

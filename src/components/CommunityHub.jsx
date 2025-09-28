@@ -1,5 +1,11 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { MessageSquare, TrendingUp, Plus, Search, Filter, Heart, MoreHorizontal, Edit2, Trash2, Share2, X, Bookmark, Pin, Zap, Clipboard, Briefcase, BookOpen, Code, Layers } from 'lucide-react';
+import { MessageSquare, TrendingUp, Plus, Search, Filter, Heart, MoreHorizontal, Edit2, Trash2, Share2, X, Bookmark, Pin, Zap, Clipboard, Briefcase, BookOpen, Code, Layers, Calendar, Clock, Trophy, Check, Download, Linkedin, MessageCircle, Star, MapPin, Users, DollarSign, ExternalLink } from 'lucide-react';
+import LoadingSkeleton from './LoadingSkeleton';
+import StickyActionBar from './StickyActionBar';
+
+import ThreadedComments from './ThreadedComments';
+import MentionInput from './MentionInput';
+import ProfessionalAvatar from './ProfessionalAvatar';
 import { TwitterIcon, FacebookIcon, LinkedInIcon, WhatsAppIcon, CopyIcon } from './SocialIcons';
 import { supabase } from '../lib/supabase';
 import { useModalScrollLock } from '../hooks/useModalScrollLock';
@@ -53,9 +59,15 @@ import AuthModal from './AuthModal';
 import SavePostModal from './SavePostModal';
 import ConfirmationModal from './ConfirmationModal';
 import Winners from './Winners';
-import { useWebsiteData, useCommunityData } from '../contexts/GlobalDataContext';
+import ErrorBoundary from './ErrorBoundary';
+import PartnershipModal from './PartnershipModal';
+import ContestSubmissionForm from './ContestSubmissionForm';
+import { useGlobalData, useWebsiteData, useCommunityData, useWinnersData, useEventsData } from '../contexts/GlobalDataContext';
 import { getTimeAgo } from '../utils/timeUtils';
 import toast from 'react-hot-toast';
+
+import CategoryDropdown from './CategoryDropdown';
+import FilterDropdown from './FilterDropdown';
 
 // Professional Post Content Component with Read More/Less functionality
 const PostContent = ({ content, postId, expandedPosts, setExpandedPosts }) => {
@@ -129,7 +141,7 @@ const PostContent = ({ content, postId, expandedPosts, setExpandedPosts }) => {
 
 const CommunityHub = () => {
   // Immediate cleanup on component initialization
-  React.useMemo(() => {
+  useMemo(() => {
     try {
       const forceClear = localStorage.getItem('force_clear_posts');
       const adminClearTime = localStorage.getItem('posts_cleared_by_admin');
@@ -157,8 +169,11 @@ const CommunityHub = () => {
   
   const { data: siteData } = useWebsiteData();
   const { posts, categories, loading: contextLoading } = useCommunityData();
+  const { winners: winnersData, loading: winnersLoading } = useWinnersData();
+  const { events: eventsData, loading: eventsLoading } = useEventsData();
   const [loading, setLoading] = useState(false);
   const [categoriesLoading, setCategoriesLoading] = useState(false);
+  const [fallbackCategories, setFallbackCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [showCreatePost, setShowCreatePost] = useState(false);
@@ -173,7 +188,7 @@ const CommunityHub = () => {
   const [showCommentBox, setShowCommentBox] = useState({});
   const [likedPosts, setLikedPosts] = useState(new Set());
   const [editingPost, setEditingPost] = useState(null);
-  const [editText, setEditText] = useState('');
+  const [editFormData, setEditFormData] = useState({ title: '', content: '', category_id: '', experience_years: '', author_name: '' });
   const [showDropdown, setShowDropdown] = useState({});
   const [showComments, setShowComments] = useState({});
   const [comments, setComments] = useState({});
@@ -187,6 +202,7 @@ const CommunityHub = () => {
   const [showDeleteCommentModal, setShowDeleteCommentModal] = useState(null);
   const [showDeleteReplyModal, setShowDeleteReplyModal] = useState(null);
   const [guestLikeCounts, setGuestLikeCounts] = useState({});
+  const [currentEventIndex, setCurrentEventIndex] = useState(0);
 
   // Prevent background scrolling for inline modals
   useModalScrollLock(showDeleteModal || expandedImage || showShareModal);
@@ -197,6 +213,10 @@ const CommunityHub = () => {
   const [userPinnedPostIds, setUserPinnedPostIds] = useState(new Set());
   const [highlightedPostId, setHighlightedPostId] = useState(null);
   const [expandedPosts, setExpandedPosts] = useState(new Set());
+  const [showPartnershipModal, setShowPartnershipModal] = useState(false);
+  const [showContestForm, setShowContestForm] = useState(false);
+
+  const [stickyPost, setStickyPost] = useState(null);
 
   const [postIndexMap, setPostIndexMap] = useState(new Map());
   const [isNavigating, setIsNavigating] = useState(false);
@@ -280,6 +300,27 @@ const CommunityHub = () => {
             }
           }
           
+          // Load fallback categories from database if context categories are empty
+          if (categories.length === 0 && !contextLoading && supabase) {
+            try {
+              const { data: categoriesData, error } = await supabase
+                .from('forum_categories')
+                .select('*')
+                .order('name');
+              
+              if (!error && categoriesData && categoriesData.length > 0) {
+                setFallbackCategories(categoriesData);
+                console.log('Loaded fallback categories:', categoriesData);
+              } else {
+                console.warn('No categories found in database');
+                setFallbackCategories([]);
+              }
+            } catch (err) {
+              console.error('Error loading categories:', err);
+              setFallbackCategories([]);
+            }
+          }
+          
           // Single batch initialization
           if (mounted) {
             await checkAuthStatus();
@@ -306,7 +347,7 @@ const CommunityHub = () => {
       initPromise = null;
       window.removeEventListener('highlightPost', handleHighlightPost);
     };
-  }, []); // Empty dependency array - only run once
+  }, [categories, contextLoading]); // Depend on categories and loading state
 
 
 
@@ -606,22 +647,37 @@ const CommunityHub = () => {
 
   const handleEditPost = (post) => {
     setEditingPost(post.id);
-    setEditText(post.content);
+    setEditFormData({
+      title: post.title || '',
+      content: post.content || '',
+      category_id: post.category_id || '',
+      experience_years: post.experience_years || '',
+      author_name: post.author_name || ''
+    });
     setShowDropdown({});
   };
 
   const handleSaveEdit = async (postId) => {
-    if (!editText.trim()) {
-      toast.error('Post content cannot be empty');
+    if (!editFormData.title.trim() || !editFormData.content.trim()) {
+      toast.error('Title and content cannot be empty');
       return;
     }
 
     try {
+      const updateData = {
+        title: editFormData.title.trim(),
+        content: editFormData.content.trim(),
+        category_id: editFormData.category_id,
+        experience_years: editFormData.experience_years || null,
+        author_name: editFormData.author_name.trim(),
+        updated_at: new Date().toISOString()
+      };
+
       // Update in database if available
       if (supabase) {
         const { error } = await supabase
           .from('forum_posts')
-          .update({ content: editText.trim(), updated_at: new Date().toISOString() })
+          .update(updateData)
           .eq('id', postId);
         
         if (error) throw error;
@@ -631,17 +687,17 @@ const CommunityHub = () => {
       if (postId.startsWith('local-')) {
         const localPosts = JSON.parse(localStorage.getItem('local_forum_posts') || '[]');
         const updatedPosts = localPosts.map(post => 
-          post.id === postId ? { ...post, content: editText.trim() } : post
+          post.id === postId ? { ...post, ...updateData } : post
         );
         localStorage.setItem('local_forum_posts', JSON.stringify(updatedPosts));
       }
       
       setDisplayedPosts(prev => prev.map(post => 
-        post.id === postId ? { ...post, content: editText.trim() } : post
+        post.id === postId ? { ...post, ...updateData } : post
       ));
       
       setEditingPost(null);
-      setEditText('');
+      setEditFormData({ title: '', content: '', category_id: '', experience_years: '', author_name: '' });
       toast.success('Post updated successfully!');
     } catch (error) {
       console.error('Error updating post:', error);
@@ -912,6 +968,43 @@ const CommunityHub = () => {
     }
   }, [filteredPosts, navigateToPost]);
 
+  // Auto-rotate events carousel
+  useEffect(() => {
+    if (!eventsData || eventsData.length <= 1) return;
+    
+    const interval = setInterval(() => {
+      setCurrentEventIndex(prev => (prev + 1) % eventsData.length);
+    }, 4000);
+    
+    return () => clearInterval(interval);
+  }, [eventsData]);
+
+  // Scroll detection for sticky action bar
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollY = window.scrollY;
+      const windowHeight = window.innerHeight;
+      
+      // Find which post is currently in view
+      displayedPosts.forEach(post => {
+        const postElement = document.getElementById(`post-${post.id}`);
+        if (postElement) {
+          const rect = postElement.getBoundingClientRect();
+          const isInView = rect.top < windowHeight * 0.3 && rect.bottom > windowHeight * 0.7;
+          
+          if (isInView && rect.bottom < 100) {
+            setStickyPost(post.id);
+          } else if (rect.top > windowHeight * 0.3) {
+            setStickyPost(null);
+          }
+        }
+      });
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [displayedPosts]);
+
   // Listen for localStorage changes (admin deletions)
   useEffect(() => {
     const handlePostsUpdated = (event) => {
@@ -958,11 +1051,38 @@ const CommunityHub = () => {
     };
   }, []);
 
+  // Get refresh function from context
+  const { refreshData } = useGlobalData();
+  
   // Force refresh function for external calls
-  const refreshPosts = useCallback(() => {
-    // Refresh via context
-    window.location.reload();
-  }, []);
+  const refreshPosts = useCallback(async () => {
+    try {
+      console.log('🔄 Refreshing posts after creation...');
+      
+      // Clear data service cache to force fresh data
+      if (typeof window !== 'undefined' && window.dataService) {
+        window.dataService.clearCache('forum_posts');
+        window.dataService.clearCache('forum_categories');
+      }
+      
+      // Trigger context refresh if available
+      if (refreshData && typeof refreshData === 'function') {
+        await refreshData();
+      } else {
+        // Fallback: manual refresh of displayed posts
+        console.log('Context refresh not available, using fallback...');
+        const currentFiltered = getFilteredAndSortedPosts(posts || []);
+        setDisplayedPosts(currentFiltered.slice(0, 5));
+        setHasMore(currentFiltered.length > 5);
+      }
+      
+      console.log('✅ Posts refreshed successfully');
+    } catch (error) {
+      console.error('❌ Error refreshing posts:', error);
+      // Simple fallback without full reload
+      toast.success('Post created! Please refresh the page to see your new post.');
+    }
+  }, [refreshData, posts, getFilteredAndSortedPosts]);
 
 
 
@@ -984,20 +1104,20 @@ const CommunityHub = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="text-center mb-4">
-          <div className="inline-flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-full text-sm font-semibold mb-4 shadow-lg">
+          <div className="inline-flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-full text-sm font-semibold mb-3 shadow-lg">
             <MessageSquare className="w-4 h-4" />
-            Community Discussions
+            Community Hub
           </div>
           {authUser && isCurrentUserAdmin() && (
             <div className="inline-flex items-center gap-2 bg-red-100 text-red-800 px-3 py-1 rounded-full text-xs font-medium mb-2">
-              🛡️ Admin Mode Active - You can moderate all posts
+              🛡️ Admin Mode Active
             </div>
           )}
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3 bg-gradient-to-r from-gray-900 via-[#0057B7] to-[#FF6600] bg-clip-text text-transparent">
-            Community Discussions
+          <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2 bg-gradient-to-r from-gray-900 via-[#0057B7] to-[#FF6600] bg-clip-text text-transparent">
+            QA Professional Network
           </h2>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Join the conversation with QA professionals worldwide. Share your expertise, ask questions, and learn from the community.
+          <p className="text-base text-gray-600 max-w-xl mx-auto">
+            Connect. Share. Grow.
           </p>
         </div>
 
@@ -1022,42 +1142,21 @@ const CommunityHub = () => {
             {activeTab === 'feed' && (
               <div className="flex items-center gap-2">
                 <Filter className="w-5 h-5 text-gray-500" />
-                <select
-                  value={filterType}
-                  onChange={(e) => setFilterType(e.target.value)}
-                  className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF6600] focus:border-transparent"
-                >
-                  <option value="recent">Recent</option>
-                  <option value="trending">Trending (7 days)</option>
-                  <option value="hot">Hot Today</option>
-                  {authUser && <option value="my-posts">My Posts</option>}
-                </select>
+                <FilterDropdown
+                  filterType={filterType}
+                  onFilterChange={setFilterType}
+                  authUser={authUser}
+                />
               </div>
             )}
 
             {/* Category Filter - Only show for Feed tab */}
             {activeTab === 'feed' && (
-              <div className="flex items-center gap-2">
-                <select
-                  value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF6600] focus:border-transparent"
-                  disabled={categoriesLoading}
-                >
-                  <option value="all">All Categories</option>
-                  {categoriesLoading ? (
-                    <option disabled>Loading categories...</option>
-                  ) : categories.length === 0 ? (
-                    <option disabled>No categories available</option>
-                  ) : (
-                    categories.map((category) => (
-                      <option key={category.id} value={category.id}>
-                        {category.name} ({posts.filter(p => p.category_id === category.id).length})
-                      </option>
-                    ))
-                  )}
-                </select>
-              </div>
+              <CategoryDropdown
+                categories={categories.length > 0 ? categories : fallbackCategories}
+                selectedCategory={selectedCategory}
+                onCategoryChange={setSelectedCategory}
+              />
             )}
 
             {/* Pinned Tab Button */}
@@ -1080,12 +1179,14 @@ const CommunityHub = () => {
               {activeTab === 'pinned' ? 'All Posts' : `Pinned (${userPinnedPostIds.size})`}
             </button>
 
+
+
             {/* Create Post Button */}
             <button
               onClick={() => {
                 setShowCreatePost(true);
               }}
-              className="bg-[#FF6600] text-white px-6 py-3 rounded-lg font-semibold hover:bg-[#E55A00] transition-colors duration-200 flex items-center gap-2"
+              className="bg-[#FF6600] text-white px-6 py-3 rounded-lg font-semibold hover:bg-[#E55A00] transition-colors duration-200 flex items-center gap-2 shadow-lg hover:shadow-xl transform hover:scale-105"
             >
               <Plus className="w-5 h-5" />
               Create Post
@@ -1093,8 +1194,10 @@ const CommunityHub = () => {
           </div>
         </div>
 
-        {/* Posts List */}
-        <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
+        {/* Main Content Area with Sidebar */}
+        <div className="flex flex-col lg:flex-row gap-6">
+          {/* Posts List - Main Content */}
+          <div className="flex-1 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
           {activeTab === 'pinned' ? (
             // Pinned Posts Tab
             <div>
@@ -1217,10 +1320,7 @@ const CommunityHub = () => {
             // Feed Tab
             <div>
               {contextLoading ? (
-                <div className="text-center py-12">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#FF6600] mx-auto mb-4"></div>
-                  <p className="text-gray-600">Loading community posts...</p>
-                </div>
+                <LoadingSkeleton count={5} />
               ) : displayedPosts.length === 0 ? (
                 <div className="text-center py-12">
                   <MessageSquare className="w-16 h-16 text-gray-400 mx-auto mb-4" />
@@ -1291,6 +1391,11 @@ const CommunityHub = () => {
                                   <span className="text-sm font-semibold text-gray-900">
                                     {post.author_name || post.user_profiles?.full_name || post.user_profiles?.username || 'Anonymous'}
                                   </span>
+                                  {post.experience_years && (
+                                    <span className="px-2 py-0.5 bg-green-50 text-green-700 text-xs rounded-full font-medium border border-green-200">
+                                      {post.experience_years} • QA
+                                    </span>
+                                  )}
                                   {isAdmin(post.user_profiles?.email) && (
                                     <span className="px-2 py-0.5 bg-red-100 text-red-700 text-xs rounded-md font-medium">
                                       Admin
@@ -1342,7 +1447,7 @@ const CommunityHub = () => {
                             )}
                           </div>
                           
-                          <h3 className={`text-lg font-semibold mb-3 mt-2 hover:text-[#FF6600] transition-colors cursor-pointer ${
+                          <h3 className={`text-xl font-bold mb-3 mt-2 hover:text-[#FF6600] transition-colors cursor-pointer ${
                             highlightedPostId === post.id ? 'text-blue-700' : 'text-gray-900'
                           }`}>
                             {post.title}
@@ -1370,19 +1475,77 @@ const CommunityHub = () => {
                           )}
                           
                           {editingPost === post.id ? (
-                            <div className="mb-3">
-                              <textarea
-                                value={editText}
-                                onChange={(e) => setEditText(e.target.value)}
-                                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                                rows={4}
-                              />
-                              <div className="flex gap-2 mt-2">
+                            <div className="mb-3 space-y-4 p-4 bg-gray-50 rounded-lg">
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+                                <input
+                                  type="text"
+                                  value={editFormData.title}
+                                  onChange={(e) => setEditFormData(prev => ({ ...prev, title: e.target.value }))}
+                                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                />
+                              </div>
+                              
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                                <select
+                                  value={editFormData.category_id}
+                                  onChange={(e) => setEditFormData(prev => ({ ...prev, category_id: e.target.value }))}
+                                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                >
+                                  {(categories.length > 0 ? categories : fallbackCategories).map(cat => (
+                                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                                  ))}
+                                </select>
+                              </div>
+                              
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Author Name</label>
+                                <input
+                                  type="text"
+                                  value={editFormData.author_name}
+                                  onChange={(e) => setEditFormData(prev => ({ ...prev, author_name: e.target.value }))}
+                                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                />
+                              </div>
+                              
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Experience</label>
+                                <select
+                                  value={editFormData.experience_years}
+                                  onChange={(e) => setEditFormData(prev => ({ ...prev, experience_years: e.target.value }))}
+                                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                >
+                                  <option value="">Select experience</option>
+                                  <option value="1 year">1 year</option>
+                                  <option value="2 years">2 years</option>
+                                  <option value="3 years">3 years</option>
+                                  <option value="4 years">4 years</option>
+                                  <option value="5 years">5 years</option>
+                                  <option value="6 years">6 years</option>
+                                  <option value="7 years">7 years</option>
+                                  <option value="8 years">8 years</option>
+                                  <option value="9 years">9 years</option>
+                                  <option value="10+ years">10+ years</option>
+                                </select>
+                              </div>
+                              
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Content</label>
+                                <textarea
+                                  value={editFormData.content}
+                                  onChange={(e) => setEditFormData(prev => ({ ...prev, content: e.target.value }))}
+                                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                                  rows={4}
+                                />
+                              </div>
+                              
+                              <div className="flex gap-2">
                                 <button
                                   onClick={() => handleSaveEdit(post.id)}
                                   className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
                                 >
-                                  Save
+                                  Save Changes
                                 </button>
                                 <button
                                   onClick={() => setEditingPost(null)}
@@ -1401,76 +1564,80 @@ const CommunityHub = () => {
                             />
                           )}
 
-                          {/* Enterprise-Grade Post Actions */}
+                          {/* Enhanced Post Actions */}
                           <div className="mt-6 pt-5 border-t border-gray-200">
-                            <div className="flex items-center space-x-1">
-                              {/* Like Action - Real-time */}
-                              <RealtimeLikeButton 
-                                postId={post.id} 
-                                initialDbCount={post.likes_count || 0}
-                              />
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-1">
+                                {/* Like Action - Real-time */}
+                                <RealtimeLikeButton 
+                                  postId={post.id} 
+                                  initialDbCount={post.likes_count || 0}
+                                />
 
-                              {/* Comment Action */}
-                              <button
-                                onClick={() => setShowComments(prev => ({ ...prev, [post.id]: !prev[post.id] }))}
-                                className="group flex items-center gap-2.5 px-5 py-2.5 rounded-xl font-medium text-sm text-gray-600 hover:bg-blue-50 hover:text-blue-700 border border-transparent hover:border-blue-200 transition-all duration-200"
-                              >
-                                <MessageSquare className="w-4 h-4 group-hover:text-blue-600 transition-colors" />
-                                <span className="font-semibold tabular-nums">{(comments[post.id] || []).length}</span>
-                                <span className="hidden sm:inline">Comment{(comments[post.id] || []).length !== 1 ? 's' : ''}</span>
-                              </button>
+                                {/* Comment Action */}
+                                <button
+                                  onClick={() => setShowComments(prev => ({ ...prev, [post.id]: !prev[post.id] }))}
+                                  className="group flex items-center gap-2.5 px-5 py-2.5 rounded-xl font-medium text-sm text-gray-600 hover:bg-blue-50 hover:text-blue-700 border border-transparent hover:border-blue-200 transition-all duration-200"
+                                >
+                                  <MessageSquare className="w-4 h-4 group-hover:text-blue-600 transition-colors" />
+                                  <span className="font-semibold tabular-nums">{(comments[post.id] || []).length}</span>
+                                  <span className="hidden sm:inline">Comment{(comments[post.id] || []).length !== 1 ? 's' : ''}</span>
+                                </button>
 
-                              {/* Share Action */}
-                              <button
-                                onClick={() => setShowShareModal(post.id)}
-                                className="group flex items-center gap-2.5 px-5 py-2.5 rounded-xl font-medium text-sm text-gray-600 hover:bg-emerald-50 hover:text-emerald-700 border border-transparent hover:border-emerald-200 transition-all duration-200"
-                              >
-                                <Share2 className="w-4 h-4 group-hover:text-emerald-600 transition-colors" />
-                                <span className="hidden sm:inline">Share</span>
-                              </button>
+                                {/* Share Action */}
+                                <button
+                                  onClick={() => setShowShareModal(post.id)}
+                                  className="group flex items-center gap-2.5 px-5 py-2.5 rounded-xl font-medium text-sm text-gray-600 hover:bg-emerald-50 hover:text-emerald-700 border border-transparent hover:border-emerald-200 transition-all duration-200"
+                                >
+                                  <Share2 className="w-4 h-4 group-hover:text-emerald-600 transition-colors" />
+                                  <span className="hidden sm:inline">Share</span>
+                                </button>
 
-                              {/* Pin Action */}
-                              <button
-                                onClick={() => handlePinPost(post)}
-                                className={`group relative flex items-center gap-2.5 px-5 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 ${
-                                  userPinnedPostIds.has(post.id)
-                                    ? 'bg-amber-50 text-amber-700 border border-amber-200 shadow-sm'
-                                    : 'text-gray-600 hover:bg-amber-50 hover:text-amber-600 border border-transparent hover:border-amber-200'
-                                }`}
-                                title={userPinnedPostIds.has(post.id) ? 'Unpin from collection' : 'Pin to collection'}
-                              >
-                                <Pin className={`w-4 h-4 transition-all duration-200 ${
-                                  userPinnedPostIds.has(post.id) ? 'fill-amber-500 text-amber-500 rotate-12' : 'group-hover:rotate-12'
-                                }`} />
-                                <span className="hidden sm:inline">{userPinnedPostIds.has(post.id) ? 'Pinned' : 'Pin'}</span>
-                                {userPinnedPostIds.has(post.id) && (
-                                  <div className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-amber-500 rounded-full ring-2 ring-white"></div>
-                                )}
-                              </button>
+                                {/* Pin Action */}
+                                <button
+                                  onClick={() => handlePinPost(post)}
+                                  className={`group relative flex items-center gap-2.5 px-5 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 ${
+                                    userPinnedPostIds.has(post.id)
+                                      ? 'bg-amber-50 text-amber-700 border border-amber-200 shadow-sm'
+                                      : 'text-gray-600 hover:bg-amber-50 hover:text-amber-600 border border-transparent hover:border-amber-200'
+                                  }`}
+                                  title={userPinnedPostIds.has(post.id) ? 'Unpin from collection' : 'Pin to collection'}
+                                >
+                                  <Pin className={`w-4 h-4 transition-all duration-200 ${
+                                    userPinnedPostIds.has(post.id) ? 'fill-amber-500 text-amber-500 rotate-12' : 'group-hover:rotate-12'
+                                  }`} />
+                                  <span className="hidden sm:inline">{userPinnedPostIds.has(post.id) ? 'Pinned' : 'Pin'}</span>
+                                  {userPinnedPostIds.has(post.id) && (
+                                    <div className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-amber-500 rounded-full ring-2 ring-white"></div>
+                                  )}
+                                </button>
 
-                              {/* Save Action */}
-                              <button
-                                onClick={() => {
-                                  if (!authUser) {
-                                    setSelectedPostId(post.id);
-                                    setAuthAction('save');
-                                    setShowAuthModal(true);
-                                  } else {
-                                    setShowSaveModal(post.id);
-                                  }
-                                }}
-                                className="group flex items-center gap-2.5 px-5 py-2.5 rounded-xl font-medium text-sm text-gray-600 hover:bg-violet-50 hover:text-violet-600 border border-transparent hover:border-violet-200 transition-all duration-200"
-                                title="Save post"
-                              >
-                                <Bookmark className="w-4 h-4 group-hover:-rotate-6 transition-all duration-200" />
-                                <span className="hidden sm:inline">Save</span>
-                              </button>
+                                {/* Save Action */}
+                                <button
+                                  onClick={() => {
+                                    if (!authUser) {
+                                      setSelectedPostId(post.id);
+                                      setAuthAction('save');
+                                      setShowAuthModal(true);
+                                    } else {
+                                      setShowSaveModal(post.id);
+                                    }
+                                  }}
+                                  className="group flex items-center gap-2.5 px-5 py-2.5 rounded-xl font-medium text-sm text-gray-600 hover:bg-violet-50 hover:text-violet-600 border border-transparent hover:border-violet-200 transition-all duration-200"
+                                  title="Save post"
+                                >
+                                  <Bookmark className="w-4 h-4 group-hover:-rotate-6 transition-all duration-200" />
+                                  <span className="hidden sm:inline">Save</span>
+                                </button>
+                              </div>
+                              
+
                             </div>
                           </div>
                         </div>
                       </div>
 
-                      {/* Comments Section */}
+                      {/* Enhanced Comments Section */}
                       {showComments[post.id] && (
                         <div className="mt-4 pt-4 border-t border-gray-100">
                           {/* Comment Input */}
@@ -1483,12 +1650,12 @@ const CommunityHub = () => {
                                   </span>
                                 </div>
                                 <div className="flex-1">
-                                  <textarea
+                                  <MentionInput
                                     value={commentText}
-                                    onChange={(e) => setCommentText(e.target.value)}
-                                    placeholder="Write a comment..."
+                                    onChange={setCommentText}
+                                    placeholder="Write a comment... Use @username to mention someone"
                                     className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF6600] focus:border-transparent resize-none text-sm"
-                                    rows={3}
+                                    onSubmit={() => handleAddComment(post.id)}
                                   />
                                   <div className="flex justify-end gap-2 mt-2">
                                     <button
@@ -1530,126 +1697,15 @@ const CommunityHub = () => {
                             </div>
                           )}
 
-                          {/* Comments List */}
-                          <div className="space-y-3">
-                            {(comments[post.id] || []).length === 0 ? (
-                              <div className="text-center py-4 text-gray-500 text-sm">
-                                No comments yet. Be the first to comment!
-                              </div>
-                            ) : (
-                              (comments[post.id] || []).map((comment) => (
-                                <div key={comment.id} className="flex gap-3">
-                                  <div className="w-8 h-8 bg-gray-200 rounded-md flex items-center justify-center flex-shrink-0">
-                                    <span className="text-gray-600 font-medium text-xs">
-                                      {(comment.author_name || 'User').charAt(0).toUpperCase()}
-                                    </span>
-                                  </div>
-                                  <div className="flex-1">
-                                    <div className="bg-gray-50 rounded-lg p-3">
-                                      <div className="flex items-center justify-between mb-1">
-                                        <span className="font-medium text-gray-900 text-sm">
-                                          {comment.author_name || 'Anonymous'}
-                                        </span>
-                                        <span className="text-xs text-gray-500">
-                                          {new Date(comment.created_at).toLocaleDateString()}
-                                        </span>
-                                      </div>
-                                      <p className="text-gray-700 text-sm">{comment.content}</p>
-                                    </div>
-                                    
-                                    {/* Comment Actions */}
-                                    <div className="flex items-center gap-4 mt-2 ml-3">
-                                      <button className="text-xs text-gray-500 hover:text-blue-600 transition-colors">
-                                        Like
-                                      </button>
-                                      {authUser && (
-                                        <button
-                                          onClick={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)}
-                                          className="text-xs text-gray-500 hover:text-blue-600 transition-colors"
-                                        >
-                                          Reply
-                                        </button>
-                                      )}
-                                      {isCommentOwner(comment) && (
-                                        <button
-                                          onClick={() => handleDeleteComment(post.id, comment.id)}
-                                          className="text-xs text-gray-500 hover:text-red-600 transition-colors"
-                                        >
-                                          Delete
-                                        </button>
-                                      )}
-                                    </div>
-
-                                    {/* Reply Input */}
-                                    {replyingTo === comment.id && authUser && (
-                                      <div className="mt-2 ml-3">
-                                        <div className="flex gap-2">
-                                          <div className="w-6 h-6 bg-gray-200 rounded-md flex items-center justify-center">
-                                            <span className="text-gray-600 font-medium text-xs">
-                                              {authUser.email.charAt(0).toUpperCase()}
-                                            </span>
-                                          </div>
-                                          <div className="flex-1">
-                                            <input
-                                              type="text"
-                                              value={replyText}
-                                              onChange={(e) => setReplyText(e.target.value)}
-                                              placeholder={`Reply to ${comment.author_name}...`}
-                                              className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF6600] text-sm"
-                                              onKeyPress={(e) => {
-                                                if (e.key === 'Enter' && replyText.trim()) {
-                                                  handleReplyToComment(post.id, comment.id);
-                                                }
-                                              }}
-                                            />
-                                            <div className="flex justify-end gap-2 mt-1">
-                                              <button
-                                                onClick={() => setReplyingTo(null)}
-                                                className="px-2 py-1 text-xs text-gray-600 hover:text-gray-800"
-                                              >
-                                                Cancel
-                                              </button>
-                                              <button
-                                                onClick={() => handleReplyToComment(post.id, comment.id)}
-                                                disabled={!replyText.trim()}
-                                                className="px-3 py-1 bg-[#FF6600] text-white text-xs rounded hover:bg-[#E55A00] disabled:opacity-50"
-                                              >
-                                                Reply
-                                              </button>
-                                            </div>
-                                          </div>
-                                        </div>
-                                      </div>
-                                    )}
-
-                                    {/* Replies */}
-                                    {comment.replies && comment.replies.length > 0 && (
-                                      <div className="mt-2 ml-6 space-y-2">
-                                        {comment.replies.map((reply) => (
-                                          <div key={reply.id} className="flex gap-2">
-                                            <div className="w-6 h-6 bg-gray-200 rounded-md flex items-center justify-center">
-                                              <span className="text-gray-600 font-medium text-xs">
-                                                {reply.authorName.charAt(0).toUpperCase()}
-                                              </span>
-                                            </div>
-                                            <div className="flex-1 bg-gray-50 rounded-lg p-2">
-                                              <div className="flex items-center gap-2 mb-1">
-                                                <span className="text-xs font-medium text-gray-900">{reply.authorName}</span>
-                                                <span className="text-xs text-gray-500">
-                                                  {new Date(reply.createdAt).toLocaleDateString()}
-                                                </span>
-                                              </div>
-                                              <p className="text-xs text-gray-700">{reply.text}</p>
-                                            </div>
-                                          </div>
-                                        ))}
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              ))
-                            )}
-                          </div>
+                          {/* Threaded Comments */}
+                          <ThreadedComments
+                            comments={comments[post.id] || []}
+                            onAddComment={(content) => handleAddComment(post.id, content)}
+                            onDeleteComment={(commentId) => handleDeleteComment(post.id, commentId)}
+                            onReplyToComment={(commentId, replyText) => handleReplyToComment(post.id, commentId, replyText)}
+                            authUser={authUser}
+                            isCommentOwner={isCommentOwner}
+                          />
                         </div>
                       )}
                     </div>
@@ -1662,13 +1718,10 @@ const CommunityHub = () => {
                   <button
                     onClick={loadMorePosts}
                     disabled={loadingMore}
-                    className="bg-[#FF6600] text-white px-8 py-3 rounded-lg font-semibold hover:bg-[#E55A00] transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 mx-auto"
+                    className="bg-[#FF6600] text-white px-8 py-3 rounded-lg font-semibold hover:bg-[#E55A00] transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 mx-auto shadow-lg hover:shadow-xl transform hover:scale-105"
                   >
                     {loadingMore ? (
-                      <>
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                        Loading more posts...
-                      </>
+                      <LoadingSkeleton count={1} />
                     ) : (
                       <>
                         <TrendingUp className="w-5 h-5" />
@@ -1678,23 +1731,710 @@ const CommunityHub = () => {
                   </button>
                 </div>
               )}
+              
+              {/* Sticky Action Bar */}
+              {displayedPosts.map(post => (
+                <StickyActionBar
+                  key={`sticky-${post.id}`}
+                  post={post}
+                  isVisible={stickyPost === post.id}
+                  onLike={() => {}}
+                  onComment={() => setShowComments(prev => ({ ...prev, [post.id]: !prev[post.id] }))}
+                  onShare={() => setShowShareModal(post.id)}
+                  onPin={() => handlePinPost(post)}
+                  onSave={() => setShowSaveModal(post.id)}
+                  likeCount={post.likes_count || 0}
+                  commentCount={(comments[post.id] || []).length}
+                  isLiked={likedPosts.has(post.id)}
+                  isPinned={userPinnedPostIds.has(post.id)}
+                />
+              ))}
             </div>
           )}
+          </div>
+
+          {/* Sidebar - Desktop Only */}
+          <div className="lg:w-80 space-y-6">
+            {/* Hot Today */}
+            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+              <div className="bg-gradient-to-r from-red-500 to-orange-500 px-4 py-3">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4 text-white" />
+                  <h3 className="text-sm font-bold text-white">Hot Today</h3>
+                </div>
+              </div>
+              <div className="divide-y divide-gray-100">
+                {filteredPosts.filter(post => {
+                  const today = new Date();
+                  const postDate = new Date(post.created_at);
+                  return today.toDateString() === postDate.toDateString();
+                }).sort((a, b) => (b.likes_count || 0) + (b.replies_count || 0) - (a.likes_count || 0) - (a.replies_count || 0)).slice(0, 5).map((post, index) => (
+                  <div key={post.id} className="group cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => navigateToPost(post.id)}>
+                    <div className="flex items-start gap-3 p-3">
+                      <div className="flex-shrink-0 w-6 text-center">
+                        <span className="text-xs font-bold text-orange-500">#{index + 1}</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-sm font-medium text-gray-900 group-hover:text-orange-600 line-clamp-2 mb-1">
+                          {post.title}
+                        </h4>
+                        <div className="flex items-center gap-2 text-xs text-gray-500">
+                          <span className="flex items-center gap-1">
+                            <Heart className="w-3 h-3 text-red-400" />
+                            {post.likes_count || 0}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <MessageSquare className="w-3 h-3 text-blue-400" />
+                            {post.replies_count || 0}
+                          </span>
+                          <span className="text-gray-400">•</span>
+                          <span className="text-gray-600">{post.category_name}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {filteredPosts.filter(post => {
+                  const today = new Date();
+                  const postDate = new Date(post.created_at);
+                  return today.toDateString() === postDate.toDateString();
+                }).length === 0 && (
+                  <div className="text-center py-6 text-gray-500 text-sm">
+                    No hot posts today
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Trending Posts */}
+            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+              <div className="bg-gradient-to-r from-blue-500 to-purple-500 px-4 py-3">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4 text-white" />
+                  <h3 className="text-sm font-bold text-white">Trending This Week</h3>
+                </div>
+              </div>
+              <div className="divide-y divide-gray-100">
+                {filteredPosts.filter(post => {
+                  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+                  return new Date(post.created_at) >= sevenDaysAgo;
+                }).sort((a, b) => (b.likes_count || 0) + (b.replies_count || 0) - (a.likes_count || 0) - (a.replies_count || 0)).slice(0, 5).map((post, index) => (
+                  <div key={post.id} className="group cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => navigateToPost(post.id)}>
+                    <div className="flex items-start gap-3 p-3">
+                      <div className="flex-shrink-0 w-6 text-center">
+                        <span className="text-xs font-bold text-blue-500">#{index + 1}</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-sm font-medium text-gray-900 group-hover:text-blue-600 line-clamp-2 mb-1">
+                          {post.title}
+                        </h4>
+                        <div className="flex items-center gap-2 text-xs text-gray-500">
+                          <span className="flex items-center gap-1">
+                            <Heart className="w-3 h-3 text-red-400" />
+                            {post.likes_count || 0}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <MessageSquare className="w-3 h-3 text-blue-400" />
+                            {post.replies_count || 0}
+                          </span>
+                          <span className="text-gray-400">•</span>
+                          <span className="text-gray-600">{getTimeAgo(post.created_at)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Upcoming Events */}
+            <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 rounded-xl shadow-xl border-2 border-blue-200 p-6 relative overflow-hidden">
+              {/* Premium Background Pattern */}
+              <div className="absolute inset-0 opacity-10">
+                <div className="absolute top-6 right-6 w-20 h-20 bg-blue-400 rounded-full blur-2xl"></div>
+                <div className="absolute bottom-6 left-6 w-16 h-16 bg-purple-400 rounded-full blur-xl"></div>
+                <div className="absolute top-1/2 left-1/2 w-12 h-12 bg-indigo-400 rounded-full blur-lg transform -translate-x-1/2 -translate-y-1/2"></div>
+              </div>
+              
+              <div className="relative">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 rounded-xl flex items-center justify-center shadow-lg transform rotate-3">
+                      <Calendar className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold bg-gradient-to-r from-blue-700 via-indigo-700 to-purple-700 bg-clip-text text-transparent">Upcoming Events</h3>
+                      <p className="text-xs text-gray-600 font-medium">🚀 Professional Development</p>
+                    </div>
+                  </div>
+                  <div className="bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-full border border-blue-300 shadow-sm">
+                    <span className="text-xs font-bold text-blue-800">📅 LIVE SOON</span>
+                  </div>
+                </div>
+              </div>
+              <div className="relative">
+                {eventsLoading ? (
+                  <div className="text-center py-4">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-600 mx-auto mb-2"></div>
+                    <p className="text-xs text-gray-600">Loading events...</p>
+                  </div>
+                ) : eventsData && eventsData.length > 0 ? (
+                  <div className="relative overflow-hidden">
+                    <div 
+                      className="flex transition-transform duration-500 ease-in-out"
+                      style={{ transform: `translateX(-${currentEventIndex * 100}%)` }}
+                    >
+                      {eventsData.map((event, index) => {
+                    const eventDate = new Date(event.event_date);
+                    const now = new Date();
+                    const daysUntil = Math.ceil((eventDate - now) / (1000 * 60 * 60 * 24));
+                    const isToday = daysUntil === 0;
+                    const isPast = daysUntil < 0;
+                    const formatTime = (timeString) => {
+                      try {
+                        if (!timeString) return 'Time TBD';
+                        const [hours, minutes] = timeString.split(':');
+                        const hour = parseInt(hours);
+                        const ampm = hour >= 12 ? 'PM' : 'AM';
+                        const displayHour = hour % 12 || 12;
+                        return `${displayHour}:${minutes} ${ampm}`;
+                      } catch {
+                        return 'Time TBD';
+                      }
+                    };
+                    const getEventTypeIcon = (type) => {
+                      const icons = {
+                        'workshop': '🔧',
+                        'masterclass': '🎓',
+                        'seminar': '📚',
+                        'conference': '🎤',
+                        'webinar': '💻'
+                      };
+                      return icons[type?.toLowerCase()] || '📅';
+                    };
+                    const getEventTypeColor = (type) => {
+                      const colors = {
+                        'workshop': 'bg-purple-100 text-purple-800 border-purple-200',
+                        'masterclass': 'bg-blue-100 text-blue-800 border-blue-200',
+                        'seminar': 'bg-green-100 text-green-800 border-green-200',
+                        'conference': 'bg-orange-100 text-orange-800 border-orange-200',
+                        'webinar': 'bg-indigo-100 text-indigo-800 border-indigo-200',
+                        'default': 'bg-gray-100 text-gray-800 border-gray-200'
+                      };
+                      return colors[type?.toLowerCase()] || colors.default;
+                    };
+                    const registrationPercentage = event.capacity ? Math.round((event.registered_count || 0) / event.capacity * 100) : 0;
+                    
+                    return (
+                      <div key={event.id} className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl border-2 border-blue-100 overflow-hidden hover:shadow-3xl hover:border-blue-300 transition-all duration-500 group flex-shrink-0 w-full transform hover:-translate-y-2 hover:rotate-1">
+                        {/* Event Image */}
+                        <div className="relative h-36 bg-gradient-to-br from-[#0057B7] via-[#0066CC] to-[#004494] overflow-hidden">
+                          {/* Premium Overlay Pattern */}
+                          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent transform skew-x-12 group-hover:translate-x-full transition-transform duration-1000"></div>
+                          {event.image_url ? (
+                            <img 
+                              src={event.image_url} 
+                              alt={event.title}
+                              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <div className="text-4xl">{getEventTypeIcon(event.event_type)}</div>
+                            </div>
+                          )}
+                          
+                          {/* Featured Badge */}
+                          {event.featured && (
+                            <div className="absolute top-3 left-3 bg-gradient-to-r from-yellow-400 to-orange-500 text-white px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1 shadow-lg animate-pulse">
+                              <Star className="w-3 h-3 fill-white" />
+                              🎆 FEATURED
+                            </div>
+                          )}
+                          
+                          {/* Event Type Badge */}
+                          <div className="absolute top-2 right-2">
+                            <span className={`px-2 py-1 rounded-full text-xs font-semibold border ${getEventTypeColor(event.event_type)}`}>
+                              {(event.event_type || 'event').toUpperCase()}
+                            </span>
+                          </div>
+                          
+                          {/* Price Badge */}
+                          <div className="absolute bottom-3 right-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white px-3 py-1.5 rounded-full shadow-lg">
+                            <div className="text-sm font-bold flex items-center gap-1">
+                              {event.price ? (
+                                <>
+                                  <DollarSign className="w-3 h-3" />
+                                  {event.price}
+                                </>
+                              ) : (
+                                <>
+                                  🎁 FREE
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Event Content */}
+                        <div className="p-4">
+                          {/* Event Title */}
+                          <h3 className="text-base font-bold text-gray-900 mb-2 line-clamp-2 group-hover:text-primary transition-colors">
+                            {event.title}
+                          </h3>
+                          
+                          {/* Event Description */}
+                          <p className="text-gray-600 mb-3 line-clamp-2 text-sm">
+                            {event.short_description || event.description}
+                          </p>
+
+                          {/* Speaker Info */}
+                          {event.speaker && (
+                            <div className="flex items-center gap-2 mb-3 p-2 bg-gray-50 rounded-lg">
+                              <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center text-white font-bold text-xs">
+                                {event.speaker.charAt(0)}
+                              </div>
+                              <div className="flex-1">
+                                <div className="font-semibold text-gray-900 text-xs">{event.speaker}</div>
+                                <div className="text-gray-600 text-xs">{event.speaker_title}</div>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Event Details */}
+                          <div className="space-y-1 mb-3">
+                            <div className="flex items-center gap-2 text-xs text-gray-600">
+                              <Calendar className="w-3 h-3 text-primary" />
+                              <span>{eventDate.toLocaleDateString('en-US', {
+                                weekday: 'short',
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric'
+                              })}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-xs text-gray-600">
+                              <Clock className="w-3 h-3 text-primary" />
+                              <span>{formatTime(event.event_time)} • {event.duration_minutes || 120} min</span>
+                            </div>
+                            {event.location && (
+                              <div className="flex items-center gap-2 text-xs text-gray-600">
+                                <MapPin className="w-3 h-3 text-primary" />
+                                <span>{event.location}</span>
+                              </div>
+                            )}
+                            {event.capacity && (
+                              <div className="flex items-center gap-2 text-xs text-gray-600">
+                                <Users className="w-3 h-3 text-primary" />
+                                <span>{event.registered_count || 0}/{event.capacity} ({registrationPercentage}% Full)</span>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Registration Button */}
+                          <a
+                            href={event.registration_link || event.event_url || '#'}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="w-full bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-700 hover:via-indigo-700 hover:to-purple-700 text-white py-3 px-4 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 text-sm"
+                          >
+                            🎯 Register Now
+                            {event.price && (
+                              <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs">
+                                {event.price}
+                              </span>
+                            )}
+                            <ExternalLink className="w-4 h-4" />
+                          </a>
+                        </div>
+                      </div>
+                        );
+                      })}
+                    </div>
+                    
+                    {/* Carousel Indicators */}
+                    {eventsData.length > 1 && (
+                      <div className="flex justify-center gap-1.5 mt-3">
+                        {eventsData.map((_, index) => (
+                          <button
+                            key={index}
+                            onClick={() => setCurrentEventIndex(index)}
+                            className={`w-1.5 h-1.5 rounded-full transition-all duration-300 hover:scale-125 ${
+                              index === currentEventIndex
+                                ? 'bg-green-500 w-4'
+                                : 'bg-gray-300 hover:bg-gray-400'
+                            }`}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-center py-6">
+                    <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                    <p className="text-sm text-gray-600">No upcoming events</p>
+                  </div>
+                )}
+                
+                {eventsData && eventsData.length > 3 && (
+                  <div className="text-center py-4 border-t border-blue-200/50 mt-6">
+                    <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-blue-200">
+                      <div className="flex items-center justify-center gap-2 mb-2">
+                        <span className="text-2xl">📅</span>
+                        <span className="text-sm font-bold text-gray-800">More Events</span>
+                      </div>
+                      <p className="text-xs text-gray-600 mb-3">Workshops • Masterclasses • Seminars</p>
+                      <button className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white px-4 py-2 rounded-lg text-xs font-bold hover:shadow-lg transition-all duration-200 transform hover:scale-105">
+                        🚀 View All Events
+                      </button>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Business CTA */}
+                <div className="text-center py-4 border-t border-blue-200/50 mt-4">
+                  <div className="bg-gradient-to-r from-orange-100 to-red-100 rounded-xl p-4 border-2 border-orange-200">
+                    <div className="flex items-center justify-center gap-2 mb-2">
+                      <span className="text-2xl">🎯</span>
+                      <span className="text-sm font-bold text-orange-800">Host Your Event</span>
+                    </div>
+                    <p className="text-xs text-gray-700 mb-3">Reach 10,000+ QA Professionals</p>
+                    <button 
+                      onClick={() => setShowPartnershipModal(true)}
+                      className="bg-gradient-to-r from-orange-500 to-red-500 text-white px-4 py-2 rounded-lg text-xs font-bold hover:shadow-lg transition-all duration-200 transform hover:scale-105"
+                    >
+                      💼 Partner With Us
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Contest Winners */}
+            <div className="bg-gradient-to-br from-yellow-50 via-orange-50 to-red-50 rounded-xl shadow-xl border-2 border-yellow-200 p-6 relative overflow-hidden" data-section="winners-spotlight">
+              {/* Background Pattern */}
+              <div className="absolute inset-0 opacity-10">
+                <div className="absolute top-4 right-4 w-16 h-16 bg-yellow-400 rounded-full blur-xl"></div>
+                <div className="absolute bottom-4 left-4 w-12 h-12 bg-orange-400 rounded-full blur-lg"></div>
+              </div>
+              
+              <div className="relative">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gradient-to-r from-yellow-500 via-orange-500 to-red-500 rounded-xl flex items-center justify-center shadow-lg">
+                      <Trophy className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold bg-gradient-to-r from-yellow-700 via-orange-700 to-red-700 bg-clip-text text-transparent">Contest Winners</h3>
+                      <p className="text-xs text-gray-600 font-medium">{(() => {
+                        const now = new Date();
+                        const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                        return lastMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) + ' Champions';
+                      })()}</p>
+                    </div>
+                  </div>
+                  <div className="bg-white/80 backdrop-blur-sm px-3 py-1.5 rounded-full border border-yellow-300 shadow-sm">
+                    <span className="text-xs font-bold text-yellow-800">🏆 HALL OF FAME</span>
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-4">
+                {(winnersData && winnersData.length > 0 ? 
+                  winnersData.filter(w => w.winner_rank >= 1 && w.winner_rank <= 3)
+                    .sort((a, b) => a.winner_rank - b.winner_rank)
+                    .map(w => ({
+                      name: w.name || 'Anonymous Winner',
+                      title: w.role || w.company || 'QA Professional',
+                      trick: w.technique_description || w.technique_title || 'Innovative QA technique',
+                      avatar: w.winner_rank === 1 ? '👑' : w.winner_rank === 2 ? '🥈' : '🥉',
+                      place: w.winner_rank,
+                      email: w.email
+                    })) : 
+                  [
+                    { name: 'Sarah Chen', title: 'Senior QA Engineer at Microsoft', trick: 'AI-Powered Test Case Generation using GPT-4 for automated test scenario creation', avatar: '👑', place: 1 },
+                    { name: 'Mike Rodriguez', title: 'Lead Test Automation Engineer', trick: 'Cross-Browser Testing Automation with Selenium Grid and Docker containers', avatar: '🥈', place: 2 },
+                    { name: 'Emma Thompson', title: 'QA Manager at Amazon', trick: 'Performance Testing Optimization using JMeter and AWS CloudWatch integration', avatar: '🥉', place: 3 }
+                  ]
+                ).map((winner, index) => {
+                  const getPlaceStyles = (place) => {
+                    switch(place) {
+                      case 1: return {
+                        gradient: 'from-[#FFD700] via-[#FFA500] to-[#FF6600]',
+                        badge: 'bg-gradient-to-r from-yellow-100 to-orange-100 text-yellow-900 border-yellow-400',
+                        cardBg: 'bg-gradient-to-br from-yellow-50 via-orange-50 to-red-50',
+                        border: 'border-yellow-200',
+                        medal: '🥇',
+                        title: 'CHAMPION'
+                      };
+                      case 2: return {
+                        gradient: 'from-[#C0C0C0] via-[#A9A9A9] to-[#808080]',
+                        badge: 'bg-gradient-to-r from-gray-100 to-slate-100 text-gray-900 border-gray-400',
+                        cardBg: 'bg-gradient-to-br from-gray-50 via-slate-50 to-zinc-50',
+                        border: 'border-gray-200',
+                        medal: '🥈',
+                        title: 'EXCELLENCE'
+                      };
+                      case 3: return {
+                        gradient: 'from-[#CD7F32] via-[#D2691E] to-[#A0522D]',
+                        badge: 'bg-gradient-to-r from-orange-100 to-amber-100 text-orange-900 border-orange-400',
+                        cardBg: 'bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50',
+                        border: 'border-orange-200',
+                        medal: '🥉',
+                        title: 'ACHIEVER'
+                      };
+                    }
+                  };
+                  const placeStyles = getPlaceStyles(winner.place);
+                  
+                  // Show loading state if winners are being fetched
+                  if (!winnersData && index === 0) {
+                    return (
+                      <div key="loading" className="text-center py-8">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#FF6600] mx-auto mb-2"></div>
+                        <p className="text-sm text-gray-600">Loading winners...</p>
+                      </div>
+                    );
+                  }
+                  
+                  return (
+                    <div key={index} className={`group relative ${placeStyles.cardBg} rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 hover:rotate-1 overflow-hidden border-2 ${placeStyles.border} backdrop-blur-sm`}>
+                      {/* Premium Badge */}
+                      <div className={`absolute top-3 right-3 px-2 py-1 rounded-full text-xs font-bold border-2 ${placeStyles.badge} flex items-center gap-1 shadow-lg z-10`}>
+                        <Trophy className="w-3 h-3" />
+                        {placeStyles.title}
+                      </div>
+                      
+                      {/* Medal Overlay */}
+                      <div className="absolute top-3 left-3 text-2xl opacity-20 group-hover:opacity-40 transition-opacity duration-300">
+                        {placeStyles.medal}
+                      </div>
+                      
+                      <div className="relative p-4">
+                        {/* Professional Avatar */}
+                        <div className="relative w-16 h-16 mx-auto mb-4">
+                          <div className={`absolute inset-0 bg-gradient-to-br ${placeStyles.gradient} rounded-full animate-pulse group-hover:animate-none transition-all duration-500`}></div>
+                          <div className="relative w-14 h-14 mx-auto mt-1 rounded-full bg-white flex items-center justify-center text-2xl shadow-xl border-4 border-white">
+                            {winner.avatar}
+                          </div>
+                          
+                          {/* Verified Professional Badge */}
+                          <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-1 shadow-lg">
+                            <div className="bg-green-500 text-white rounded-full p-1 w-5 h-5 flex items-center justify-center">
+                              <Check className="w-3 h-3" />
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Winner Professional Info */}
+                        <div className="text-center mb-4">
+                          <h3 className="text-sm font-bold text-gray-900 mb-1 group-hover:text-[#FF6600] transition-colors duration-300">
+                            {winner.name}
+                          </h3>
+                          <div className="inline-flex items-center gap-1 bg-white/80 backdrop-blur-sm px-2 py-1 rounded-full text-xs font-semibold text-gray-800 shadow-sm mb-1">
+                            <Zap className="w-3 h-3 text-[#FF6600]" />
+                            QA {placeStyles.title}
+                          </div>
+                          <p className="text-xs text-gray-600 font-medium">{winner.title}</p>
+                        </div>
+                        
+                        {/* Achievement Highlight */}
+                        <div className="bg-white/70 backdrop-blur-sm p-3 rounded-xl text-left mb-4 border border-white/60 shadow-sm">
+                          <h4 className="font-bold text-gray-900 mb-1 flex items-center gap-1 text-xs">
+                            <Trophy className="w-3 h-3 text-[#FF6600]" />
+                            Winning Innovation
+                          </h4>
+                          <p className="text-xs leading-relaxed text-gray-700 line-clamp-3">
+                            {winner.trick}
+                          </p>
+                        </div>
+                        
+                        {/* Achievement Stats */}
+                        <div className="bg-white/90 backdrop-blur-sm p-3 rounded-xl mb-4 border border-white/60 shadow-sm">
+                          <div className="grid grid-cols-2 gap-2 text-center">
+                            <div>
+                              <div className="text-lg font-bold text-yellow-600">🏆</div>
+                              <div className="text-xs text-gray-600 font-medium">Winner</div>
+                            </div>
+                            <div>
+                              <div className="text-lg font-bold text-green-600">✓</div>
+                              <div className="text-xs text-gray-600 font-medium">Verified</div>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Social Share Actions */}
+                        <div className="flex items-center justify-center gap-1">
+                          <button
+                            onClick={() => {
+                              const badgeLabel = `${winner.place === 1 ? '1st' : winner.place === 2 ? '2nd' : '3rd'} Place`;
+                              const achievements = {
+                                '1st Place': { emoji: '🥇', title: 'CHAMPION' },
+                                '2nd Place': { emoji: '🥈', title: 'EXCELLENCE' },
+                                '3rd Place': { emoji: '🥉', title: 'ACHIEVER' }
+                              };
+                              const achievement = achievements[badgeLabel];
+                              const shareText = `${achievement.emoji} QA ${achievement.title} CERTIFIED ${achievement.emoji}\n\n🏅 ${winner.name} - ${badgeLabel} Winner\n🏢 ${winner.title}\n🏆 TestingVala Contest Winner\n\n🌟 ACHIEVEMENT HIGHLIGHTS:\n✅ TOP 1% QA Professional Recognition\n✅ Industry-Validated Expertise\n✅ Elite QA Community Member\n\n🚀 Join the QA Elite: www.testingvala.com\n📧 info@testingvala.com\n\n#QAChampion #TestingVala #QualityAssurance`;
+                              const shareUrl = `https://testingvala.com/?utm_source=linkedin&utm_medium=social&utm_campaign=qa_winner&winner=${encodeURIComponent(winner.name)}#winners`;
+                              const url = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}&title=${encodeURIComponent(`${achievement.emoji} QA ${achievement.title} - ${winner.name}`)}&summary=${encodeURIComponent(shareText)}`;
+                              window.open(url, '_blank');
+                            }}
+                            className="flex items-center gap-1 px-2 py-1.5 bg-[#0A66C2] text-white rounded-lg shadow-sm hover:shadow-md hover:bg-[#004182] transition-all duration-200 text-xs font-medium"
+                          >
+                            <Linkedin className="w-3 h-3" />
+                          </button>
+                          
+                          <button
+                            onClick={() => {
+                              const badgeLabel = `${winner.place === 1 ? '1st' : winner.place === 2 ? '2nd' : '3rd'} Place`;
+                              const achievements = {
+                                '1st Place': { emoji: '🥇', title: 'CHAMPION' },
+                                '2nd Place': { emoji: '🥈', title: 'EXCELLENCE' },
+                                '3rd Place': { emoji: '🥉', title: 'ACHIEVER' }
+                              };
+                              const achievement = achievements[badgeLabel];
+                              const whatsappText = `${achievement.emoji} QA ${achievement.title} CERTIFIED ${achievement.emoji}\n\n🏅 ${winner.name} - ${badgeLabel} Winner\n🏢 ${winner.title}\n🏆 TestingVala Contest Winner\n\n🌟 Recognized for outstanding QA excellence!\n\n🚀 Join the QA Elite Community:\n💰 Monthly contests with cash prizes\n🤝 Network with 10,000+ QA professionals\n📈 Accelerate your QA career\n\n🔗 www.testingvala.com\n📧 info@testingvala.com\n\n#QAChampion #TestingVala #QualityAssurance`;
+                              const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(whatsappText)}`;
+                              window.open(whatsappUrl, '_blank');
+                            }}
+                            className="flex items-center gap-1 px-2 py-1.5 bg-[#25D366] text-white rounded-lg shadow-sm hover:shadow-md hover:bg-[#1DA851] transition-all duration-200 text-xs font-medium"
+                          >
+                            <MessageCircle className="w-3 h-3" />
+                          </button>
+                          
+                          <button
+                            onClick={async () => {
+                              const badgeLabel = `${winner.place === 1 ? '1st' : winner.place === 2 ? '2nd' : '3rd'} Place`;
+                              try {
+                                const canvas = document.createElement('canvas');
+                                canvas.width = 1200;
+                                canvas.height = 900;
+                                const ctx = canvas.getContext('2d');
+                                
+                                ctx.fillStyle = '#ffffff';
+                                ctx.fillRect(0, 0, 1200, 900);
+                                
+                                ctx.strokeStyle = '#e2e8f0';
+                                ctx.lineWidth = 4;
+                                ctx.strokeRect(30, 30, 1140, 840);
+                                
+                                ctx.strokeStyle = '#FF6600';
+                                ctx.lineWidth = 3;
+                                ctx.strokeRect(40, 40, 1120, 820);
+                                
+                                ctx.fillStyle = '#FF6600';
+                                ctx.fillRect(60, 60, 1080, 120);
+                                
+                                ctx.fillStyle = '#ffffff';
+                                ctx.font = 'bold 40px sans-serif';
+                                ctx.textAlign = 'center';
+                                ctx.fillText('CERTIFICATE OF EXCELLENCE', 600, 130);
+                                
+                                ctx.font = 'bold 22px sans-serif';
+                                ctx.fillText('Quality Assurance Professional Recognition', 600, 165);
+                                
+                                ctx.fillStyle = '#1e293b';
+                                ctx.font = 'normal 24px serif';
+                                ctx.fillText('This is to certify that', 600, 240);
+                                
+                                ctx.fillStyle = '#0f172a';
+                                ctx.font = 'bold 48px serif';
+                                ctx.fillText(winner.name.toUpperCase(), 600, 300);
+                                
+                                ctx.fillStyle = '#475569';
+                                ctx.font = 'italic 20px serif';
+                                ctx.fillText(winner.title, 600, 335);
+                                
+                                const achievements = {
+                                  '1st Place': { title: '1ST PLACE WINNER', emoji: '🥇' },
+                                  '2nd Place': { title: '2ND PLACE WINNER', emoji: '🥈' },
+                                  '3rd Place': { title: '3RD PLACE WINNER', emoji: '🥉' }
+                                };
+                                const achievement = achievements[badgeLabel];
+                                
+                                ctx.font = '60px sans-serif';
+                                ctx.fillText(achievement.emoji, 600, 450);
+                                
+                                ctx.fillStyle = '#FFD700';
+                                ctx.font = 'bold 36px sans-serif';
+                                ctx.fillText(achievement.title, 600, 500);
+                                
+                                ctx.fillStyle = '#1e293b';
+                                ctx.font = 'normal 18px serif';
+                                ctx.fillText('in the TestingVala QA Professional Contest', 600, 540);
+                                ctx.fillText('for exceptional expertise in Quality Assurance', 600, 565);
+                                
+                                const currentDate = new Date().toLocaleDateString('en-US', { 
+                                  year: 'numeric', 
+                                  month: 'long', 
+                                  day: 'numeric' 
+                                });
+                                
+                                ctx.fillStyle = '#64748b';
+                                ctx.font = 'normal 16px sans-serif';
+                                ctx.fillText(`Awarded on ${currentDate}`, 600, 620);
+                                
+                                ctx.fillStyle = '#FF6600';
+                                ctx.fillRect(60, 800, 1080, 60);
+                                
+                                ctx.fillStyle = '#ffffff';
+                                ctx.font = 'bold 18px sans-serif';
+                                ctx.fillText('www.testingvala.com | info@testingvala.com', 600, 835);
+                                
+                                const dataUrl = canvas.toDataURL('image/png');
+                                const link = document.createElement('a');
+                                link.href = dataUrl;
+                                link.download = `TestingVala_Certificate_${winner.name.replace(/\s+/g, '_')}_${badgeLabel.replace(/\s+/g, '')}.png`;
+                                document.body.appendChild(link);
+                                link.click();
+                                link.remove();
+                                toast.success('🏆 Professional certificate downloaded!');
+                              } catch (err) {
+                                toast.error('Failed to generate certificate');
+                              }
+                            }}
+                            className="flex items-center gap-1 px-2 py-1.5 bg-gray-800 text-white rounded-lg shadow-sm hover:shadow-md hover:bg-gray-900 transition-all duration-200 text-xs font-medium"
+                          >
+                            <Download className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+                
+                <div className="text-center py-4 border-t border-yellow-200/50 mt-6">
+                  <div className="bg-white/60 backdrop-blur-sm rounded-xl p-4 border border-yellow-200">
+                    <div className="flex items-center justify-center gap-2 mb-2">
+                      <span className="text-2xl">🎯</span>
+                      <span className="text-sm font-bold text-gray-800">Next Contest</span>
+                    </div>
+                    <p className="text-xs text-gray-600 mb-3">January 2025 • Advanced Testing Methodologies</p>
+                    <button 
+                      onClick={() => setShowContestForm(true)}
+                      className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white px-4 py-2 rounded-lg text-xs font-bold hover:shadow-lg transition-all duration-200 transform hover:scale-105"
+                    >
+                      🏆 Join Contest
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* Previous Winners */}
-        <div className="mt-8">
+        {/* Previous Winners - Mobile Only */}
+        <div className="mt-8 lg:hidden">
           <Winners data={ { winners: (siteData?.winners || []), stats: (siteData?.hero?.stats || {}) } } />
         </div>
 
         {/* Create Post Modal */}
         {showCreatePost && (
-          <CreatePostModal
-            isOpen={showCreatePost}
-            onClose={() => setShowCreatePost(false)}
-            categories={categories}
-            onPostCreated={refreshPosts}
-          />
+          <ErrorBoundary>
+            <CreatePostModal
+              isOpen={showCreatePost}
+              onClose={() => setShowCreatePost(false)}
+              categories={categories.length > 0 ? categories : fallbackCategories}
+              onPostCreated={refreshPosts}
+            />
+          </ErrorBoundary>
         )}
 
         {/* Auth Modal */}
@@ -1888,7 +2628,25 @@ const CommunityHub = () => {
           itemDescription={`By ${showDeleteReplyModal?.reply?.authorName || 'Anonymous'}`}
         />
 
+        {/* Partnership Modal */}
+        <PartnershipModal
+          isOpen={showPartnershipModal}
+          onClose={() => setShowPartnershipModal(false)}
+        />
+
+        {/* Contest Submission Form */}
+        <ContestSubmissionForm 
+          isOpen={showContestForm}
+          onClose={() => setShowContestForm(false)}
+          contestData={{
+            theme: 'Advanced Testing Methodologies',
+            deadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+          }}
+        />
+
       </div>
+      
+
     </section>
   );
 };

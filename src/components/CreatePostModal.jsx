@@ -3,12 +3,15 @@ import { X, Send, Image as ImageIcon } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { trackUserEvent } from '../services/enterpriseAnalytics';
 import { useModalScrollLock } from '../hooks/useModalScrollLock';
+import CategorySelector from './CategorySelector';
+import RichTextEditor from './RichTextEditor';
 import toast from 'react-hot-toast';
 
 const CreatePostModal = ({ isOpen, onClose, categories = [], onPostCreated }) => {
-  const [formData, setFormData] = useState({ title: '', content: '', category_id: '', image_url: '', is_anonymous: false, author_name: '' });
+  const [formData, setFormData] = useState({ title: '', content: '', category_id: '', image_url: '', is_anonymous: false, author_name: '', experience_years: '' });
   const [loading, setLoading] = useState(false);
   const [imageUploading, setImageUploading] = useState(false);
+  const [localCategories, setLocalCategories] = useState([]);
 
   const [authUser, setAuthUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -25,10 +28,41 @@ const CreatePostModal = ({ isOpen, onClose, categories = [], onPostCreated }) =>
     const init = async () => {
       if (!supabase) {
         setAuthLoading(false);
+        // No Supabase - use empty categories
+        setLocalCategories([]);
         return;
       }
 
       try {
+        // Load categories if not provided via props
+        if (categories.length === 0) {
+          const { data: categoriesData, error: categoriesError } = await supabase
+            .from('forum_categories')
+            .select('*')
+            .eq('is_active', true)
+            .order('name');
+          
+          if (!categoriesError && categoriesData && categoriesData.length > 0) {
+            setLocalCategories(categoriesData);
+            console.log('Loaded categories directly:', categoriesData);
+          } else {
+            console.warn('No categories found, will load from database');
+            // Try to load all categories without filter
+            const { data: allCategoriesData, error: allCategoriesError } = await supabase
+              .from('forum_categories')
+              .select('*')
+              .order('name');
+            
+            if (!allCategoriesError && allCategoriesData && allCategoriesData.length > 0) {
+              setLocalCategories(allCategoriesData);
+              console.log('Loaded all categories:', allCategoriesData);
+            } else {
+              console.error('Failed to load categories:', allCategoriesError);
+              setLocalCategories([]);
+            }
+          }
+        }
+
         const { data } = await supabase.auth.getUser();
         if (mounted) {
           setAuthUser(data?.user || null);
@@ -81,7 +115,7 @@ const CreatePostModal = ({ isOpen, onClose, categories = [], onPostCreated }) =>
         // ignore unsubscribe errors
       }
     };
-  }, []);
+  }, [categories]);
 
   const isUserVerified = (user) => {
     if (!user) return false;
@@ -111,56 +145,10 @@ const CreatePostModal = ({ isOpen, onClose, categories = [], onPostCreated }) =>
 
 
 
-    // If no Supabase, save locally as fallback
+    // Require Supabase for posting
     if (!supabase) {
-      try {
-        const local = JSON.parse(localStorage.getItem('local_forum_posts') || '[]');
-        const displayName = formData.is_anonymous ? 'Anonymous' : (formData.author_name || 'User');
-        const newPost = {
-          id: `local-${Date.now()}`,
-          title: formData.title.trim(),
-          content: formData.content.trim(),
-          category_id: formData.category_id,
-          category_name: categories.find(c => c.id === formData.category_id)?.name || 'General',
-          author_name: displayName,
-          created_at: new Date().toISOString(),
-          user_profiles: { username: displayName.toLowerCase().replace(/\s+/g, '_'), full_name: displayName, avatar_url: null },
-          replies_count: 0,
-          likes_count: 0,
-          image_url: formData.image_url || null,
-          status: 'active',
-          is_anonymous: formData.is_anonymous
-        };
-        local.unshift(newPost);
-        localStorage.setItem('local_forum_posts', JSON.stringify(local));
-        
-        toast.success('Post created successfully!');
-        
-        // Track community post creation (local)
-        const categoryName = categories.find(c => c.id === formData.category_id)?.name || 'Unknown';
-        try {
-          trackUserEvent.community.postCreate(categoryName);
-        } catch (error) {
-          console.warn('Analytics tracking failed:', error);
-        }
-        
-        setFormData({ title: '', content: '', category_id: '', image_url: '', is_anonymous: false, author_name: '' });
-        
-        // Refresh posts immediately
-        if (onPostCreated) {
-          onPostCreated();
-        }
-        
-        // Close modal after refresh
-        setTimeout(() => {
-          onClose && onClose();
-        }, 100);
-        return;
-      } catch (err) {
-        console.error('Failed to save post locally:', err);
-        toast.error('Failed to create post');
-        return;
-      }
+      toast.error('Database connection required to create posts');
+      return;
     }
 
     try {
@@ -174,33 +162,39 @@ const CreatePostModal = ({ isOpen, onClose, categories = [], onPostCreated }) =>
 
       // Allow all authenticated users to post
 
-      // Simplified category resolution: just use the selected category_id directly
-      // The categories passed to this component should already have proper UUIDs
-      let resolvedCategoryId = formData.category_id;
+      // Use the selected category_id directly (should be UUID from database)
+      const resolvedCategoryId = formData.category_id;
+      const availableCategories = categories.length > 0 ? categories : localCategories;
       
-      // If the category_id is not a UUID, try to find it in the categories array
-      const isUUID = (s) => typeof s === 'string' && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/.test(s);
+      console.log('Debug - Selected category_id:', resolvedCategoryId);
+      console.log('Debug - Available categories:', availableCategories);
       
-      if (!isUUID(resolvedCategoryId)) {
-        // Try to find the category by slug or name in the local categories array
-        const localMatch = categories.find(c => {
-          if (!c) return false;
-          if (c.id === resolvedCategoryId) return true;
-          if (c.slug === resolvedCategoryId) return true;
-          if (c.name === resolvedCategoryId) return true;
-          return false;
-        });
-        
-        if (localMatch?.id) {
-          resolvedCategoryId = localMatch.id;
-        } else {
-          console.error('Category not found locally:', resolvedCategoryId);
-          toast.error('Selected category is invalid. Please choose a category from the list.');
-          setLoading(false);
-          return;
-        }
+      if (!resolvedCategoryId) {
+        toast.error('Please select a category');
+        setLoading(false);
+        return;
       }
+      
+      // Verify category exists
+      const selectedCategory = availableCategories.find(c => c.id === resolvedCategoryId);
+      if (!selectedCategory && availableCategories.length > 0) {
+        console.error('Category not found in available categories');
+        toast.error('Please select a valid category');
+        setLoading(false);
+        return;
+      }
+      
+      // If no categories loaded but user selected something, allow it
+      if (availableCategories.length === 0 && !resolvedCategoryId) {
+        toast.error('Please wait for categories to load or contact support');
+        setLoading(false);
+        return;
+      }
+      
+      console.log('Debug - Using category:', selectedCategory);
 
+      console.log('Debug - Inserting post with category_id:', resolvedCategoryId);
+      
       const { data: _inserted, error } = await supabase
         .from('forum_posts')
         .insert([{ 
@@ -209,6 +203,7 @@ const CreatePostModal = ({ isOpen, onClose, categories = [], onPostCreated }) =>
           category_id: resolvedCategoryId, 
           user_id: user.id, 
           author_name: formData.is_anonymous ? 'Anonymous' : (formData.author_name || user.email?.split('@')[0] || 'User'),
+          experience_years: formData.is_anonymous ? null : (formData.experience_years || null),
           image_url: formData.image_url || null, 
           status: 'active'
         }])
@@ -220,29 +215,49 @@ const CreatePostModal = ({ isOpen, onClose, categories = [], onPostCreated }) =>
       toast.success('Post created successfully!');
       
       // Track community post creation
-      const categoryName = categories.find(c => c.id === resolvedCategoryId)?.name || 'Unknown';
+      const categoryName = availableCategories.find(c => c.id === resolvedCategoryId)?.name || 'Unknown';
       try {
         trackUserEvent.community.postCreate(categoryName);
       } catch (error) {
         console.warn('Analytics tracking failed:', error);
       }
       
-setFormData({ title: '', content: '', category_id: '', image_url: '', is_anonymous: false, author_name: '' });
+setFormData({ title: '', content: '', category_id: '', image_url: '', is_anonymous: false, author_name: '', experience_years: '' });
       
-      // Refresh posts immediately
-      if (onPostCreated) {
-        console.log('🔄 Triggering post refresh...');
-        onPostCreated();
+      // Close modal first to prevent UI issues
+      if (onClose) {
+        try {
+          onClose();
+        } catch (closeError) {
+          console.warn('Modal close failed:', closeError);
+        }
       }
       
-      // Close modal after refresh
+      // Refresh posts after modal is closed
       setTimeout(() => {
-        onClose && onClose();
-      }, 100);
+        if (onPostCreated) {
+          console.log('🔄 Triggering post refresh...');
+          try {
+            onPostCreated();
+          } catch (refreshError) {
+            console.warn('Post refresh failed:', refreshError);
+          }
+        }
+      }, 200);
     } catch (err) {
       console.error('Error creating post:', err);
       // Save last raw error to localStorage for developer debugging in local/dev
       _persistLastPostError(err);
+      
+      // Prevent any callback execution on error
+      try {
+        if (onClose) {
+          onClose();
+        }
+      } catch (closeError) {
+        console.warn('Failed to close modal on error:', closeError);
+      }
+      
       // Prefer Supabase error message when available for easier debugging
       const message = err?.message || err?.error || err?.details || String(err) || 'Failed to create post. Please try again.';
       toast.error(message);
@@ -428,11 +443,34 @@ setFormData({ title: '', content: '', category_id: '', image_url: '', is_anonymo
                       </div>
                     )}
                     
+                    {!formData.is_anonymous && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Years of Experience (Optional)</label>
+                        <select
+                          value={formData.experience_years || ''}
+                          onChange={(e) => setFormData(prev => ({ ...prev, experience_years: e.target.value }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF6600] focus:border-transparent text-sm"
+                        >
+                          <option value="">Select experience</option>
+                          <option value="1 year">1 year</option>
+                          <option value="2 years">2 years</option>
+                          <option value="3 years">3 years</option>
+                          <option value="4 years">4 years</option>
+                          <option value="5 years">5 years</option>
+                          <option value="6 years">6 years</option>
+                          <option value="7 years">7 years</option>
+                          <option value="8 years">8 years</option>
+                          <option value="9 years">9 years</option>
+                          <option value="10+ years">10+ years</option>
+                        </select>
+                      </div>
+                    )}
+                    
                     <div className="text-xs text-gray-600 bg-white p-2 rounded border">
                       {formData.is_anonymous ? (
                         <span className="text-orange-600">📝 Your post will appear as "Anonymous" - your identity will be completely hidden</span>
                       ) : (
-                        <span className="text-blue-600">👤 Your post will show as "{formData.author_name || authUser?.email?.split('@')[0] || 'Your Name'}"</span>
+                        <span className="text-blue-600">👤 Your post will show as "{formData.author_name || authUser?.email?.split('@')[0] || 'Your Name'}"{formData.experience_years ? ` (${formData.experience_years} experience)` : ''}</span>
                       )}
                     </div>
                   </div>
@@ -440,16 +478,22 @@ setFormData({ title: '', content: '', category_id: '', image_url: '', is_anonymo
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Category *</label>
-                  {categories.length === 0 ? (
-                    <div className="text-red-600 text-sm py-2">
-                      No categories available. Please contact an administrator to set up forum categories.
-                    </div>
-                  ) : (
-                    <select value={formData.category_id} onChange={(e) => setFormData(prev => ({ ...prev, category_id: e.target.value }))} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF6600] focus:border-transparent" required>
-                      <option value="">Select a category</option>
-                      {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    </select>
-                  )}
+                  {(() => {
+                    const availableCategories = categories.length > 0 ? categories : localCategories;
+                    return availableCategories.length === 0 ? (
+                      <div className="text-red-600 text-sm py-2">
+                        No categories available. Please contact an administrator to set up forum categories.
+                      </div>
+                    ) : (
+                      <CategorySelector
+                        categories={availableCategories}
+                        selectedCategory={formData.category_id}
+                        onCategoryChange={(categoryId) => setFormData(prev => ({ ...prev, category_id: categoryId }))}
+                        required
+                      />
+                    );
+                  })()
+                  }
                 </div>
 
                 <div>
@@ -460,14 +504,10 @@ setFormData({ title: '', content: '', category_id: '', image_url: '', is_anonymo
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Post Content *</label>
-                  <textarea 
-                    value={formData.content} 
-                    onChange={(e) => setFormData(prev => ({ ...prev, content: e.target.value }))} 
-                    rows={6} 
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF6600] focus:border-transparent resize-none" 
-                    maxLength={2000} 
-                    placeholder="Share your testing experience, ask questions, or discuss QA best practices...\n\nTips:\n• Be specific and detailed\n• Include examples when possible\n• Ask clear, focused questions\n• Share what you've tried"
-                    required 
+                  <RichTextEditor
+                    value={formData.content}
+                    onChange={(content) => setFormData(prev => ({ ...prev, content }))}
+                    placeholder="Share your testing experience, ask questions, or discuss QA best practices...\n\nTips:\n• Be specific and detailed\n• Include examples when possible\n• Ask clear, focused questions\n• Share what you've tried\n\nUse markdown for formatting: **bold**, *italic*, `code`, [links](url)"
                   />
                   <div className="text-xs text-gray-500 mt-1">{formData.content.length}/2000 characters</div>
                 </div>
@@ -504,7 +544,7 @@ setFormData({ title: '', content: '', category_id: '', image_url: '', is_anonymo
                 </div>
                 <div className="flex items-center gap-3">
                   <button type="button" onClick={onClose} className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg font-medium hover:bg-gray-200 transition-colors">Cancel</button>
-                  <button type="submit" form="create-post-form" disabled={loading || categories.length === 0} className="px-6 py-2 bg-[#FF6600] text-white rounded-lg font-medium hover:bg-[#E55A00] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm">
+                  <button type="submit" form="create-post-form" disabled={loading} className="px-6 py-2 bg-[#FF6600] text-white rounded-lg font-medium hover:bg-[#E55A00] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm">
                     {loading ? (<><div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>Creating...</>) : (<><Send className="w-4 h-4" />Publish Post</>)}
                   </button>
                 </div>

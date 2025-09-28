@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { flushSync } from 'react-dom';
 import { createPortal } from 'react-dom';
 import { Menu, X, Trophy, Bookmark, FileText, FolderOpen } from 'lucide-react';
 import TestingValaLogo from './TestingValaLogo';
@@ -33,37 +34,7 @@ const Header = () => {
     setIsMenuOpen(!isMenuOpen);
   };
 
-  const navigateTo = (path = '/', sectionId = null, e) => {
-    if (e && e.preventDefault) e.preventDefault();
-    
-    const normalizedPath = path || '/';
-    const currentPath = window.location.pathname;
-    
-    // If navigating to different page, use full navigation
-    if (currentPath !== normalizedPath) {
-      const targetUrl = sectionId ? `${normalizedPath}#${sectionId}` : normalizedPath;
-      window.location.href = targetUrl;
-      return;
-    }
-    
-    // Same page navigation - handle section scrolling
-    if (sectionId) {
-      const element = document.getElementById(sectionId);
-      if (element) {
-        const headerHeight = 80; // Fixed header height
-        const elementPosition = element.getBoundingClientRect().top + window.pageYOffset;
-        const offsetPosition = elementPosition - headerHeight;
-        
-        window.scrollTo({
-          top: offsetPosition,
-          behavior: 'smooth'
-        });
-        
-        // Update URL hash
-        window.history.pushState({}, '', `${normalizedPath}#${sectionId}`);
-      }
-    }
-  };
+
 
   const openContestForm = () => {
     setShowContestForm(true);
@@ -80,7 +51,7 @@ const Header = () => {
   };
 
   const headerContent = (
-    <header data-debug-header="true" className="bg-black/95 backdrop-blur-sm border-b border-gray-800 fixed top-0 left-0 w-full z-[99999] shadow-lg pointer-events-auto" style={{ borderWidth: '1px' }}>
+    <header data-debug-header="true" className="bg-black/95 backdrop-blur-sm border-b border-gray-800 fixed top-0 left-0 w-full shadow-lg pointer-events-auto" style={{ borderWidth: '1px', zIndex: 8000 }}>
       <div className="relative">
         {/* White pill logo flush to the left edge */}
         <div className="absolute left-0 top-1/2 -translate-y-1/2 z-50">
@@ -88,6 +59,10 @@ const Header = () => {
             href="/"
             onClick={(e) => {
               e.preventDefault();
+              flushSync(() => {
+                setShowResumeBuilder(false);
+                setShowResumeManagement(false);
+              });
               window.location.href = '/';
             }}
             aria-label="Go to homepage"
@@ -103,23 +78,52 @@ const Header = () => {
             <nav className="flex items-center space-x-8">
               <a href="/" onClick={(e) => {
                 e.preventDefault();
+                flushSync(() => {
+                  setShowResumeBuilder(false);
+                  setShowResumeManagement(false);
+                });
                 window.location.href = '/';
               }} className="text-gray-300 hover:text-white font-medium transition-colors duration-200">
                 Home
               </a>
-              <a href="/#contest" onClick={(e) => navigateTo('/', 'contest', e)} className="text-gray-300 hover:text-white font-medium transition-colors duration-200">
+              <a href="/#contest" onClick={(e) => {
+                e.preventDefault();
+                flushSync(() => {
+                  setShowResumeBuilder(false);
+                  setShowResumeManagement(false);
+                });
+                window.location.href = '/#contest';
+              }} className="text-gray-300 hover:text-white font-medium transition-colors duration-200">
                 Contest
               </a>
-              <a href="/#winners" onClick={(e) => navigateTo('/', 'winners', e)} className="text-gray-300 hover:text-white font-medium transition-colors duration-200">
-                Winners
-              </a>
-              <a href="/#community" onClick={(e) => navigateTo('/', 'community', e)} className="text-gray-300 hover:text-white font-medium transition-colors duration-200">
+              <a href="/#community" onClick={(e) => {
+                e.preventDefault();
+                flushSync(() => {
+                  setShowResumeBuilder(false);
+                  setShowResumeManagement(false);
+                });
+                window.location.href = '/#community';
+              }} className="text-gray-300 hover:text-white font-medium transition-colors duration-200">
                 Community
               </a>
-              <a href="/#about" onClick={(e) => navigateTo('/', 'about', e)} className="text-gray-300 hover:text-white font-medium transition-colors duration-200">
+              <a href="/#about" onClick={(e) => {
+                e.preventDefault();
+                flushSync(() => {
+                  setShowResumeBuilder(false);
+                  setShowResumeManagement(false);
+                });
+                window.location.href = '/#about';
+              }} className="text-gray-300 hover:text-white font-medium transition-colors duration-200">
                 About
               </a>
-              <a href="/#contact" onClick={(e) => navigateTo('/', 'contact', e)} className="text-gray-300 hover:text-white font-medium transition-colors duration-200">
+              <a href="/#contact" onClick={(e) => {
+                e.preventDefault();
+                flushSync(() => {
+                  setShowResumeBuilder(false);
+                  setShowResumeManagement(false);
+                });
+                window.location.href = '/#contact';
+              }} className="text-gray-300 hover:text-white font-medium transition-colors duration-200">
                 Contact
               </a>
 
@@ -127,19 +131,25 @@ const Header = () => {
                 href="/boards"
                 onClick={(e) => {
                   e.preventDefault();
+                  setShowResumeBuilder(false);
+                  setShowResumeManagement(false);
                   if (!isVerified) {
                     setShowAuthModal(true);
                   } else {
-                    window.location.href = '/boards';
+                    window.history.pushState({}, '', '/boards');
+                    window.dispatchEvent(new PopStateEvent('popstate'));
                   }
                 }}
                 className="text-gray-300 hover:text-white font-medium transition-all duration-200 flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-800"
-                title={isVerified ? "Manage your boards" : "Sign in to access boards"}
               >
                 <Bookmark className="w-4 h-4" />
                 My Boards
               </a>
-              <button onClick={openContestForm} className="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 hover:shadow-lg transition-all duration-200 flex items-center gap-2 border border-blue-500">
+              <button onClick={() => {
+                setShowResumeBuilder(false);
+                setShowResumeManagement(false);
+                openContestForm();
+              }} className="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 hover:shadow-lg transition-all duration-200 flex items-center gap-2 border border-blue-500">
                 <Trophy className="w-4 h-4" />
                 Join Contest
               </button>
@@ -158,15 +168,52 @@ const Header = () => {
             <nav className="flex flex-col space-y-4 px-4">
               <a href="/" onClick={(e) => {
                 e.preventDefault();
+                flushSync(() => {
+                  setShowResumeBuilder(false);
+                  setShowResumeManagement(false);
+                  setIsMenuOpen(false);
+                });
                 window.location.href = '/';
               }} className="text-gray-300 hover:text-white font-medium transition-colors duration-200">Home</a>
-              <a href="/#contest" onClick={(e) => navigateTo('/', 'contest', e)} className="text-gray-300 hover:text-white font-medium transition-colors duration-200">Contest</a>
-              <a href="/#winners" onClick={(e) => navigateTo('/', 'winners', e)} className="text-gray-300 hover:text-white font-medium transition-colors duration-200">Winners</a>
-              <a href="/#community" onClick={(e) => navigateTo('/', 'community', e)} className="text-gray-300 hover:text-white font-medium transition-colors duration-200">Community</a>
-              <a href="/#about" onClick={(e) => navigateTo('/', 'about', e)} className="text-gray-300 hover:text-white font-medium transition-colors duration-200">About</a>
-              <a href="/#contact" onClick={(e) => navigateTo('/', 'contact', e)} className="text-gray-300 hover:text-white font-medium transition-colors duration-200">Contact</a>
+              <a href="/#contest" onClick={(e) => {
+                e.preventDefault();
+                flushSync(() => {
+                  setShowResumeBuilder(false);
+                  setShowResumeManagement(false);
+                  setIsMenuOpen(false);
+                });
+                window.location.href = '/#contest';
+              }} className="text-gray-300 hover:text-white font-medium transition-colors duration-200">Contest</a>
+              <a href="/#community" onClick={(e) => {
+                e.preventDefault();
+                flushSync(() => {
+                  setShowResumeBuilder(false);
+                  setShowResumeManagement(false);
+                  setIsMenuOpen(false);
+                });
+                window.location.href = '/#community';
+              }} className="text-gray-300 hover:text-white font-medium transition-colors duration-200">Community</a>
+              <a href="/#about" onClick={(e) => {
+                e.preventDefault();
+                flushSync(() => {
+                  setShowResumeBuilder(false);
+                  setShowResumeManagement(false);
+                  setIsMenuOpen(false);
+                });
+                window.location.href = '/#about';
+              }} className="text-gray-300 hover:text-white font-medium transition-colors duration-200">About</a>
+              <a href="/#contact" onClick={(e) => {
+                e.preventDefault();
+                flushSync(() => {
+                  setShowResumeBuilder(false);
+                  setShowResumeManagement(false);
+                  setIsMenuOpen(false);
+                });
+                window.location.href = '/#contact';
+              }} className="text-gray-300 hover:text-white font-medium transition-colors duration-200">Contact</a>
               <button
                 onClick={() => {
+                  setIsMenuOpen(false);
                   if (!user || !isVerified) {
                     setShowAuthModal(true);
                   } else {
@@ -180,7 +227,10 @@ const Header = () => {
               </button>
               {isVerified && (
                 <button
-                  onClick={() => setShowResumeManagement(true)}
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    setShowResumeManagement(true);
+                  }}
                   className="text-gray-300 hover:text-white font-medium transition-all duration-200 flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-800 w-full text-left"
                 >
                   <FolderOpen className="w-4 h-4" />
@@ -191,10 +241,14 @@ const Header = () => {
                 href="/boards"
                 onClick={(e) => {
                   e.preventDefault();
+                  setShowResumeBuilder(false);
+                  setShowResumeManagement(false);
+                  setIsMenuOpen(false);
                   if (!isVerified) {
                     setShowAuthModal(true);
                   } else {
-                    window.location.href = '/boards';
+                    window.history.pushState({}, '', '/boards');
+                    window.dispatchEvent(new PopStateEvent('popstate'));
                   }
                 }}
                 className="text-gray-300 hover:text-white font-medium transition-all duration-200 flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-800"
@@ -202,7 +256,10 @@ const Header = () => {
                 <Bookmark className="w-4 h-4" />
                 My Boards
               </a>
-              <button onClick={openContestForm} className="bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 hover:shadow-lg transition-all duration-200 flex items-center justify-center gap-2 border border-blue-500"><Trophy className="w-4 h-4" /> Join Contest</button>
+              <button onClick={() => {
+                setIsMenuOpen(false);
+                openContestForm();
+              }} className="bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 hover:shadow-lg transition-all duration-200 flex items-center justify-center gap-2 border border-blue-500"><Trophy className="w-4 h-4" /> Join Contest</button>
             </nav>
           </div>
         )}
@@ -226,7 +283,9 @@ const Header = () => {
                 // Check if this was triggered from resume builder or boards
                 const currentPath = window.location.pathname;
                 if (currentPath === '/boards' || window.location.hash.includes('boards')) {
-                  window.location.href = '/boards';
+                  // Use pushState instead of full page reload
+                  window.history.pushState({}, '', '/boards');
+                  window.dispatchEvent(new PopStateEvent('popstate'));
                 } else {
                   setShowResumeBuilder(true);
                 }

@@ -49,29 +49,51 @@ class DataService {
     return this.request('forum_posts', async () => {
       if (!supabase) return [];
       
-      // Fixed query - removed invalid join
       const { data, error } = await supabase
         .from('forum_posts')
-        .select('*')
+        .select(`
+          *,
+          forum_categories!inner(
+            id,
+            name,
+            slug,
+            color
+          )
+        `)
         .eq('status', 'active')
         .order('created_at', { ascending: false })
         .limit(50);
       
       if (error) throw error;
-      return data || [];
+      
+      // Transform data to include category_name
+      return (data || []).map(post => ({
+        ...post,
+        category_name: post.forum_categories?.name || 'General'
+      }));
     });
   }
 
   async getForumCategories() {
     return this.request('forum_categories', async () => {
-      if (!supabase) return [];
+      if (!supabase) {
+        console.warn('Supabase not available, returning empty categories');
+        return [];
+      }
+      
+      console.log('🔍 Fetching forum categories from database...');
       const { data, error } = await supabase
         .from('forum_categories')
         .select('*')
         .eq('is_active', true)
         .order('name');
       
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Error fetching categories:', error);
+        throw error;
+      }
+      
+      console.log('✅ Categories fetched:', data?.length || 0, data);
       return data || [];
     });
   }

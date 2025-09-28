@@ -1355,6 +1355,49 @@ html {
   border-color: #7c2d12;
 }
 
+/* Professional Resume Builder Scrollbar */
+.resume-sidebar-scroll {
+  position: relative;
+  scrollbar-width: thin;
+  scrollbar-color: #3b82f6 #f1f5f9;
+}
+
+.resume-sidebar-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.resume-sidebar-scroll::-webkit-scrollbar-track {
+  background: #f8fafc;
+  border-radius: 8px;
+}
+
+.resume-sidebar-scroll::-webkit-scrollbar-thumb {
+  background: #3b82f6;
+  border-radius: 8px;
+  transition: background-color 0.2s ease;
+}
+
+.resume-sidebar-scroll::-webkit-scrollbar-thumb:hover {
+  background: #2563eb;
+}
+
+/* Scroll indicator in middle */
+.resume-sidebar-scroll::after {
+  content: '⋮';
+  position: absolute;
+  top: 50%;
+  right: 2px;
+  transform: translateY(-50%);
+  color: #3b82f6;
+  font-size: 20px;
+  font-weight: bold;
+  pointer-events: none;
+  z-index: 10;
+  background: white;
+  padding: 2px;
+  border-radius: 4px;
+}
+
 /* Pin modal specific styles */
 .pin-modal {
   backdrop-filter: blur(4px);

@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Toaster } from 'react-hot-toast';
 import Header from './components/Header';
 import Hero from './components/Hero';
-import UpcomingEvents from './components/UpcomingEvents';
-import ContestSection from './components/ContestSection';
 
+import ContestSection from './components/ContestSection';
+import Winners from './components/Winners';
 import CommunityHub from './components/CommunityHub';
 import AboutUs from './components/AboutUs';
 import Contact from './components/Contact';
@@ -17,12 +17,14 @@ import AuthCallback from './components/AuthCallback';
 import AuthVerify from './components/AuthVerify';
 import ApiCallMonitor from './components/ApiCallMonitor';
 import ApiAuditDashboard from './components/ApiAuditDashboard';
+import AdminDashboard from './components/AdminDashboard';
+import NavigationDebug from './components/NavigationDebug';
 
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { GlobalDataProvider } from './contexts/GlobalDataContext';
 import { useWebsiteData } from './contexts/GlobalDataContext';
-import { enterpriseAnalytics, trackUserEvent } from './services/enterpriseAnalytics';
-import { Wifi, WifiOff, AlertCircle } from 'lucide-react';
+import { trackUserEvent } from './services/enterpriseAnalytics';
+import { WifiOff, AlertCircle } from 'lucide-react';
 import './utils/testOptimizations';
 import './utils/globalApiLogger';
 import './utils/testApiOptimizations';
@@ -32,8 +34,25 @@ const AppContent = () => {
   const [currentPath, setCurrentPath] = useState(typeof window !== 'undefined' ? window.location.pathname : '/');
   const [boardView, setBoardView] = useState({ type: 'list', boardId: null });
 
-  const { user, isVerified } = useAuth();
-  const { data, loading } = useWebsiteData();
+  // Add error boundaries for hooks
+  let user = null, isVerified = false, data = null, loading = false;
+  
+  try {
+    const authData = useAuth();
+    user = authData.user;
+    isVerified = authData.isVerified;
+  } catch (error) {
+    console.error('Auth hook error:', error);
+  }
+  
+  try {
+    const websiteData = useWebsiteData();
+    data = websiteData.data;
+    loading = websiteData.loading;
+  } catch (error) {
+    console.error('Website data hook error:', error);
+  }
+  
   const error = null; // Handle errors in the context
   const isOnline = !!data;
 
@@ -49,10 +68,15 @@ const AppContent = () => {
     }
   }, [user, isVerified]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     const handler = () => {
       const newPath = window.location.pathname;
       setCurrentPath(newPath);
+      
+      // Reset board view when navigating away from boards
+      if (newPath !== '/boards') {
+        setBoardView({ type: 'list', boardId: null });
+      }
       
       // Track page views
       try {
@@ -258,6 +282,8 @@ const AppContent = () => {
           <AuthCallback />
         ) : currentPath === '/auth/verify' ? (
           <AuthVerify />
+        ) : currentPath === '/admin' ? (
+          <AdminDashboard />
         ) : currentPath === '/events' ? (
           <EventsPage />
         ) : currentPath === '/boards' ? (
@@ -276,44 +302,78 @@ const AppContent = () => {
           ) : isVerified ? (
             <BoardsPage 
               user={user} 
-              onBack={() => window.history.back()}
+              onBack={() => {
+                setBoardView({ type: 'list', boardId: null });
+                window.history.pushState({}, '', '/');
+                window.dispatchEvent(new PopStateEvent('popstate'));
+              }}
               onViewBoard={(boardId) => setBoardView({ type: 'detail', boardId })}
               onViewPublic={() => setBoardView({ type: 'public', boardId: null })}
             />
           ) : (
             <PublicBoardsPage
               user={user}
-              onBack={() => window.history.back()}
+              onBack={() => {
+                setBoardView({ type: 'list', boardId: null });
+                window.history.pushState({}, '', '/');
+                window.dispatchEvent(new PopStateEvent('popstate'));
+              }}
               onViewBoard={(boardId) => setBoardView({ type: 'detail', boardId })}
             />
           )
         ) : (
-          <>
+          <div key="home-content">
             <Hero data={validatedData.hero} />
-            <UpcomingEvents />
             <CommunityHub />
             <ContestSection contestData={validatedData.contest} />
+
             <AboutUs data={validatedData.about} />
             <Contact data={validatedData.contact} />
-          </>
+          </div>
         )}
       </main>
       
       <Footer />
       <ApiCallMonitor />
       <ApiAuditDashboard />
+      <NavigationDebug />
     </div>
   );
 };
 
 function App() {
-  return (
-    <AuthProvider>
-      <GlobalDataProvider>
-        <AppContent />
-      </GlobalDataProvider>
-    </AuthProvider>
-  );
+  // Add safety check for React
+  if (!React || !React.createElement) {
+    console.error('React not properly initialized');
+    return React.createElement('div', { 
+      style: { 
+        padding: '20px', 
+        textAlign: 'center', 
+        fontFamily: 'Arial, sans-serif' 
+      } 
+    }, 'Loading...');
+  }
+
+  try {
+    return (
+      <AuthProvider>
+        <GlobalDataProvider>
+          <AppContent />
+        </GlobalDataProvider>
+      </AuthProvider>
+    );
+  } catch (error) {
+    console.error('App render error:', error);
+    return (
+      <div style={{ padding: '20px', textAlign: 'center', fontFamily: 'Arial, sans-serif' }}>
+        <h2>Something went wrong</h2>
+        <p>Please refresh the page to try again.</p>
+        <button onClick={() => window.location.reload()} style={{ padding: '10px 20px', marginTop: '10px' }}>
+          Refresh Page
+        </button>
+      </div>
+    );
+  }
 }
 
 export default App;

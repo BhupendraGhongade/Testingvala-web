@@ -54,7 +54,7 @@ const Hero = ({ data }) => {
   };
 
   return (
-    <section id="home" className="relative bg-gradient-to-br from-white via-gray-50 to-gray-100 min-h-[50vh] flex items-center pt-6 md:pt-10 lg:pt-12 pb-4 md:pb-6">
+    <section id="home" className="relative bg-gradient-to-br from-white via-gray-50 to-gray-100 py-8">
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center">
           {/* Main Headline */}
@@ -68,11 +68,11 @@ const Hero = ({ data }) => {
           </p>
 
           {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 justify-center items-center px-2 mt-8">
+          <div className="flex flex-col sm:flex-row gap-3 justify-center items-center mt-6">
             {/* Primary CTA - AI Resume Builder */}
             <button
               onClick={openResumeBuilder}
-              className="group relative bg-gradient-to-r from-[#0057B7] via-[#0066CC] to-[#004494] text-white px-8 py-4 rounded-2xl font-bold text-lg shadow-2xl hover:shadow-blue-500/25 transform hover:scale-110 hover:-translate-y-1 transition-all duration-300 overflow-hidden w-full sm:w-auto min-w-[220px]"
+              className="group relative bg-gradient-to-r from-[#0057B7] via-[#0066CC] to-[#004494] text-white px-6 py-3 rounded-xl font-semibold text-base shadow-lg hover:shadow-blue-500/25 transform hover:scale-105 transition-all duration-300 overflow-hidden w-full sm:w-auto min-w-[180px]"
             >
               <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
               <div className="relative flex items-center justify-center gap-3">
@@ -89,7 +89,7 @@ const Hero = ({ data }) => {
             {/* Secondary CTA - Join Contest */}
             <button
               onClick={openContestForm}
-              className="group relative bg-gradient-to-r from-[#0066CC] to-[#004494] text-white px-7 py-4 rounded-2xl font-semibold text-lg shadow-xl hover:shadow-blue-500/25 transform hover:scale-105 hover:-translate-y-0.5 transition-all duration-300 overflow-hidden w-full sm:w-auto min-w-[200px]"
+              className="group relative bg-gradient-to-r from-[#0066CC] to-[#004494] text-white px-5 py-3 rounded-xl font-medium text-base shadow-lg hover:shadow-blue-500/25 transform hover:scale-105 transition-all duration-300 overflow-hidden w-full sm:w-auto min-w-[160px]"
             >
               <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
               <div className="relative flex items-center justify-center gap-3">
@@ -115,7 +115,7 @@ const Hero = ({ data }) => {
                   }
                 });
               }}
-              className="group relative bg-gradient-to-r from-[#2563eb] to-[#1d4ed8] text-white px-7 py-4 rounded-2xl font-semibold text-lg shadow-lg hover:shadow-blue-500/25 transform hover:scale-105 hover:-translate-y-0.5 transition-all duration-300 overflow-hidden w-full sm:w-auto min-w-[200px]"
+              className="group relative bg-gradient-to-r from-[#2563eb] to-[#1d4ed8] text-white px-5 py-3 rounded-xl font-medium text-base shadow-lg hover:shadow-blue-500/25 transform hover:scale-105 transition-all duration-300 overflow-hidden w-full sm:w-auto min-w-[160px]"
             >
               <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
               <div className="relative flex items-center justify-center gap-3">
@@ -141,7 +141,7 @@ const Hero = ({ data }) => {
                   }
                 });
               }}
-              className="group relative bg-gradient-to-r from-[#3b82f6] to-[#1e40af] text-white px-7 py-4 rounded-2xl font-semibold text-lg shadow-lg hover:shadow-blue-500/25 transform hover:scale-105 hover:-translate-y-0.5 transition-all duration-300 overflow-hidden w-full sm:w-auto min-w-[200px]"
+              className="group relative bg-gradient-to-r from-[#3b82f6] to-[#1e40af] text-white px-5 py-3 rounded-xl font-medium text-base shadow-lg hover:shadow-blue-500/25 transform hover:scale-105 transition-all duration-300 overflow-hidden w-full sm:w-auto min-w-[160px]"
             >
               <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
               <div className="relative flex items-center justify-center gap-3">

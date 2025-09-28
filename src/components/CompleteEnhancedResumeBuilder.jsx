@@ -196,7 +196,83 @@ const CompleteEnhancedResumeBuilder = ({ onBack, userEmail }) => {
     return steps;
   };
 
-  const [selectedTemplate, setSelectedTemplate] = useState('modern');
+  const [selectedTemplate, setSelectedTemplate] = useState('modernMinimal');
+  const [atsScore, setAtsScore] = useState(0);
+  const [atsAnalysis, setAtsAnalysis] = useState({
+    keywords: 0,
+    sections: 0,
+    format: 0,
+    suggestions: []
+  });
+
+  // Real-time ATS scoring
+  useEffect(() => {
+    const calculateAtsScore = () => {
+      let score = 0;
+      let keywords = 0;
+      let sections = 0;
+      let format = 0;
+      let suggestions = [];
+
+      // Keywords scoring (40 points) - More comprehensive
+      const allSkills = [
+        ...formData.coreCompetencies,
+        ...Object.values(formData.technicalSkills).flat(),
+        ...Object.values(formData.tools).flat()
+      ].filter(skill => skill && skill.trim().length > 0);
+      
+      keywords = Math.min(allSkills.length * 1.5, 40);
+      if (keywords < 15) suggestions.push('Add more technical skills and tools (aim for 25+ keywords)');
+      if (keywords < 25) suggestions.push('Include more QA-specific keywords for better ATS matching');
+
+      // Sections scoring (35 points) - Enhanced validation
+      const sectionChecks = [
+        formData.personal.name?.trim() && formData.personal.email?.trim(), // Personal info
+        formData.summary?.trim() && formData.summary.length > 50, // Meaningful summary
+        formData.experience.length > 0 && formData.experience[0].company?.trim(), // Experience
+        formData.experience.length > 0 && formData.experience[0].achievements?.some(ach => ach?.trim()), // Achievements
+        formData.certifications.length > 0 && formData.certifications[0].name?.trim(), // Certifications
+        formData.education.length > 0 && formData.education[0].degree?.trim(), // Education
+        formData.projects.length > 0 && formData.projects[0].title?.trim(), // Projects
+        allSkills.length > 10 // Sufficient skills
+      ];
+      
+      const completedSections = sectionChecks.filter(Boolean).length;
+      sections = Math.min(completedSections * 4.5, 35);
+      
+      if (completedSections < 6) suggestions.push('Complete more core resume sections');
+      if (!formData.summary?.trim()) suggestions.push('Add a professional summary');
+      if (formData.experience.length === 0) suggestions.push('Add work experience');
+      if (!formData.experience[0]?.achievements?.some(ach => ach?.trim())) {
+        suggestions.push('Add quantifiable achievements to work experience');
+      }
+
+      // Format scoring (25 points) - Professional completeness
+      format = 15; // Base format score
+      
+      if (formData.personal.linkedin?.trim()) format += 3;
+      else suggestions.push('Add LinkedIn profile URL');
+      
+      if (formData.personal.github?.trim()) format += 3;
+      else suggestions.push('Add GitHub profile for technical credibility');
+      
+      if (formData.personal.phone?.trim()) format += 2;
+      else suggestions.push('Add phone number');
+      
+      if (formData.personal.location?.trim()) format += 2;
+      else suggestions.push('Add location/city');
+
+      // Bonus points for advanced sections
+      if (formData.certifications.length > 0 && formData.certifications[0].name?.trim()) format += 2;
+      if (formData.projects.length > 0 && formData.projects[0].title?.trim()) format += 2;
+
+      score = Math.min(keywords + sections + format, 100);
+      setAtsScore(score);
+      setAtsAnalysis({ keywords: Math.round(keywords), sections: Math.round(sections), format: Math.round(format), suggestions });
+    };
+
+    calculateAtsScore();
+  }, [formData]);
 
   const downloadResume = () => {
     try {
@@ -886,22 +962,64 @@ const CompleteEnhancedResumeBuilder = ({ onBack, userEmail }) => {
         );
 
       case 'opensource':
-        return <OpenSourceSection formData={formData} updateItem={updateItem} addItem={addItem} removeItem={removeItem} />;
+        return (
+          <OpenSourceSection 
+            formData={formData} 
+            updateItem={updateItem} 
+            addItem={addItem} 
+            removeItem={removeItem} 
+          />
+        );
       
       case 'memberships':
-        return <MembershipsSection formData={formData} updateItem={updateItem} addItem={addItem} removeItem={removeItem} />;
+        return (
+          <MembershipsSection 
+            formData={formData} 
+            updateItem={updateItem} 
+            addItem={addItem} 
+            removeItem={removeItem} 
+          />
+        );
       
       case 'portfolio':
-        return <PortfolioSection formData={formData} updateItem={updateItem} addItem={addItem} removeItem={removeItem} />;
+        return (
+          <PortfolioSection 
+            formData={formData} 
+            updateItem={updateItem} 
+            addItem={addItem} 
+            removeItem={removeItem} 
+          />
+        );
       
       case 'patents':
-        return <PatentsSection formData={formData} updateItem={updateItem} addItem={addItem} removeItem={removeItem} />;
+        return (
+          <PatentsSection 
+            formData={formData} 
+            updateItem={updateItem} 
+            addItem={addItem} 
+            removeItem={removeItem} 
+          />
+        );
       
       case 'languages':
-        return <LanguagesSection formData={formData} updateItem={updateItem} addItem={addItem} removeItem={removeItem} />;
+        return (
+          <LanguagesSection 
+            formData={formData} 
+            updateItem={updateItem} 
+            addItem={addItem} 
+            removeItem={removeItem} 
+          />
+        );
       
       case 'volunteer':
-        return <VolunteerSection formData={formData} updateItem={updateItem} addItem={addItem} removeItem={removeItem} />;
+        return (
+          <VolunteerSection 
+            formData={formData} 
+            updateItem={updateItem} 
+            addItem={addItem} 
+            removeItem={removeItem} 
+          />
+        );
 
       case 'projects':
         return (
@@ -989,18 +1107,6 @@ const CompleteEnhancedResumeBuilder = ({ onBack, userEmail }) => {
               Professional QA resume with advanced sections, optimized for ATS systems and designed to stand out in 2025.
             </p>
             
-            <div className="bg-blue-50 p-6 rounded-xl mb-8">
-              <h3 className="font-semibold text-blue-900 mb-4">Resume Includes:</h3>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm text-blue-800">
-                {getVisibleSteps().filter(step => step.id !== 'review').map(step => (
-                  <div key={step.id} className="flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4 text-green-600" />
-                    {step.title}
-                  </div>
-                ))}
-              </div>
-            </div>
-
             <div className="bg-gray-50 p-6 rounded-xl mb-8">
               <h3 className="font-semibold text-gray-900 mb-4">Choose Template</h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -1017,6 +1123,70 @@ const CompleteEnhancedResumeBuilder = ({ onBack, userEmail }) => {
                     <div className="w-full h-16 rounded mb-2" style={{ backgroundColor: template.colors.primary }}></div>
                     <div className="text-sm font-medium text-gray-900">{template.name}</div>
                   </button>
+                ))}
+              </div>
+            </div>
+
+            {/* ATS Score Display */}
+            <div className="bg-gradient-to-r from-green-50 to-blue-50 p-6 rounded-xl mb-8 border border-green-200">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-gray-900">ATS Optimization Score</h3>
+                <div className={`text-2xl font-bold ${
+                  atsScore >= 80 ? 'text-green-600' : 
+                  atsScore >= 60 ? 'text-yellow-600' : 'text-red-600'
+                }`}>
+                  {atsScore}%
+                </div>
+              </div>
+              
+              <div className="w-full bg-gray-200 rounded-full h-3 mb-4">
+                <div 
+                  className={`h-3 rounded-full transition-all duration-500 ${
+                    atsScore >= 80 ? 'bg-green-500' : 
+                    atsScore >= 60 ? 'bg-yellow-500' : 'bg-red-500'
+                  }`}
+                  style={{ width: `${atsScore}%` }}
+                ></div>
+              </div>
+              
+              <div className="grid grid-cols-3 gap-4 mb-4 text-sm">
+                <div className="text-center">
+                  <div className="font-semibold text-gray-700">Keywords</div>
+                  <div className="text-blue-600">{atsAnalysis.keywords}/40</div>
+                </div>
+                <div className="text-center">
+                  <div className="font-semibold text-gray-700">Sections</div>
+                  <div className="text-blue-600">{atsAnalysis.sections}/35</div>
+                </div>
+                <div className="text-center">
+                  <div className="font-semibold text-gray-700">Format</div>
+                  <div className="text-blue-600">{atsAnalysis.format}/25</div>
+                </div>
+              </div>
+              
+              {atsAnalysis.suggestions.length > 0 && (
+                <div className="bg-white p-4 rounded-lg border border-blue-200">
+                  <h4 className="font-semibold text-gray-900 mb-2">💡 Suggestions to improve:</h4>
+                  <ul className="text-sm text-gray-700 space-y-1">
+                    {atsAnalysis.suggestions.map((suggestion, index) => (
+                      <li key={index} className="flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 bg-blue-500 rounded-full"></span>
+                        {suggestion}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+
+            <div className="bg-blue-50 p-6 rounded-xl mb-8">
+              <h3 className="font-semibold text-blue-900 mb-4">Resume Includes:</h3>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm text-blue-800">
+                {getVisibleSteps().filter(step => step.id !== 'review').map(step => (
+                  <div key={step.id} className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-600" />
+                    {step.title}
+                  </div>
                 ))}
               </div>
             </div>
@@ -1041,7 +1211,7 @@ const CompleteEnhancedResumeBuilder = ({ onBack, userEmail }) => {
                 className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-8 py-3 rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all shadow-lg"
               >
                 <Download className="w-5 h-5" />
-                Download HTML
+                Download PDF
               </button>
             </div>
           </div>
@@ -1279,29 +1449,9 @@ const CompleteEnhancedResumeBuilder = ({ onBack, userEmail }) => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={onBack}
-                className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all duration-200 group"
-              >
-                <ArrowLeft className="w-5 h-5 group-hover:-translate-x-0.5 transition-transform duration-200" />
-                <span className="font-medium">Back</span>
-              </button>
-              <div className="w-px h-6 bg-gray-300"></div>
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center">
-                  <Shield className="w-5 h-5 text-white" />
-                </div>
-                <h1 className="text-xl font-bold text-gray-900">Enhanced QA Resume Builder</h1>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+
+
+
 
       {/* Progress Bar */}
       <div className="bg-white border-b">
@@ -1330,7 +1480,7 @@ const CompleteEnhancedResumeBuilder = ({ onBack, userEmail }) => {
           <div className="lg:col-span-1">
             <div className="bg-white rounded-2xl shadow-xl p-6 sticky top-8">
               <h3 className="font-bold text-gray-900 mb-4">Resume Sections</h3>
-              <div className="space-y-2 overflow-y-auto pr-2" style={{maxHeight: 'calc(100vh - 280px)', scrollbarWidth: 'thin', scrollbarColor: '#3b82f6 #e2e8f0'}}>
+              <div className="space-y-2 overflow-y-auto pr-4 resume-sidebar-scroll" style={{maxHeight: 'calc(100vh - 280px)'}}>
                 {getVisibleSteps().map((step, index) => {
                   const Icon = step.icon;
                   const isActive = currentStep === index;

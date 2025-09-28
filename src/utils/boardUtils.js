@@ -66,7 +66,32 @@ export const getNextBoardPosition = async (userId) => {
  */
 export const loadBoardsWithOrdering = async (userId) => {
   try {
-    // First try with position column
+    // Try optimized query with LEFT JOIN to get save counts in single query
+    try {
+      const { data: boardsData, error: boardsError } = await supabase
+        .from('user_boards')
+        .select(`
+          *,
+          board_pins(count)
+        `)
+        .eq('user_id', userId)
+        .order('position', { ascending: true })
+        .order('created_at', { ascending: false });
+
+      if (!boardsError && boardsData) {
+        // Process the joined data to get save counts
+        const boardsWithSaves = boardsData.map(board => ({
+          ...board,
+          save_count: board.board_pins?.length || 0,
+          board_pins: undefined // Remove the joined data
+        }));
+        return boardsWithSaves;
+      }
+    } catch (joinError) {
+      console.log('JOIN query failed, falling back to separate queries');
+    }
+
+    // Fallback: First try with position column
     const { data: boardsData, error: boardsError } = await supabase
       .from('user_boards')
       .select('*')
@@ -91,24 +116,8 @@ export const loadBoardsWithOrdering = async (userId) => {
           throw fallbackError;
         }
 
-        // Load save counts for fallback data
-        const boardsWithSaves = await Promise.all(
-          (fallbackData || []).map(async (board) => {
-            try {
-              const { count } = await supabase
-                .from('board_pins')
-                .select('*', { count: 'exact', head: true })
-                .eq('board_id', board.id);
-              
-              return { ...board, save_count: count || 0 };
-            } catch (error) {
-              console.warn(`Could not load save count for board ${board.id}:`, error);
-              return { ...board, save_count: 0 };
-            }
-          })
-        );
-
-        return boardsWithSaves;
+        // Return boards with zero save counts to avoid slow queries
+        return (fallbackData || []).map(board => ({ ...board, save_count: 0 }));
       }
       
       if (boardsError.code === 'PGRST116' || boardsError.message?.includes('relation "user_boards" does not exist')) {
@@ -117,24 +126,8 @@ export const loadBoardsWithOrdering = async (userId) => {
       throw boardsError;
     }
 
-    // Load save counts for each board
-    const boardsWithSaves = await Promise.all(
-      (boardsData || []).map(async (board) => {
-        try {
-          const { count } = await supabase
-            .from('board_pins')
-            .select('*', { count: 'exact', head: true })
-            .eq('board_id', board.id);
-          
-          return { ...board, save_count: count || 0 };
-        } catch (error) {
-          console.warn(`Could not load save count for board ${board.id}:`, error);
-          return { ...board, save_count: 0 };
-        }
-      })
-    );
-
-    return boardsWithSaves;
+    // Return boards with zero save counts for fast loading
+    return (boardsData || []).map(board => ({ ...board, save_count: 0 }));
   } catch (error) {
     console.error('Error loading boards:', error);
     throw error;

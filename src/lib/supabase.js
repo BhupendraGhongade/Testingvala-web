@@ -54,7 +54,8 @@ export const TABLES = {
   RESUME_EXPORTS: 'resume_exports',
   PREMIUM_SUBSCRIPTIONS: 'premium_subscriptions',
   PAYMENT_CONFIG: 'payment_config',
-  AI_RESUME_GENERATIONS: 'ai_resume_generations'
+  AI_RESUME_GENERATIONS: 'ai_resume_generations',
+  PARTNERSHIP_INQUIRIES: 'partnership_inquiries'
 }
 
 // Storage bucket names
@@ -696,6 +697,92 @@ export const getContestSubmissionsByStatus = async (status) => {
   } catch (error) {
     console.error('Error fetching contest submissions by status:', error);
     return [];
+  }
+};
+
+// ============================================================================
+// PARTNERSHIP INQUIRIES FUNCTIONS
+// ============================================================================
+
+// Get all partnership inquiries
+export const getPartnershipInquiries = async () => {
+  try {
+    if (!supabase) {
+      console.warn('getPartnershipInquiries: Supabase not configured — returning empty list');
+      return [];
+    }
+    const { data, error } = await supabase
+      .from(TABLES.PARTNERSHIP_INQUIRIES)
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching partnership inquiries:', error);
+    return [];
+  }
+};
+
+// Update partnership inquiry status
+export const updatePartnershipInquiryStatus = async (inquiryId, status, adminNotes = null, contactedBy = null) => {
+  try {
+    if (!supabase) throw new Error('Supabase not configured');
+    
+    const updateData = {
+      status,
+      updated_at: new Date().toISOString()
+    };
+    
+    if (adminNotes) updateData.admin_notes = adminNotes;
+    if (contactedBy) {
+      updateData.contacted_by = contactedBy;
+      updateData.contacted_at = new Date().toISOString();
+    }
+    
+    const { data, error } = await supabase
+      .from(TABLES.PARTNERSHIP_INQUIRIES)
+      .update(updateData)
+      .eq('id', inquiryId)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error updating partnership inquiry:', error);
+    throw error;
+  }
+};
+
+// Get partnership inquiries by status
+export const getPartnershipInquiriesByStatus = async (status) => {
+  try {
+    if (!supabase) return [];
+    const { data, error } = await supabase
+      .from(TABLES.PARTNERSHIP_INQUIRIES)
+      .select('*')
+      .eq('status', status)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching partnership inquiries by status:', error);
+    return [];
+  }
+};
+
+// Delete partnership inquiry
+export const deletePartnershipInquiry = async (inquiryId) => {
+  try {
+    if (!supabase) throw new Error('Supabase not configured');
+    const { error } = await supabase
+      .from(TABLES.PARTNERSHIP_INQUIRIES)
+      .delete()
+      .eq('id', inquiryId);
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error('Error deleting partnership inquiry:', error);
+    throw error;
   }
 };
 
