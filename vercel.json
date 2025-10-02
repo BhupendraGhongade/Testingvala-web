@@ -1,4 +1,9 @@
 {
+  "name": "testingvala-prod",
+  "version": 2,
+  "env": {
+    "VITE_APP_ENV": "production"
+  },
   "rewrites": [
     {
       "source": "/api/(.*)",
@@ -24,6 +29,15 @@
         {
           "key": "Access-Control-Allow-Headers",
           "value": "Content-Type, Authorization"
+        }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Environment",
+          "value": "production"
         }
       ]
     }

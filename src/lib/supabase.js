@@ -1,17 +1,45 @@
 import { createClient } from '@supabase/supabase-js'
 
-// Use environment variables for flexibility
+// Environment detection
+const APP_ENV = import.meta.env.VITE_APP_ENV || 'development'
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
+// Environment-aware configuration
+const isLocal = APP_ENV === 'local'
+const isDevelopment = APP_ENV === 'development'
+const isProduction = APP_ENV === 'production'
+
 let supabase = null
 if (!supabaseUrl || !supabaseAnonKey) {
-  // Do not throw here — allow the app to run in local/dev mode without Supabase configured.
-  // Components/hooks already check import.meta.env before using the backend, but some
-  // helper functions live in this file. We guard them below.
   console.warn('Supabase environment variables are missing. Running in fallback/dev mode.')
 } else {
-  supabase = createClient(supabaseUrl, supabaseAnonKey)
+  supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true
+    },
+    db: {
+      schema: 'public'
+    }
+  })
+  
+  // Log environment info (only in development)
+  if (!isProduction) {
+    console.log(`🌍 Environment: ${APP_ENV}`);
+    console.log(`🔗 Supabase URL: ${supabaseUrl}`);
+    console.log(`🔑 Using ${isLocal ? 'local' : 'remote'} database`);
+  }
+}
+
+// Environment utilities
+export const ENV = {
+  current: APP_ENV,
+  isLocal,
+  isDevelopment, 
+  isProduction,
+  databaseUrl: supabaseUrl
 }
 
 export { supabase }

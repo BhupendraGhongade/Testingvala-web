@@ -1,0 +1,7 @@
+⚠️ Email transporter failed: nodemailer.createTransporter is not a function
+🚀 Development API server running on http://localhost:3001
+📧 Magic links will be logged to console
+🔗 Generated magic link for test@testingvala.com
+🔗 Fallback - Magic Link for test@testingvala.com: http://localhost:5173/auth/verify?token=84e13269bc0f065fcbfa814dedc83a90d161c5ebc79eac150b675b5ae905a5f9&email=test%40testingvala.com
+🔗 Generated magic link for test@testingvala.com
+🔗 Fallback - Magic Link for test@testingvala.com: http://localhost:5173/auth/verify?token=06d9fe9ba3811f6905fac4cfb46d8616adbb361502a73c35d62c37421ec73ade&email=test%40testingvala.com

@@ -18,7 +18,7 @@ import AuthVerify from './components/AuthVerify';
 import ApiCallMonitor from './components/ApiCallMonitor';
 import ApiAuditDashboard from './components/ApiAuditDashboard';
 import AdminDashboard from './components/AdminDashboard';
-import NavigationDebug from './components/NavigationDebug';
+// import NavigationDebug from './components/NavigationDebug';
 
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { GlobalDataProvider } from './contexts/GlobalDataContext';
@@ -336,7 +336,7 @@ const AppContent = () => {
       <Footer />
       <ApiCallMonitor />
       <ApiAuditDashboard />
-      <NavigationDebug />
+      {/* <NavigationDebug /> */}
     </div>
   );
 };
