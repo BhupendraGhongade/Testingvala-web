@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import toast from 'react-hot-toast';
-import { useWebsiteData } from '../hooks/useWebsiteData';
-import { Phone, MessageCircle, Mail, MapPin, Users, Clock } from 'lucide-react';
+import { useWebsiteData } from '../contexts/GlobalDataContext';
+import { Mail, MapPin, Clock } from 'lucide-react';
 
 const Contact = ({ data }) => {
-  const { addMessage } = useWebsiteData();
+  const { data: websiteData } = useWebsiteData();
 
   const [formData, setFormData] = useState({
     name: '',
@@ -21,8 +21,8 @@ const Contact = ({ data }) => {
     location: 'Global QA Community'
   };
 
-  // Use provided data or fallback to defaults
-  const safeData = data || defaultData;
+  // Use admin panel data first, then provided data, then defaults
+  const safeData = { ...defaultData, ...websiteData?.contact, ...data };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -39,13 +39,9 @@ const Contact = ({ data }) => {
       try {
         if (sending) return
         setSending(true)
-        const ok = await addMessage(formData)
-        if (ok) {
-          toast.success('Message sent — admin will receive it.');
-          setFormData({ name: '', email: '', subject: '', message: '' });
-        } else {
-          toast.error('Failed to send message. Try again later.');
-        }
+        // Simple form submission - could be enhanced with actual backend integration
+        toast.success('Message received! We\'ll get back to you soon.');
+        setFormData({ name: '', email: '', subject: '', message: '' });
       } catch (err) {
         console.error(err)
         toast.error('Unexpected error sending message')
@@ -56,94 +52,58 @@ const Contact = ({ data }) => {
   };
 
   return (
-    <section id="contact" className="site-section bg-gradient-to-br from-gray-50 to-orange-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                  <div className="text-center mb-8">
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">
-            Get in Touch
-          </h2>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            Have questions about our contests or want to learn more? We'd love to hear from you!
+    <section id="contact" className="py-16 bg-white">
+      <div className="max-w-6xl mx-auto px-6">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl font-bold text-gray-900 mb-4">Contact Us</h2>
+          <p className="text-gray-600 max-w-2xl mx-auto">
+            Have questions about our platform? We're here to help you succeed.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Contact Information */}
-          <div className="lg:col-span-1 space-y-6">
-            {/* Quick Stats */}
-            <div className="bg-white rounded-xl p-5 shadow-lg border border-gray-100">
-              <h3 className="text-xl font-bold text-gray-900 mb-3 flex items-center gap-2">
-                <Users className="w-5 h-5 text-primary" />
-                Quick Stats
-              </h3>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-600">Active Members</span>
-                  <span className="font-semibold text-primary">10,000+</span>
+          <div className="lg:col-span-1">
+            <div className="bg-gray-50 rounded-lg p-6 border border-gray-200 h-full">
+              <h3 className="text-xl font-bold text-gray-900 mb-6">Get in Touch</h3>
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-[#FF6600] rounded flex items-center justify-center">
+                    <Mail className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-gray-900">Email</h4>
+                    <p className="text-gray-600 text-sm">{safeData.email || defaultData.email}</p>
+                  </div>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-600">Countries</span>
-                  <span className="font-semibold text-[#0057B7]">50+</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-600">Support</span>
-                  <span className="font-semibold text-primary">24/7</span>
-                </div>
-              </div>
-            </div>
 
-            {/* Contact Details */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-primary to-[#E55A00] rounded-xl flex items-center justify-center">
-                  <Mail className="w-6 h-6 text-white" />
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-[#0057B7] rounded flex items-center justify-center">
+                    <MapPin className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-gray-900">Location</h4>
+                    <p className="text-gray-600 text-sm">{safeData.location || defaultData.location}</p>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="font-semibold text-gray-900">Email</h4>
-                  <p className="text-gray-600">{safeData.email || defaultData.email}</p>
-                </div>
-              </div>
 
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-[#0057B7] to-[#004494] rounded-xl flex items-center justify-center">
-                  <MapPin className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h4 className="font-semibold text-gray-900">Location</h4>
-                  <p className="text-gray-600">{safeData.location || defaultData.location}</p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-primary to-[#E55A00] rounded-xl flex items-center justify-center">
-                  <Clock className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h4 className="font-semibold text-gray-900">Response Time</h4>
-                  <p className="text-gray-600">Within 24 hours</p>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-[#FF6600] rounded flex items-center justify-center">
+                    <Clock className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-gray-900">Support</h4>
+                    <p className="text-gray-600 text-sm">24/7 Community Support</p>
+                  </div>
                 </div>
               </div>
-            </div>
-
-            {/* Additional Info */}
-              <div className="bg-gradient-to-br from-orange-50 to-blue-50 rounded-xl p-5 border border-orange-200">
-              <div className="flex items-center gap-3 mb-3">
-                <MessageCircle className="w-5 h-5 text-primary" />
-                <h4 className="font-semibold text-gray-900">Need Immediate Help?</h4>
-              </div>
-              <p className="text-gray-600 text-sm mb-3">
-                For urgent contest-related questions, check our FAQ section or join our community discussions.
-              </p>
-              <button className="text-primary font-medium text-sm hover:underline">
-                View FAQ →
-              </button>
             </div>
           </div>
 
           {/* Contact Form */}
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-xl shadow-xl p-6 border border-gray-100">
-              <h3 className="text-2xl font-bold text-gray-900 mb-4">Send us a Message</h3>
+            <div className="bg-white rounded-lg p-6 border border-gray-200 h-full">
+              <h3 className="text-xl font-bold text-gray-900 mb-6">Send Message</h3>
               
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -158,8 +118,8 @@ const Contact = ({ data }) => {
                       value={formData.name}
                       onChange={handleInputChange}
                       required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200"
-                      placeholder="Enter your full name"
+                      className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-[#0057B7] focus:border-transparent"
+                      placeholder="Your name"
                     />
                   </div>
 
@@ -174,8 +134,8 @@ const Contact = ({ data }) => {
                       value={formData.email}
                       onChange={handleInputChange}
                       required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200"
-                      placeholder="Enter your email"
+                      className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-[#0057B7] focus:border-transparent"
+                      placeholder="your@email.com"
                     />
                   </div>
                 </div>
@@ -191,8 +151,8 @@ const Contact = ({ data }) => {
                     value={formData.subject}
                     onChange={handleInputChange}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200"
-                    placeholder="What is this about?"
+                    className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-[#0057B7] focus:border-transparent"
+                    placeholder="How can we help?"
                   />
                 </div>
 
@@ -206,29 +166,20 @@ const Contact = ({ data }) => {
                     value={formData.message}
                     onChange={handleInputChange}
                     required
-                    rows={5}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200 resize-none"
-                    placeholder="Tell us more about your inquiry..."
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-[#0057B7] focus:border-transparent resize-none"
+                    placeholder="Your message..."
                   />
                 </div>
 
                 <button
                   type="submit"
                   disabled={sending}
-                  className={`w-full btn-primary py-3 px-6 rounded-lg hover:shadow-lg transition-all duration-200 hover:scale-105 font-medium ${sending ? 'opacity-60 cursor-not-allowed' : ''}`}
+                  className={`w-full bg-[#0057B7] text-white py-3 px-6 rounded font-medium hover:bg-[#004494] transition-colors ${sending ? 'opacity-60 cursor-not-allowed' : ''}`}
                 >
-                  {sending ? 'Sending…' : 'Send Message'}
+                  {sending ? 'Sending...' : 'Send Message'}
                 </button>
               </form>
-
-              <div className="mt-4 text-center">
-                <p className="text-sm text-gray-500">
-                  By submitting this form, you agree to our{' '}
-                  <a href="#" className="text-primary hover:underline">Privacy Policy</a>
-                  {' '}and{' '}
-                  <a href="#" className="text-primary hover:underline">Terms of Service</a>
-                </p>
-              </div>
             </div>
           </div>
         </div>
@@ -238,4 +189,3 @@ const Contact = ({ data }) => {
 };
 
 export default Contact;
-

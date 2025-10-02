@@ -49,35 +49,75 @@ export const useWebsiteData = () => {
     return merged
   }
 
-  const loadData = useCallback(async () => {
-    try {
-      setLoading(true)
-      if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
-        const raw = localStorage.getItem('local_website_content')
-        if (raw) setData(mergeDataWithDefaults(defaultData, JSON.parse(raw)))
-        else setData(defaultData)
-        setIsOnline(false)
-        setLoading(false)
-        return
-      }
-
-      const { data: websiteData, error: fetchErr } = await supabase.from(TABLES.WEBSITE_CONTENT).select('*').single()
-      if (fetchErr && fetchErr.code !== 'PGRST116') throw fetchErr
-      if (websiteData && websiteData.content) {
-        setData(mergeDataWithDefaults(defaultData, websiteData.content))
-        setIsOnline(true)
-      } else {
-        await supabase.from(TABLES.WEBSITE_CONTENT).insert({ id: 1, content: defaultData })
-        setIsOnline(true)
-      }
-    } catch (err) {
-      console.error('Error loading website data:', err)
-      setError(err?.message || String(err))
-      setIsOnline(false)
-    } finally {
-      setLoading(false)
+  // OPTIMIZED: Load data with caching and deduplication
+  const loadData = useCallback(async (forceRefresh = false) => {
+    // Request deduplication
+    if (!forceRefresh && loadData._pending) {
+      return await loadData._pending;
     }
-  }, [defaultData])
+    
+    const promise = (async () => {
+      try {
+        setLoading(true);
+        
+        // Check cache first
+        if (!forceRefresh && loadData._cache && Date.now() - loadData._cacheTime < 300000) {
+          setData(loadData._cache);
+          setLoading(false);
+          return;
+        }
+        
+        if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
+          const raw = localStorage.getItem('local_website_content');
+          const localData = raw ? mergeDataWithDefaults(defaultData, JSON.parse(raw)) : defaultData;
+          setData(localData);
+          setIsOnline(false);
+          loadData._cache = localData;
+          loadData._cacheTime = Date.now();
+          return;
+        }
+
+        const { data: websiteData, error: fetchErr } = await supabase
+          .from(TABLES.WEBSITE_CONTENT)
+          .select('content')
+          .single();
+          
+        if (fetchErr && fetchErr.code !== 'PGRST116') throw fetchErr;
+        
+        let finalData;
+        if (websiteData && websiteData.content) {
+          finalData = mergeDataWithDefaults(defaultData, websiteData.content);
+          setIsOnline(true);
+        } else {
+          // Only insert if no data exists
+          await supabase.from(TABLES.WEBSITE_CONTENT).insert({ id: 1, content: defaultData });
+          finalData = defaultData;
+          setIsOnline(true);
+        }
+        
+        setData(finalData);
+        loadData._cache = finalData;
+        loadData._cacheTime = Date.now();
+        
+      } catch (err) {
+        console.error('Error loading website data:', err);
+        setError(err?.message || String(err));
+        setIsOnline(false);
+        // Fallback to default data
+        setData(defaultData);
+      } finally {
+        setLoading(false);
+      }
+    })();
+    
+    loadData._pending = promise;
+    
+    try {
+      await promise;
+    } finally {
+      loadData._pending = null;
+    }
+  }, [defaultData]);
 
   const validateSectionData = (section, val) => {
     try {

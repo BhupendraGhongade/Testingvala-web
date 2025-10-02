@@ -1,29 +1,115 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Toaster } from 'react-hot-toast';
 import Header from './components/Header';
 import Hero from './components/Hero';
-import UpcomingEvents from './components/UpcomingEvents';
+
 import ContestSection from './components/ContestSection';
-// Winners displayed under the forum; removed from App top-level to avoid duplication
-import CategoryNavigation from './components/CategoryNavigation';
+import Winners from './components/Winners';
 import CommunityHub from './components/CommunityHub';
 import AboutUs from './components/AboutUs';
 import Contact from './components/Contact';
 import Footer from './components/Footer';
-import AdminPanel from './components/AdminPanel';
 import EventsPage from './components/EventsPage';
-import { useWebsiteData } from './hooks/useWebsiteData';
-import { Settings, Wifi, WifiOff, AlertCircle } from 'lucide-react';
+import BoardsPage from './components/BoardsPage';
+import BoardDetailPage from './components/BoardDetailPage';
+import PublicBoardsPage from './components/PublicBoardsPage';
+import AuthCallback from './components/AuthCallback';
+import AuthVerify from './components/AuthVerify';
+import ApiCallMonitor from './components/ApiCallMonitor';
+import ApiAuditDashboard from './components/ApiAuditDashboard';
+import AdminDashboard from './components/AdminDashboard';
+// import NavigationDebug from './components/NavigationDebug';
 
-function App() {
-  const [showAdminPanel, setShowAdminPanel] = useState(false);
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { GlobalDataProvider } from './contexts/GlobalDataContext';
+import { useWebsiteData } from './contexts/GlobalDataContext';
+import { trackUserEvent } from './services/enterpriseAnalytics';
+import { WifiOff, AlertCircle } from 'lucide-react';
+import './utils/testOptimizations';
+import './utils/globalApiLogger';
+import './utils/testApiOptimizations';
+import './utils/apiMonitor';
+
+const AppContent = () => {
   const [currentPath, setCurrentPath] = useState(typeof window !== 'undefined' ? window.location.pathname : '/');
-  const { data, loading, error, isOnline } = useWebsiteData();
+  const [boardView, setBoardView] = useState({ type: 'list', boardId: null });
 
-  React.useEffect(() => {
-    const handler = () => setCurrentPath(window.location.pathname);
+  // Add error boundaries for hooks
+  let user = null, isVerified = false, data = null, loading = false;
+  
+  try {
+    const authData = useAuth();
+    user = authData.user;
+    isVerified = authData.isVerified;
+  } catch (error) {
+    console.error('Auth hook error:', error);
+  }
+  
+  try {
+    const websiteData = useWebsiteData();
+    data = websiteData.data;
+    loading = websiteData.loading;
+  } catch (error) {
+    console.error('Website data hook error:', error);
+  }
+  
+  const error = null; // Handle errors in the context
+  const isOnline = !!data;
+
+  // Track user authentication state changes
+  useEffect(() => {
+    if (user && isVerified) {
+      try {
+        trackUserEvent.loginAttempt(user.email, true);
+        trackUserEvent.emailVerified(user.email);
+      } catch (error) {
+        console.warn('Analytics tracking failed:', error);
+      }
+    }
+  }, [user, isVerified]);
+
+  useEffect(() => {
+    const handler = () => {
+      const newPath = window.location.pathname;
+      setCurrentPath(newPath);
+      
+      // Reset board view when navigating away from boards
+      if (newPath !== '/boards') {
+        setBoardView({ type: 'list', boardId: null });
+      }
+      
+      // Track page views
+      try {
+        trackUserEvent.pageView(newPath);
+      } catch (error) {
+        console.warn('Analytics tracking failed:', error);
+      }
+      
+      // Check for post hash in URL
+      const hash = window.location.hash;
+      if (hash.startsWith('#community-post-')) {
+        // Scroll to community section and highlight post
+        setTimeout(() => {
+          const communitySection = document.getElementById('community');
+          if (communitySection) {
+            communitySection.scrollIntoView({ behavior: 'smooth' });
+            // Trigger post highlighting in CommunityHub
+            const postId = hash.replace('#community-post-', '');
+            window.dispatchEvent(new CustomEvent('highlightPost', { detail: { postId } }));
+          }
+        }, 500);
+      }
+    };
+    
+    // Check initial URL
+    handler();
+    
     window.addEventListener('popstate', handler);
-    return () => window.removeEventListener('popstate', handler);
+    window.addEventListener('hashchange', handler);
+    return () => {
+      window.removeEventListener('popstate', handler);
+      window.removeEventListener('hashchange', handler);
+    };
   }, []);
 
   // Default fallback data to prevent crashes
@@ -44,7 +130,13 @@ function App() {
       prizes: '1st Place: $500 | 2nd Place: $300 | 3rd Place: $200',
       submission: 'Share your QA trick with detailed explanation and impact',
       deadline: '2025-01-31',
-      status: 'Active Now'
+      status: 'Active Now',
+      stats: {
+        participants: '2,500+',
+        countries: '45+',
+        submissions: '1,200+',
+        winners: '36'
+      }
     },
     winners: [
       {
@@ -124,42 +216,50 @@ function App() {
     );
   }
 
-  // Use data or fallback to defaults, ensuring all required properties exist
-  const safeData = data || defaultData;
+  // Use optimized data structure
+  const websiteData = data || {};
   
   // Ensure all sections have the required structure
   const validatedData = {
-    hero: safeData.hero || defaultData.hero,
-    contest: safeData.contest || defaultData.contest,
-    winners: Array.isArray(safeData.winners) ? safeData.winners : defaultData.winners,
-    about: safeData.about || defaultData.about,
-    contact: safeData.contact || defaultData.contact
+    hero: websiteData.hero || defaultData.hero,
+    contest: websiteData.contest || defaultData.contest,
+    winners: Array.isArray(websiteData.winners) ? websiteData.winners : defaultData.winners,
+    about: websiteData.about || defaultData.about,
+    contact: websiteData.contact || defaultData.contact
   };
-
-  console.log('App.jsx - Data structure:', { originalData: data, validatedData, isOnline });
 
   return (
     <div className="min-h-screen bg-white">
       <Toaster 
-        position="top-right"
+        position="bottom-left"
         toastOptions={{
           duration: 4000,
           style: {
             background: '#0057B7',
             color: '#fff',
+            marginBottom: '20px',
+            marginLeft: '20px'
           },
           success: {
             duration: 3000,
+            style: {
+              background: '#10B981',
+              color: '#fff'
+            },
             iconTheme: {
-              primary: '#FF6600',
-              secondary: '#fff',
+              primary: '#fff',
+              secondary: '#10B981',
             },
           },
           error: {
             duration: 4000,
+            style: {
+              background: '#EF4444',
+              color: '#fff'
+            },
             iconTheme: {
-              primary: '#ef4444',
-              secondary: '#fff',
+              primary: '#fff',
+              secondary: '#EF4444',
             },
           },
         }}
@@ -177,54 +277,103 @@ function App() {
       
       <Header />
       
-      <main>
-        {currentPath === '/events' ? (
+      <main style={{ paddingTop: '80px' }}>
+        {currentPath === '/auth/callback' ? (
+          <AuthCallback />
+        ) : currentPath === '/auth/verify' ? (
+          <AuthVerify />
+        ) : currentPath === '/admin' ? (
+          <AdminDashboard />
+        ) : currentPath === '/events' ? (
           <EventsPage />
+        ) : currentPath === '/boards' ? (
+          boardView.type === 'detail' ? (
+            <BoardDetailPage
+              boardId={boardView.boardId}
+              user={user}
+              onBack={() => setBoardView({ type: 'list', boardId: null })}
+            />
+          ) : boardView.type === 'public' ? (
+            <PublicBoardsPage
+              user={user}
+              onBack={() => setBoardView({ type: 'list', boardId: null })}
+              onViewBoard={(boardId) => setBoardView({ type: 'detail', boardId })}
+            />
+          ) : isVerified ? (
+            <BoardsPage 
+              user={user} 
+              onBack={() => {
+                setBoardView({ type: 'list', boardId: null });
+                window.history.pushState({}, '', '/');
+                window.dispatchEvent(new PopStateEvent('popstate'));
+              }}
+              onViewBoard={(boardId) => setBoardView({ type: 'detail', boardId })}
+              onViewPublic={() => setBoardView({ type: 'public', boardId: null })}
+            />
+          ) : (
+            <PublicBoardsPage
+              user={user}
+              onBack={() => {
+                setBoardView({ type: 'list', boardId: null });
+                window.history.pushState({}, '', '/');
+                window.dispatchEvent(new PopStateEvent('popstate'));
+              }}
+              onViewBoard={(boardId) => setBoardView({ type: 'detail', boardId })}
+            />
+          )
         ) : (
-          <>
-            {/* 1. Hero Section - First impression and main value proposition */}
+          <div key="home-content">
             <Hero data={validatedData.hero} />
-
-            {/* 2. Upcoming Events - Professional development opportunities */}
-            <UpcomingEvents key={`events-${Date.now()}`} />
-
-            {/* 3. Community Hub - Forum / Interactive discussions (showing as 3rd priority) */}
             <CommunityHub />
+            <ContestSection contestData={validatedData.contest} />
 
-            {/* 4. Contest Section - Most engaging, immediate action */}
-            <ContestSection data={validatedData.contest} />
-
-            {/* 5. Winners - Social proof and motivation (rendered below forum to avoid duplication) */}
-
-            {/* 6. Category Navigation - Content discovery */}
-            <CategoryNavigation />
-
-            {/* 7. About Us - Trust building */}
             <AboutUs data={validatedData.about} />
-
-            {/* 8. Contact - Final call to action */}
             <Contact data={validatedData.contact} />
-          </>
+          </div>
         )}
       </main>
       
       <Footer />
-      
-      {/* Admin Panel Toggle Button */}
-      <button
-        onClick={() => setShowAdminPanel(true)}
-        className="fixed bottom-6 right-6 bg-[#FF6600] text-white p-3 rounded-full shadow-lg hover:shadow-xl hover:bg-[#E55A00] transition-all duration-200 z-40"
-        title="Admin Panel"
-      >
-        <Settings className="w-6 h-6" />
-      </button>
-      
-      <AdminPanel 
-        isOpen={showAdminPanel} 
-        onClose={() => setShowAdminPanel(false)} 
-      />
+      <ApiCallMonitor />
+      <ApiAuditDashboard />
+      {/* <NavigationDebug /> */}
     </div>
   );
+};
+
+function App() {
+  // Add safety check for React
+  if (!React || !React.createElement) {
+    console.error('React not properly initialized');
+    return React.createElement('div', { 
+      style: { 
+        padding: '20px', 
+        textAlign: 'center', 
+        fontFamily: 'Arial, sans-serif' 
+      } 
+    }, 'Loading...');
+  }
+
+  try {
+    return (
+      <AuthProvider>
+        <GlobalDataProvider>
+          <AppContent />
+        </GlobalDataProvider>
+      </AuthProvider>
+    );
+  } catch (error) {
+    console.error('App render error:', error);
+    return (
+      <div style={{ padding: '20px', textAlign: 'center', fontFamily: 'Arial, sans-serif' }}>
+        <h2>Something went wrong</h2>
+        <p>Please refresh the page to try again.</p>
+        <button onClick={() => window.location.reload()} style={{ padding: '10px 20px', marginTop: '10px' }}>
+          Refresh Page
+        </button>
+      </div>
+    );
+  }
 }
 
 export default App;
