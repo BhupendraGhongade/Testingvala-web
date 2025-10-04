@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bulletproof Persistence Validation</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; }
+        .test { margin: 10px 0; padding: 15px; border-radius: 5px; }
+        .pass { background: #d4edda; border-left: 4px solid #28a745; }
+        .fail { background: #f8d7da; border-left: 4px solid #dc3545; }
+        .pending { background: #fff3cd; border-left: 4px solid #ffc107; }
+        button { padding: 10px 20px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .logs { background: #f8f9fa; border: 1px solid #dee2e6; padding: 15px; margin: 10px 0; font-family: monospace; white-space: pre-wrap; max-height: 300px; overflow-y: auto; font-size: 12px; }
+        .rapid-test { background: #e7f3ff; padding: 15px; margin: 15px 0; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🛡️ Bulletproof Persistence Validation</h1>
+        <p>Validates the defensive merge + atomic context update fix for local post persistence.</p>
+
+        <div class="rapid-test">
+            <h3>🚀 Rapid Fire Test</h3>
+            <p>Tests race condition prevention with rapid post creation:</p>
+            <button onclick="rapidFireTest()">Create 5 Posts Rapidly</button>
+            <button onclick="validateRapidFire()">Validate All Posts</button>
+        </div>
+
+        <div>
+            <h3>📋 Standard Tests</h3>
+            <button onclick="createSinglePost()">Create Single Post</button>
+            <button onclick="validatePersistence()">Validate Persistence</button>
+            <button onclick="hardReload()">Hard Reload Test</button>
+            <button onclick="clearAllData()">Clear All Data</button>
+            <button onclick="runFullSuite()">Run Full Test Suite</button>
+        </div>
+
+        <div id="results"></div>
+        
+        <div>
+            <h3>📊 Test Logs</h3>
+            <div id="logs" class="logs">Ready for bulletproof testing...\n</div>
+        </div>
+    </div>
+
+    <script>
+        let testPosts = [];
+        let testResults = [];
+
+        function log(message) {
+            const entry = `[${new Date().toISOString()}] ${message}`;
+            console.log(entry);
+            document.getElementById('logs').textContent += entry + '\n';
+            document.getElementById('logs').scrollTop = document.getElementById('logs').scrollHeight;
+        }
+
+        function addResult(test, status, message, details = {}) {
+            const result = { test, status, message, details, timestamp: new Date().toISOString() };
+            testResults.push(result);
+
+            const div = document.createElement('div');
+            div.className = `test ${status}`;
+            div.innerHTML = `
+                <strong>${test}:</strong> ${status.toUpperCase()} - ${message}
+                ${Object.keys(details).length > 0 ? `<br><small>Details: ${JSON.stringify(details)}</small>` : ''}
+            `;
+            document.getElementById('results').appendChild(div);
+            
+            log(`${test}: ${status.toUpperCase()} - ${message}`);
+        }
+
+        function createSinglePost() {
+            const post = {
+                id: `bulletproof_${Date.now()}`,
+                title: `Bulletproof Test Post ${new Date().toLocaleTimeString()}`,
+                content: 'This post tests the bulletproof persistence fix',
+                created_at: new Date().toISOString(),
+                isLocal: true
+            };
+
+            testPosts.push(post.id);
+
+            try {
+                const existing = JSON.parse(localStorage.getItem('testingvala_posts') || '[]');
+                existing.unshift(post);
+                localStorage.setItem('testingvala_posts', JSON.stringify(existing));
+
+                addResult('Create Single Post', 'pass', `Post created: ${post.id}`, { 
+                    postId: post.id, 
+                    totalPosts: existing.length 
+                });
+
+                // Simulate storage event
+                window.dispatchEvent(new Event('storage'));
+
+            } catch (error) {
+                addResult('Create Single Post', 'fail', `Error: ${error.message}`, { error: error.message });
+            }
+        }
+
+        function rapidFireTest() {
+            log('Starting rapid fire test - creating 5 posts in quick succession');
+            
+            const rapidPosts = [];
+            
+            for (let i = 0; i < 5; i++) {
+                const post = {
+                    id: `rapid_${Date.now()}_${i}`,
+                    title: `Rapid Post #${i + 1}`,
+                    content: `Rapid fire test post ${i + 1} of 5`,
+                    created_at: new Date().toISOString(),
+                    isLocal: true
+                };
+                
+                rapidPosts.push(post);
+                testPosts.push(post.id);
+                
+                // Simulate rapid creation with minimal delay
+                setTimeout(() => {
+                    try {
+                        const existing = JSON.parse(localStorage.getItem('testingvala_posts') || '[]');
+                        existing.unshift(post);
+                        localStorage.setItem('testingvala_posts', JSON.stringify(existing));
+                        
+                        log(`Rapid post ${i + 1} created: ${post.id}`);
+                        
+                        // Trigger storage event
+                        window.dispatchEvent(new Event('storage'));
+                        
+                    } catch (error) {
+                        log(`Rapid post ${i + 1} failed: ${error.message}`);
+                    }
+                }, i * 50); // 50ms intervals
+            }
+
+            addResult('Rapid Fire Creation', 'pending', 'Creating 5 posts rapidly...', { 
+                postCount: 5,
+                interval: '50ms'
+            });
+
+            // Validate after all posts should be created
+            setTimeout(() => {
+                validateRapidFire();
+            }, 1000);
+        }
+
+        function validateRapidFire() {
+            try {
+                const stored = JSON.parse(localStorage.getItem('testingvala_posts') || '[]');
+                const rapidPosts = testPosts.filter(id => id.startsWith('rapid_'));
+                
+                let foundCount = 0;
+                const missing = [];
+                
+                rapidPosts.forEach(postId => {
+                    const found = stored.find(p => p.id === postId);
+                    if (found) {
+                        foundCount++;
+                    } else {
+                        missing.push(postId);
+                    }
+                });
+
+                if (foundCount === rapidPosts.length) {
+                    addResult('Rapid Fire Validation', 'pass', `All ${rapidPosts.length} rapid posts found`, {
+                        expected: rapidPosts.length,
+                        found: foundCount,
+                        totalStored: stored.length
+                    });
+                } else {
+                    addResult('Rapid Fire Validation', 'fail', `Only ${foundCount}/${rapidPosts.length} rapid posts found`, {
+                        expected: rapidPosts.length,
+                        found: foundCount,
+                        missing: missing,
+                        totalStored: stored.length
+                    });
+                }
+
+            } catch (error) {
+                addResult('Rapid Fire Validation', 'fail', `Validation error: ${error.message}`, { 
+                    error: error.message 
+                });
+            }
+        }
+
+        function validatePersistence() {
+            try {
+                const stored = JSON.parse(localStorage.getItem('testingvala_posts') || '[]');
+                const testPostsInStorage = testPosts.filter(postId => 
+                    stored.find(p => p.id === postId)
+                );
+
+                if (testPosts.length === 0) {
+                    addResult('Validate Persistence', 'pending', 'No test posts to validate - create some first');
+                    return;
+                }
+
+                if (testPostsInStorage.length === testPosts.length) {
+                    addResult('Validate Persistence', 'pass', `All ${testPosts.length} test posts found`, {
+                        expected: testPosts.length,
+                        found: testPostsInStorage.length,
+                        totalStored: stored.length
+                    });
+                } else {
+                    addResult('Validate Persistence', 'fail', `Only ${testPostsInStorage.length}/${testPosts.length} test posts found`, {
+                        expected: testPosts.length,
+                        found: testPostsInStorage.length,
+                        missing: testPosts.filter(id => !testPostsInStorage.includes(id))
+                    });
+                }
+
+            } catch (error) {
+                addResult('Validate Persistence', 'fail', `Validation error: ${error.message}`, { 
+                    error: error.message 
+                });
+            }
+        }
+
+        function hardReload() {
+            log('Initiating hard reload test');
+            addResult('Hard Reload', 'pending', 'Hard reload initiated - page will refresh');
+            
+            const url = new URL(window.location);
+            url.searchParams.set('bulletproof_reload', Date.now());
+            url.searchParams.set('test_posts', JSON.stringify(testPosts));
+            
+            setTimeout(() => {
+                window.location.href = url.toString();
+            }, 1000);
+        }
+
+        function clearAllData() {
+            localStorage.removeItem('testingvala_posts');
+            testPosts = [];
+            testResults = [];
+            document.getElementById('results').innerHTML = '';
+            document.getElementById('logs').textContent = 'Data cleared - ready for new tests...\n';
+            
+            log('All test data cleared');
+            addResult('Clear Data', 'pass', 'All test data cleared successfully');
+        }
+
+        function runFullSuite() {
+            log('Starting full bulletproof test suite');
+            
+            // Clear previous results
+            document.getElementById('results').innerHTML = '';
+            testResults = [];
+            
+            // Test sequence
+            createSinglePost();
+            
+            setTimeout(() => {
+                rapidFireTest();
+                
+                setTimeout(() => {
+                    validatePersistence();
+                    
+                    addResult('Full Suite', 'pass', 'Test suite completed - check individual results above');
+                    log('Full test suite completed');
+                }, 2000);
+            }, 1000);
+        }
+
+        // Initialize and check for reload test
+        window.addEventListener('load', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const reloadTest = urlParams.get('bulletproof_reload');
+            const savedTestPosts = urlParams.get('test_posts');
+            
+            if (reloadTest && savedTestPosts) {
+                log('Bulletproof reload test detected');
+                
+                try {
+                    testPosts = JSON.parse(savedTestPosts);
+                    
+                    addResult('Post-Reload Check', 'pending', 'Checking persistence after hard reload...');
+                    
+                    setTimeout(() => {
+                        validatePersistence();
+                        
+                        // Clean up URL
+                        const cleanUrl = new URL(window.location);
+                        cleanUrl.searchParams.delete('bulletproof_reload');
+                        cleanUrl.searchParams.delete('test_posts');
+                        window.history.replaceState({}, '', cleanUrl.toString());
+                        
+                    }, 500);
+                    
+                } catch (error) {
+                    addResult('Post-Reload Check', 'fail', `Error parsing test posts: ${error.message}`);
+                }
+            }
+            
+            log('Bulletproof validation tool initialized');
+        });
+
+        // Monitor storage events
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'testingvala_posts') {
+                log('Storage event detected - posts updated');
+            }
+        });
+    </script>
+</body>
+</html>

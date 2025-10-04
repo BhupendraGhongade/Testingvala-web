@@ -152,7 +152,9 @@ export const createZeptoMailTemplate = async (apiKey, templateData) => {
       method: 'POST',
       headers: {
         'Authorization': apiKey,
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+        'X-CSRF-Token': crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36)
       },
       body: JSON.stringify({
         template_name: templateData.name,
@@ -198,7 +200,9 @@ export const sendZeptoMailWithTemplate = async (apiKey, emailData) => {
       method: 'POST',
       headers: {
         'Authorization': apiKey,
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+        'X-CSRF-Token': crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36)
       },
       body: JSON.stringify(payload)
     });

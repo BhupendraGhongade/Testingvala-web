@@ -2,7 +2,7 @@
 /**
  * Safe Migration Script - Tests locally first
  */
-const { execSync } = require('child_process');
+import { execSync } from 'child_process';
 
 console.log('🔍 Testing migrations locally...');
 

@@ -197,7 +197,7 @@ export default async function handler(req, res) {
       const emailResponse = await fetch('https://api.zeptomail.in/v1.1/email', {
         method: 'POST',
         headers: {
-          'Authorization': `Zoho-enczapikey PHtE6r0IE7i/iDJ+oxED56e7Ec6lMN4nrL5gLwUVuY8XAqRRGU1Wr98pwWTiokx+AKFBQPPNwNo6se+bsOmGLG68PWlPCWqyqK3sx/VYSPOZsbq6x00Yt1UbckzVUYLtd9Zu1STUvdbSNA==`,
+          'Authorization': `Zoho-enczapikey ${process.env.ZEPTO_API_KEY || 'MISSING_API_KEY'}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(emailPayload)

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Mail, Lock, User, AlertCircle, CheckCircle, Clock, Shield } from 'lucide-react';
-import { authService } from '../services/authService';
+import { supabase } from '../lib/supabase';
 import { useModalScrollLock } from '../hooks/useModalScrollLock';
 import toast from 'react-hot-toast';
 
@@ -16,18 +16,24 @@ const AuthModal = ({ isOpen, onClose, onSuccess, action = 'comment' }) => {
 
   // Check authentication status on mount
   useEffect(() => {
-    try {
-      if (isOpen && authService.isAuthenticated()) {
-        const authStatus = authService.getAuthStatus();
-        console.log('✅ User already authenticated:', authStatus.email);
-        toast.success('Welcome back! You\'re already signed in.');
-        onClose();
-        if (onSuccess) onSuccess();
+    const checkAuth = async () => {
+      if (isOpen && supabase) {
+        try {
+          // Check Supabase auth
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            console.log('✅ User already authenticated:', user.email);
+            toast.success('Welcome back! You\'re already signed in.');
+            onClose();
+            if (onSuccess) onSuccess();
+          }
+        } catch (error) {
+          console.warn('Auth check failed:', error);
+          // Don't show error to user, just continue with normal flow
+        }
       }
-    } catch (error) {
-      console.error('Auth status check error:', error);
-      // Continue with normal flow if auth check fails
-    }
+    };
+    checkAuth();
   }, [isOpen, onClose, onSuccess]);
 
   if (!isOpen) return null;
@@ -52,29 +58,84 @@ const AuthModal = ({ isOpen, onClose, onSuccess, action = 'comment' }) => {
 
     setLoading(true);
     try {
-      const result = await authService.sendMagicLink(trimmedEmail);
-      setRequestId(result.messageId || result.requestId);
-      setStep('verify');
-      
-      console.log('✅ Email service response:', result);
-      
-      if (result.magicLink) {
-        console.log('🔗 Development Magic Link:', result.magicLink);
-        toast.success('Development: Check console for magic link', { duration: 10000 });
-      } else if (result.provider === 'smtp' || result.provider === 'zeptomail-api') {
-        toast.success(`✅ Real email sent to ${trimmedEmail} via ${result.provider}`);
-      } else {
-        toast.success(`✅ Verification email sent to ${trimmedEmail}`);
+      // Check if Supabase is available
+      if (!supabase) {
+        // Fallback for development - simulate magic link
+        console.log('🚀 Development mode: Simulating magic link for', trimmedEmail);
+        
+        // Store email for verification
+        sessionStorage.setItem('pending_auth_email', trimmedEmail);
+        
+        // Simulate delay
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        setStep('verify');
+        toast.success(`✅ Development mode: Magic link simulated for ${trimmedEmail}`);
+        
+        // Auto-verify after 3 seconds in development
+        setTimeout(() => {
+          const mockUser = {
+            id: `dev-${Date.now()}`,
+            email: trimmedEmail,
+            email_confirmed_at: new Date().toISOString(),
+            user_metadata: {
+              full_name: trimmedEmail.split('@')[0]
+            }
+          };
+          
+          // Store in localStorage for AuthContext
+          localStorage.setItem('dev_auth_user', JSON.stringify(mockUser));
+          
+          toast.success('🚀 Development: Auto-verified! You can now create posts.');
+          onClose();
+          if (onSuccess) onSuccess();
+          
+          // Trigger auth state change
+          window.dispatchEvent(new CustomEvent('auth-state-change', {
+            detail: { user: mockUser, session: { user: mockUser } }
+          }));
+        }, 3000);
+        
+        return;
       }
+      
+      // Send magic link via Supabase
+      const { error } = await supabase.auth.signInWithOtp({
+        email: trimmedEmail,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`
+        }
+      });
+      
+      if (error) {
+        // Handle specific Supabase errors
+        if (error.message.includes('fetch')) {
+          throw new Error('Unable to connect to authentication service. Please check your internet connection and try again.');
+        }
+        throw error;
+      }
+      
+      setStep('verify');
+      toast.success(`✅ Verification email sent to ${trimmedEmail}`);
       
     } catch (error) {
       console.error('❌ Magic link failed:', error);
-      if (error.message && error.message.includes('Rate limit')) {
+      
+      let errorMessage = 'Failed to send magic link';
+      
+      if (error.message.includes('fetch') || error.message.includes('Failed to fetch')) {
+        errorMessage = 'Unable to connect to authentication service. Please check your internet connection and try again.';
+      } else if (error.message.includes('Rate limit')) {
         setRateLimitInfo({ message: error.message });
         setStep('rate_limited');
-      } else {
-        toast.error(error.message || 'Failed to send magic link');
+        return;
+      } else if (error.message.includes('not available')) {
+        errorMessage = error.message;
+      } else if (error.message) {
+        errorMessage = error.message;
       }
+      
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -175,7 +236,7 @@ const AuthModal = ({ isOpen, onClose, onSuccess, action = 'comment' }) => {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="Enter your email address"
-                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500 bg-white"
                       required
                     />
                   </div>

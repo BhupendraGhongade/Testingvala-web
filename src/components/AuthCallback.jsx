@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
 
@@ -8,19 +8,19 @@ const AuthCallback = () => {
       try {
         const { data, error } = await supabase.auth.getSession();
         
-        if (error) throw error;
-        
-        if (data.session) {
-          toast.success('Successfully signed in!');
-          window.location.href = '/';
-        } else {
+        if (error) {
+          console.error('Auth callback error:', error);
           toast.error('Authentication failed');
+          return;
+        }
+
+        if (data.session) {
+          toast.success('Successfully authenticated!');
           window.location.href = '/';
         }
       } catch (error) {
         console.error('Auth callback error:', error);
         toast.error('Authentication failed');
-        window.location.href = '/';
       }
     };
 

@@ -53,6 +53,20 @@ export const AuthProvider = ({ children }) => {
     
     initialize();
     
+    // Listen for auth state changes (from development auth)
+    const handleAuthStateChange = (event) => {
+      if (event.detail?.user) {
+        console.log('✅ Auth state change detected:', event.detail.user.email);
+        setUser(event.detail.user);
+        setLoading(false);
+        
+        // Force re-render by updating a timestamp
+        setAuthStatus(prev => ({ ...prev, lastUpdate: Date.now() }));
+      }
+    };
+    
+    window.addEventListener('auth-state-change', handleAuthStateChange);
+    
     // OPTIMIZED: Throttled activity listener
     let activityTimeout;
     const handleActivity = () => {
@@ -71,19 +85,34 @@ export const AuthProvider = ({ children }) => {
       document.addEventListener(event, handleActivity, { passive: true });
     });
     
-    // OPTIMIZED: Less frequent session checks
+    // OPTIMIZED: Less frequent session checks + dev auth checks
     const sessionCheck = setInterval(() => {
       if (!mounted) return;
+      
+      // Check for dev auth changes
+      const devUser = localStorage.getItem('dev_auth_user');
+      if (devUser && !user) {
+        try {
+          const parsedUser = JSON.parse(devUser);
+          console.log('✅ Dev auth detected in interval check:', parsedUser.email);
+          setUser(parsedUser);
+          setLoading(false);
+          return;
+        } catch (error) {
+          localStorage.removeItem('dev_auth_user');
+        }
+      }
       
       const currentStatus = authService.getAuthStatus();
       if (currentStatus.isAuthenticated !== authStatus?.isAuthenticated) {
         setAuthStatus(currentStatus);
         updateUserState(currentStatus);
       }
-    }, 600000); // Check every 10 minutes
+    }, 1000); // Check every second in development
     
     return () => {
       mounted = false;
+      window.removeEventListener('auth-state-change', handleAuthStateChange);
       activityEvents.forEach(event => {
         document.removeEventListener(event, handleActivity);
       });
@@ -96,7 +125,22 @@ export const AuthProvider = ({ children }) => {
   
   const initializeAuth = async () => {
     try {
-      // Check our custom auth service first
+      // Check for development auth first
+      const devUser = localStorage.getItem('dev_auth_user');
+      if (devUser) {
+        try {
+          const parsedUser = JSON.parse(devUser);
+          console.log('✅ Development auth session found:', parsedUser.email);
+          setUser(parsedUser);
+          setLoading(false);
+          return;
+        } catch (error) {
+          console.error('Error parsing dev user:', error);
+          localStorage.removeItem('dev_auth_user');
+        }
+      }
+
+      // Check our custom auth service
       const customAuthStatus = authService.getAuthStatus();
       
       if (customAuthStatus.isAuthenticated) {
@@ -200,6 +244,10 @@ export const AuthProvider = ({ children }) => {
           console.warn('Analytics tracking failed:', error);
         }
       }
+      
+
+      // Clear development auth
+      localStorage.removeItem('dev_auth_user');
       
       // Clear custom auth session
       authService.clearSession();

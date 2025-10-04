@@ -301,7 +301,7 @@ class UnifiedDataService {
 
     return (data || []).map(post => ({
       ...post,
-      category_name: post.forum_categories?.name || 'Uncategorized'
+      category_name: (post.forum_categories?.name || 'Uncategorized').replace(/[<>"'&\/<>]/g, '').substring(0, 100)
     }));
   }
 

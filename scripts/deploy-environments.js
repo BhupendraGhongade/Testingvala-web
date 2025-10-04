@@ -22,7 +22,7 @@ const environments = {
   }
 };
 
-function deployToEnvironment(env) {
+async function deployToEnvironment(env) {
   const config = environments[env];
   if (!config) {
     console.error(`❌ Unknown environment: ${env}`);
@@ -39,13 +39,41 @@ function deployToEnvironment(env) {
       process.exit(1);
     }
 
-    // Deploy with specific config
-    const deployCmd = env === 'prod' 
-      ? 'vercel --prod'
-      : `vercel --config ${config.configFile}`;
+    // Deploy with specific config - using safe command execution
+    const deployArgs = env === 'prod' 
+      ? ['vercel', '--prod']
+      : ['vercel', '--config', config.configFile];
       
-    console.log(`📋 Running: ${deployCmd}`);
-    execSync(deployCmd, { stdio: 'inherit' });
+    // Validate arguments to prevent injection
+    const allowedArgs = ['vercel', '--prod', '--config'];
+    const allowedFiles = ['vercel.json', 'vercel-dev.json'];
+    
+    const validArgs = deployArgs.filter(arg => 
+      allowedArgs.includes(arg) || allowedFiles.includes(arg)
+    );
+    
+    if (validArgs.length !== deployArgs.length) {
+      throw new Error('Invalid deployment arguments detected');
+    }
+      
+    console.log(`📋 Running: ${validArgs.join(' ')}`);
+    // Use array form to prevent command injection
+    const { spawn } = require('child_process');
+    const child = spawn(validArgs[0], validArgs.slice(1), { stdio: 'inherit' });
+    
+    await new Promise((resolve, reject) => {
+      child.on('close', (code) => {
+        if (code !== 0) {
+          reject(new Error(`Deployment process exited with code ${code}`));
+        } else {
+          resolve();
+        }
+      });
+      
+      child.on('error', (error) => {
+        reject(error);
+      });
+    });
     
     console.log(`✅ ${config.name} deployment successful!`);
     

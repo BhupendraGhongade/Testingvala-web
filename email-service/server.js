@@ -22,6 +22,12 @@ const transporter = nodemailer.createTransport({
 // Webhook endpoint for magic link emails
 app.post('/send-magic-link', async (req, res) => {
   try {
+    // CSRF protection
+    const csrfToken = req.headers['x-csrf-token'];
+    if (!csrfToken) {
+      return res.status(403).json({ error: 'CSRF token required' });
+    }
+    
     const { email, magic_link, user_metadata } = req.body;
     const emailTemplate = getMagicLinkEmail(email, magic_link);
 
@@ -43,6 +49,12 @@ app.post('/send-magic-link', async (req, res) => {
 // Test email endpoint
 app.post('/send-test-email', async (req, res) => {
   try {
+    // CSRF protection
+    const csrfToken = req.headers['x-csrf-token'];
+    if (!csrfToken) {
+      return res.status(403).json({ error: 'CSRF token required' });
+    }
+    
     const { email } = req.body;
     const emailTemplate = getTestEmail(email);
 

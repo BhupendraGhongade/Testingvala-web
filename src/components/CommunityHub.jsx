@@ -1,7 +1,11 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { MessageSquare, TrendingUp, Plus, Search, Filter, Heart, MoreHorizontal, Edit2, Trash2, Share2, X, Bookmark, Pin, Zap, Clipboard, Briefcase, BookOpen, Code, Layers, Calendar, Clock, Trophy, Check, Download, Linkedin, MessageCircle, Star, MapPin, Users, DollarSign, ExternalLink } from 'lucide-react';
+import { MessageSquare, TrendingUp, Plus, Search, Filter, Heart, MoreHorizontal, Edit2, Trash2, Share2, X, Bookmark, Pin, Zap, Clipboard, Briefcase, BookOpen, Code, Layers, Calendar, Clock, Trophy, Check, Download, Linkedin, MessageCircle, Star, MapPin, Users, DollarSign, ExternalLink, RefreshCw } from 'lucide-react';
 import LoadingSkeleton from './LoadingSkeleton';
 import StickyActionBar from './StickyActionBar';
+import { smartCache } from '../utils/smartCacheManager';
+import { StorageCleanup } from '../utils/storageCleanup';
+import { useAuth } from '../contexts/AuthContext';
+import ConnectionDiagnostics from './ConnectionDiagnostics';
 
 import ThreadedComments from './ThreadedComments';
 import MentionInput from './MentionInput';
@@ -54,7 +58,7 @@ const RealtimeLikeButton = ({ postId, initialDbCount }) => {
   );
 };
 import { trackUserEvent } from '../services/enterpriseAnalytics';
-import CreatePostModal from './CreatePostModal';
+
 import AuthModal from './AuthModal';
 import SavePostModal from './SavePostModal';
 import ConfirmationModal from './ConfirmationModal';
@@ -62,6 +66,7 @@ import Winners from './Winners';
 import ErrorBoundary from './ErrorBoundary';
 import PartnershipModal from './PartnershipModal';
 import ContestSubmissionForm from './ContestSubmissionForm';
+import CreatePostModal from './CreatePostModal';
 import { useGlobalData, useWebsiteData, useCommunityData, useWinnersData, useEventsData } from '../contexts/GlobalDataContext';
 import { getTimeAgo } from '../utils/timeUtils';
 import toast from 'react-hot-toast';
@@ -171,6 +176,7 @@ const CommunityHub = () => {
   const { posts, categories, loading: contextLoading } = useCommunityData();
   const { winners: winnersData, loading: winnersLoading } = useWinnersData();
   const { events: eventsData, loading: eventsLoading } = useEventsData();
+  const { hydrated, removePost } = useGlobalData();
   const [loading, setLoading] = useState(false);
   const [categoriesLoading, setCategoriesLoading] = useState(false);
   const [fallbackCategories, setFallbackCategories] = useState([]);
@@ -180,7 +186,7 @@ const CommunityHub = () => {
   const [displayedPosts, setDisplayedPosts] = useState([]);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
-  const [authUser, setAuthUser] = useState(null);
+  const { user: authUser, isVerified } = useAuth();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authAction, setAuthAction] = useState('comment');
   const [selectedPostId, setSelectedPostId] = useState(null);
@@ -215,11 +221,15 @@ const CommunityHub = () => {
   const [expandedPosts, setExpandedPosts] = useState(new Set());
   const [showPartnershipModal, setShowPartnershipModal] = useState(false);
   const [showContestForm, setShowContestForm] = useState(false);
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
 
   const [stickyPost, setStickyPost] = useState(null);
 
   const [postIndexMap, setPostIndexMap] = useState(new Map());
   const [isNavigating, setIsNavigating] = useState(false);
+  
+  // Mobile state
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
 
   const getIconForCategory = (category) => {
     const id = (category?.id || '').toString().toLowerCase();
@@ -349,6 +359,11 @@ const CommunityHub = () => {
     };
   }, [categories, contextLoading]); // Depend on categories and loading state
 
+  // Separate effect to handle auth changes
+  useEffect(() => {
+    checkAuthStatus();
+  }, [authUser, isVerified]);
+
 
 
   // OPTIMIZED: Use context for engagement data
@@ -389,15 +404,12 @@ const CommunityHub = () => {
 
   const checkAuthStatus = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      setAuthUser(user);
-      
       // Reset filter to 'recent' if user logs out and was on 'my-posts'
-      if (!user && filterType === 'my-posts') {
+      if (!authUser && filterType === 'my-posts') {
         setFilterType('recent');
       }
       
-      if (user) {
+      if (authUser && isVerified) {
         loadUserPinnedPosts();
         loadUserLikes();
         loadCurrentUserProfile();
@@ -451,13 +463,24 @@ const CommunityHub = () => {
       const searchLower = searchQuery.toLowerCase();
       filtered = filtered.filter(post => 
         post.title?.toLowerCase().includes(searchLower) ||
-        post.content?.toLowerCase().includes(searchLower)
+        post.content?.toLowerCase().includes(searchLower) ||
+        post.author_name?.toLowerCase().includes(searchLower) ||
+        post.category_name?.toLowerCase().includes(searchLower)
       );
     }
     
     // Apply category filter
     if (selectedCategory && selectedCategory !== 'all') {
-      filtered = filtered.filter(post => post.category_id === selectedCategory);
+      console.log('Filtering by category:', selectedCategory);
+      console.log('Available posts:', filtered.map(p => ({ id: p.id, category_id: p.category_id, category_name: p.category_name })));
+      filtered = filtered.filter(post => {
+        const matches = post.category_id === selectedCategory;
+        if (!matches) {
+          console.log(`Post ${post.id} category ${post.category_id} does not match filter ${selectedCategory}`);
+        }
+        return matches;
+      });
+      console.log('Filtered posts count:', filtered.length);
     }
     
     // Apply sorting based on filter type
@@ -582,6 +605,10 @@ const CommunityHub = () => {
     } else if (authAction === 'save' && selectedPostId) {
       setTimeout(() => {
         setShowSaveModal(selectedPostId);
+      }, 500);
+    } else if (authAction === 'create') {
+      setTimeout(() => {
+        setShowCreatePost(true);
       }, 500);
     }
     
@@ -712,11 +739,14 @@ const CommunityHub = () => {
 
   const confirmDeletePost = async (postId) => {
     try {
-      // For local posts, delete from localStorage
+      // For local posts, use context removePost
       if (postId.startsWith('local-')) {
-        const localPosts = JSON.parse(localStorage.getItem('local_forum_posts') || '[]');
-        const updatedPosts = localPosts.filter(post => post.id !== postId);
-        localStorage.setItem('local_forum_posts', JSON.stringify(updatedPosts));
+        const success = removePost(postId);
+        if (success) {
+          toast.success('Post deleted successfully!');
+        } else {
+          toast.error('Failed to delete post');
+        }
       } else if (supabase) {
         // For database posts, try to delete from Supabase
         const { error } = await supabase
@@ -726,20 +756,17 @@ const CommunityHub = () => {
         
         if (error) {
           console.error('Database delete error:', error);
-          // Continue with local deletion even if database fails
+          toast.error('Failed to delete post from database');
+        } else {
+          toast.success('Post deleted successfully!');
         }
       }
       
-      // Always update the UI regardless of database success/failure
-      setDisplayedPosts(prev => prev.filter(post => post.id !== postId));
       setShowDeleteModal(null);
-      toast.success('Post deleted successfully!');
     } catch (error) {
       console.error('Error deleting post:', error);
-      // Still try to remove from UI for better UX
-      setDisplayedPosts(prev => prev.filter(post => post.id !== postId));
+      toast.error('Failed to delete post');
       setShowDeleteModal(null);
-      toast.success('Post removed from view');
     }
   };
 
@@ -889,7 +916,37 @@ const CommunityHub = () => {
 
 
 
-  // Categories now loaded via useCommunityData hook
+  // Ensure categories are available for filtering
+  const availableCategories = useMemo(() => {
+    const hardcodedCategories = [
+      { id: 'general-discussion', name: 'General Discussion' },
+      { id: 'manual-testing', name: 'Manual Testing' },
+      { id: 'automation-testing', name: 'Automation Testing' },
+      { id: 'api-testing', name: 'API Testing' },
+      { id: 'performance-load-testing', name: 'Performance & Load Testing' },
+      { id: 'security-testing', name: 'Security Testing' },
+      { id: 'mobile-testing', name: 'Mobile Testing' },
+      { id: 'interview-preparation', name: 'Interview Preparation' },
+      { id: 'certifications-courses', name: 'Certifications & Courses' },
+      { id: 'career-guidance', name: 'Career Guidance' },
+      { id: 'freshers-beginners', name: 'Freshers & Beginners' },
+      { id: 'test-management-tools', name: 'Test Management Tools' },
+      { id: 'cicd-devops', name: 'CI/CD & DevOps' },
+      { id: 'bug-tracking', name: 'Bug Tracking' },
+      { id: 'ai-in-testing', name: 'AI in Testing' },
+      { id: 'job-openings-referrals', name: 'Job Openings & Referrals' },
+      { id: 'testing-contests-challenges', name: 'Testing Contests & Challenges' },
+      { id: 'best-practices-processes', name: 'Best Practices & Processes' },
+      { id: 'community-helpdesk', name: 'Community Helpdesk' },
+      { id: 'events-meetups', name: 'Events & Meetups' }
+    ];
+    
+    const contextCategories = categories || [];
+    const combined = contextCategories.length > 0 ? contextCategories : hardcodedCategories;
+    
+    console.log('Available categories for filtering:', combined.length, combined.map(c => ({ id: c.id, name: c.name })));
+    return combined;
+  }, [categories]);
 
   // Posts now loaded via useCommunityData hook
   
@@ -1054,35 +1111,26 @@ const CommunityHub = () => {
   // Get refresh function from context
   const { refreshData } = useGlobalData();
   
-  // Force refresh function for external calls
+  // Force refresh posts
   const refreshPosts = useCallback(async () => {
     try {
-      console.log('🔄 Refreshing posts after creation...');
+      console.log('🔄 Refreshing posts...');
       
-      // Clear data service cache to force fresh data
-      if (typeof window !== 'undefined' && window.dataService) {
-        window.dataService.clearCache('forum_posts');
-        window.dataService.clearCache('forum_categories');
+      // Clear all caches
+      if (window.dataService) {
+        window.dataService.clearCache();
       }
       
-      // Trigger context refresh if available
-      if (refreshData && typeof refreshData === 'function') {
+      // Force context refresh
+      if (refreshData) {
         await refreshData();
-      } else {
-        // Fallback: manual refresh of displayed posts
-        console.log('Context refresh not available, using fallback...');
-        const currentFiltered = getFilteredAndSortedPosts(posts || []);
-        setDisplayedPosts(currentFiltered.slice(0, 5));
-        setHasMore(currentFiltered.length > 5);
       }
       
-      console.log('✅ Posts refreshed successfully');
+      console.log('✅ Posts refreshed');
     } catch (error) {
-      console.error('❌ Error refreshing posts:', error);
-      // Simple fallback without full reload
-      toast.success('Post created! Please refresh the page to see your new post.');
+      console.error('❌ Refresh failed:', error);
     }
-  }, [refreshData, posts, getFilteredAndSortedPosts]);
+  }, [refreshData]);
 
 
 
@@ -1101,29 +1149,123 @@ const CommunityHub = () => {
 
   return (
     <section id="community" className="bg-gradient-to-br from-gray-50 via-white to-orange-50 pt-2 pb-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="text-center mb-4">
-          <div className="inline-flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-full text-sm font-semibold mb-3 shadow-lg">
-            <MessageSquare className="w-4 h-4" />
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
+        {/* Responsive Header */}
+        <div className="text-center mb-3 sm:mb-4">
+          <div className="inline-flex items-center gap-1.5 sm:gap-2 bg-primary text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-semibold mb-2 sm:mb-3 shadow-lg">
+            <MessageSquare className="w-3 h-3 sm:w-4 sm:h-4" />
             Community Hub
           </div>
           {authUser && isCurrentUserAdmin() && (
-            <div className="inline-flex items-center gap-2 bg-red-100 text-red-800 px-3 py-1 rounded-full text-xs font-medium mb-2">
+            <div className="inline-flex items-center gap-1.5 sm:gap-2 bg-red-100 text-red-800 px-2 sm:px-3 py-1 rounded-full text-xs font-medium mb-2">
               🛡️ Admin Mode Active
             </div>
           )}
-          <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2 bg-gradient-to-r from-gray-900 via-[#0057B7] to-[#FF6600] bg-clip-text text-transparent">
+          <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-1.5 sm:mb-2 bg-gradient-to-r from-gray-900 via-[#0057B7] to-[#FF6600] bg-clip-text text-transparent px-2">
             QA Professional Network
           </h2>
-          <p className="text-base text-gray-600 max-w-xl mx-auto">
+          <p className="text-sm sm:text-base text-gray-600 max-w-xl mx-auto px-4">
             Connect. Share. Grow.
           </p>
         </div>
 
         {/* Search and Filter Bar */}
-        <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6 mb-6">
-          <div className="flex flex-col md:flex-row gap-4">
+        <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-3 sm:p-6 mb-6">
+          {/* Mobile Layout */}
+          <div className="md:hidden space-y-3">
+            {/* Search Bar - Full Width */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <input
+                type="text"
+                placeholder="Search posts and discussions..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent text-gray-900 placeholder-gray-500 bg-white"
+              />
+            </div>
+            
+            {/* Mobile Controls Row */}
+            <div className="flex items-center gap-2">
+              {/* Filters Button */}
+              {activeTab === 'feed' && (
+                <button
+                  onClick={() => setShowMobileFilters(!showMobileFilters)}
+                  className="flex items-center gap-2 px-3 py-2.5 text-gray-600 hover:text-[#FF6600] hover:bg-orange-50 border border-gray-300 rounded-lg font-medium transition-all duration-200 min-h-[44px] flex-1"
+                >
+                  <Filter className="w-4 h-4" />
+                  <span>Filters</span>
+                </button>
+              )}
+              
+              {/* Pinned Button */}
+              <button
+                onClick={() => {
+                  if (!authUser) {
+                    setAuthAction('pin');
+                    setShowAuthModal(true);
+                    return;
+                  }
+                  setActiveTab(activeTab === 'pinned' ? 'feed' : 'pinned');
+                }}
+                className={`px-3 py-2.5 rounded-lg font-medium transition-all duration-200 flex items-center gap-2 min-h-[44px] flex-1 ${
+                  activeTab === 'pinned'
+                    ? 'bg-[#FF6600] text-white shadow-md'
+                    : 'text-gray-600 hover:text-[#FF6600] hover:bg-orange-50 border border-gray-300'
+                }`}
+              >
+                {activeTab === 'pinned' ? <MessageSquare className="w-4 h-4" /> : <Pin className="w-4 h-4" />}
+                <span className="text-sm">{activeTab === 'pinned' ? 'All Posts' : `Pinned (${userPinnedPostIds.size})`}</span>
+              </button>
+              
+              {/* Create Post Button - Mobile */}
+              <button
+                onClick={() => {
+                  console.log('Create Post clicked - Mobile', { authUser, isVerified });
+                  if (!authUser || !isVerified) {
+                    console.log('Opening auth modal');
+                    setAuthAction('create');
+                    setShowAuthModal(true);
+                    return;
+                  }
+                  console.log('Opening create post modal');
+                  setShowCreatePost(true);
+                }}
+                className="bg-[#FF6600] text-white px-4 py-2.5 rounded-lg font-medium hover:bg-[#E55A00] transition-all duration-200 flex items-center gap-2 min-h-[44px] shadow-lg"
+              >
+                <Plus className="w-4 h-4" />
+                <span className="text-sm">Create</span>
+              </button>
+            </div>
+            
+            {/* Mobile Filters Dropdown */}
+            {showMobileFilters && activeTab === 'feed' && (
+              <div className="bg-gray-50 rounded-lg p-3 space-y-3 border border-gray-200">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Sort By</label>
+                  <FilterDropdown
+                    filterType={filterType}
+                    onFilterChange={setFilterType}
+                    authUser={authUser}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
+                  <CategoryDropdown
+                    categories={availableCategories}
+                    selectedCategory={selectedCategory}
+                    onCategoryChange={(categoryId) => {
+                      console.log('Mobile category filter changed to:', categoryId);
+                      setSelectedCategory(categoryId);
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+          
+          {/* Desktop Layout - Preserve Exact Original */}
+          <div className="hidden md:flex md:flex-row gap-4">
             {/* Search */}
             <div className="flex-1">
               <div className="relative">
@@ -1133,7 +1275,7 @@ const CommunityHub = () => {
                   placeholder="Search posts and discussions..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent text-gray-900 placeholder-gray-500 bg-white"
                 />
               </div>
             </div>
@@ -1153,9 +1295,12 @@ const CommunityHub = () => {
             {/* Category Filter - Only show for Feed tab */}
             {activeTab === 'feed' && (
               <CategoryDropdown
-                categories={categories.length > 0 ? categories : fallbackCategories}
+                categories={availableCategories}
                 selectedCategory={selectedCategory}
-                onCategoryChange={setSelectedCategory}
+                onCategoryChange={(categoryId) => {
+                  console.log('Category filter changed to:', categoryId);
+                  setSelectedCategory(categoryId);
+                }}
               />
             )}
 
@@ -1179,11 +1324,17 @@ const CommunityHub = () => {
               {activeTab === 'pinned' ? 'All Posts' : `Pinned (${userPinnedPostIds.size})`}
             </button>
 
-
-
             {/* Create Post Button */}
             <button
               onClick={() => {
+                console.log('Create Post clicked - Desktop', { authUser, isVerified });
+                if (!authUser || !isVerified) {
+                  console.log('Opening auth modal');
+                  setAuthAction('create');
+                  setShowAuthModal(true);
+                  return;
+                }
+                console.log('Opening create post modal');
                 setShowCreatePost(true);
               }}
               className="bg-[#FF6600] text-white px-6 py-3 rounded-lg font-semibold hover:bg-[#E55A00] transition-colors duration-200 flex items-center gap-2 shadow-lg hover:shadow-xl transform hover:scale-105"
@@ -1193,6 +1344,8 @@ const CommunityHub = () => {
             </button>
           </div>
         </div>
+        
+
 
         {/* Main Content Area with Sidebar */}
         <div className="flex flex-col lg:flex-row gap-6">
@@ -1202,12 +1355,12 @@ const CommunityHub = () => {
             // Pinned Posts Tab
             <div>
               {userPinnedPostIds.size === 0 ? (
-                <div className="text-center py-12">
-                  <Pin className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">Pinned Posts</h3>
-                  <p className="text-gray-600">Pin posts from the feed to save them here for quick access!</p>
-                  <div className="mt-6">
-                    <p className="text-sm text-gray-500">No posts pinned yet</p>
+                <div className="text-center py-8 sm:py-12 px-4">
+                  <Pin className="w-12 h-12 sm:w-16 sm:h-16 text-gray-400 mx-auto mb-3 sm:mb-4" />
+                  <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-2">Pinned Posts</h3>
+                  <p className="text-sm sm:text-base text-gray-600">Pin posts from the feed to save them here for quick access!</p>
+                  <div className="mt-4 sm:mt-6">
+                    <p className="text-xs sm:text-sm text-gray-500">No posts pinned yet</p>
                   </div>
                 </div>
               ) : (
@@ -1215,9 +1368,9 @@ const CommunityHub = () => {
                   {displayedPosts.filter(post => userPinnedPostIds.has(post.id)).map((post) => (
                     <div 
                       key={post.id} 
-                      className="p-6 transition-all duration-500 hover:bg-gray-50 bg-amber-50/30 border-l-4 border-amber-400"
+                      className="p-3 sm:p-6 transition-all duration-500 hover:bg-gray-50 bg-amber-50/30 border-l-4 border-amber-400"
                     >
-                      <div className="flex items-start gap-4">
+                      <div className="flex items-start gap-3 sm:gap-4">
                         <div className="flex-shrink-0">
                           {post.user_profiles?.avatar_url ? (
                             <img
@@ -1260,7 +1413,7 @@ const CommunityHub = () => {
                             </div>
                           </div>
                           
-                          <h3 className="text-lg font-semibold mb-3 mt-2 text-gray-900">
+                          <h3 className="text-base sm:text-lg font-semibold mb-3 mt-2 text-gray-900">
                             {post.title}
                           </h3>
                           
@@ -1322,34 +1475,59 @@ const CommunityHub = () => {
               {contextLoading ? (
                 <LoadingSkeleton count={5} />
               ) : displayedPosts.length === 0 ? (
-                <div className="text-center py-12">
-                  <MessageSquare className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">
-                    {filterType === 'my-posts' && !authUser 
-                      ? 'Sign in to view your posts' 
+                <div className="text-center py-8 sm:py-12 px-4">
+                  <MessageSquare className="w-12 h-12 sm:w-16 sm:h-16 text-gray-400 mx-auto mb-3 sm:mb-4" />
+                  <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-2">
+                    {filterType === 'my-posts' && (!authUser || !isVerified) 
+                      ? 'Sign in and verify to view your posts' 
                       : filterType === 'my-posts' 
                       ? 'No posts found' 
-                      : 'No Posts Found'
+                      : contextLoading
+                      ? 'Loading posts...'
+                      : 'Setup Required'
                     }
                   </h3>
-                  <p className="text-gray-600">
-                    {filterType === 'my-posts' && !authUser 
-                      ? 'Please sign in to see posts you\'ve created.' 
+                  <p className="text-sm sm:text-base text-gray-600 mb-4">
+                    {filterType === 'my-posts' && (!authUser || !isVerified) 
+                      ? 'Please sign in and verify your email to see posts you\'ve created.' 
                       : filterType === 'my-posts' 
                       ? 'You haven\'t created any posts yet. Create your first post!' 
-                      : 'Be the first to start a discussion in this category!'
+                      : contextLoading
+                      ? 'Please wait while we load the community posts...'
+                      : 'Failed to load boards: Connection issues detected'
                     }
                   </p>
-                  {filterType === 'my-posts' && !authUser && (
+                  {filterType === 'my-posts' && (!authUser || !isVerified) && (
                     <button
                       onClick={() => {
                         setAuthAction('create');
                         setShowAuthModal(true);
                       }}
-                      className="mt-4 bg-[#FF6600] text-white px-6 py-2 rounded-lg font-semibold hover:bg-[#E55A00] transition-colors"
+                      className="mt-4 bg-[#FF6600] text-white px-4 sm:px-6 py-2.5 sm:py-2 rounded-lg font-semibold hover:bg-[#E55A00] transition-colors text-sm sm:text-base min-h-[44px] sm:min-h-auto flex items-center justify-center"
                     >
                       Sign In
                     </button>
+                  )}
+                  {!contextLoading && displayedPosts.length === 0 && filterType !== 'my-posts' && (
+                    <div className="space-y-3">
+                      <button
+                        onClick={() => setShowDiagnostics(true)}
+                        className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors flex items-center gap-2 mx-auto"
+                      >
+                        <MessageSquare className="w-4 h-4" />
+                        Run Diagnostics
+                      </button>
+                      <button
+                        onClick={() => {
+                          refreshPosts();
+                          setTimeout(() => window.location.reload(), 1000);
+                        }}
+                        className="bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors flex items-center gap-2 mx-auto"
+                      >
+                        <RefreshCw className="w-4 h-4" />
+                        Retry Connection
+                      </button>
+                    </div>
                   )}
                 </div>
               ) : (
@@ -1358,13 +1536,13 @@ const CommunityHub = () => {
                     <div 
                       key={post.id} 
                       id={`post-${post.id}`}
-                      className={`p-6 transition-all duration-500 ${
+                      className={`p-3 sm:p-6 transition-all duration-500 ${
                         highlightedPostId === post.id 
                           ? 'bg-gradient-to-r from-blue-50 to-orange-50 border-2 border-blue-300 rounded-lg shadow-lg transform scale-[1.02]' 
                           : 'hover:bg-gray-50'
                       }`}
                     >
-                      <div className="flex items-start gap-4">
+                      <div className="flex items-start gap-3 sm:gap-4">
                         <div className="flex-shrink-0">
                           {post.user_profiles?.avatar_url ? (
                             <img
@@ -1447,7 +1625,7 @@ const CommunityHub = () => {
                             )}
                           </div>
                           
-                          <h3 className={`text-xl font-bold mb-3 mt-2 hover:text-[#FF6600] transition-colors cursor-pointer ${
+                          <h3 className={`text-lg sm:text-xl font-bold mb-3 mt-2 hover:text-[#FF6600] transition-colors cursor-pointer ${
                             highlightedPostId === post.id ? 'text-blue-700' : 'text-gray-900'
                           }`}>
                             {post.title}
@@ -1482,7 +1660,7 @@ const CommunityHub = () => {
                                   type="text"
                                   value={editFormData.title}
                                   onChange={(e) => setEditFormData(prev => ({ ...prev, title: e.target.value }))}
-                                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500 bg-white"
                                 />
                               </div>
                               
@@ -1491,7 +1669,7 @@ const CommunityHub = () => {
                                 <select
                                   value={editFormData.category_id}
                                   onChange={(e) => setEditFormData(prev => ({ ...prev, category_id: e.target.value }))}
-                                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
                                 >
                                   {(categories.length > 0 ? categories : fallbackCategories).map(cat => (
                                     <option key={cat.id} value={cat.id}>{cat.name}</option>
@@ -1505,7 +1683,7 @@ const CommunityHub = () => {
                                   type="text"
                                   value={editFormData.author_name}
                                   onChange={(e) => setEditFormData(prev => ({ ...prev, author_name: e.target.value }))}
-                                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500 bg-white"
                                 />
                               </div>
                               
@@ -1514,7 +1692,7 @@ const CommunityHub = () => {
                                 <select
                                   value={editFormData.experience_years}
                                   onChange={(e) => setEditFormData(prev => ({ ...prev, experience_years: e.target.value }))}
-                                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
                                 >
                                   <option value="">Select experience</option>
                                   <option value="1 year">1 year</option>
@@ -1535,7 +1713,7 @@ const CommunityHub = () => {
                                 <textarea
                                   value={editFormData.content}
                                   onChange={(e) => setEditFormData(prev => ({ ...prev, content: e.target.value }))}
-                                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-gray-900 placeholder-gray-500 bg-white"
                                   rows={4}
                                 />
                               </div>
@@ -1565,19 +1743,21 @@ const CommunityHub = () => {
                           )}
 
                           {/* Enhanced Post Actions */}
-                          <div className="mt-6 pt-5 border-t border-gray-200">
+                          <div className="mt-4 sm:mt-6 pt-3 sm:pt-5 border-t border-gray-200">
                             <div className="flex items-center justify-between">
-                              <div className="flex items-center space-x-1">
+                              <div className="flex items-center space-x-1 overflow-x-auto pb-2 sm:pb-0">
                                 {/* Like Action - Real-time */}
-                                <RealtimeLikeButton 
-                                  postId={post.id} 
-                                  initialDbCount={post.likes_count || 0}
-                                />
+                                <div className="flex-shrink-0">
+                                  <RealtimeLikeButton 
+                                    postId={post.id} 
+                                    initialDbCount={post.likes_count || 0}
+                                  />
+                                </div>
 
                                 {/* Comment Action */}
                                 <button
                                   onClick={() => setShowComments(prev => ({ ...prev, [post.id]: !prev[post.id] }))}
-                                  className="group flex items-center gap-2.5 px-5 py-2.5 rounded-xl font-medium text-sm text-gray-600 hover:bg-blue-50 hover:text-blue-700 border border-transparent hover:border-blue-200 transition-all duration-200"
+                                  className="group flex items-center gap-1.5 sm:gap-2.5 px-3 sm:px-5 py-2.5 rounded-xl font-medium text-sm text-gray-600 hover:bg-blue-50 hover:text-blue-700 border border-transparent hover:border-blue-200 transition-all duration-200 flex-shrink-0 min-h-[44px] sm:min-h-auto"
                                 >
                                   <MessageSquare className="w-4 h-4 group-hover:text-blue-600 transition-colors" />
                                   <span className="font-semibold tabular-nums">{(comments[post.id] || []).length}</span>
@@ -1587,7 +1767,7 @@ const CommunityHub = () => {
                                 {/* Share Action */}
                                 <button
                                   onClick={() => setShowShareModal(post.id)}
-                                  className="group flex items-center gap-2.5 px-5 py-2.5 rounded-xl font-medium text-sm text-gray-600 hover:bg-emerald-50 hover:text-emerald-700 border border-transparent hover:border-emerald-200 transition-all duration-200"
+                                  className="group flex items-center gap-1.5 sm:gap-2.5 px-3 sm:px-5 py-2.5 rounded-xl font-medium text-sm text-gray-600 hover:bg-emerald-50 hover:text-emerald-700 border border-transparent hover:border-emerald-200 transition-all duration-200 flex-shrink-0 min-h-[44px] sm:min-h-auto"
                                 >
                                   <Share2 className="w-4 h-4 group-hover:text-emerald-600 transition-colors" />
                                   <span className="hidden sm:inline">Share</span>
@@ -1596,7 +1776,7 @@ const CommunityHub = () => {
                                 {/* Pin Action */}
                                 <button
                                   onClick={() => handlePinPost(post)}
-                                  className={`group relative flex items-center gap-2.5 px-5 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 ${
+                                  className={`group relative flex items-center gap-1.5 sm:gap-2.5 px-3 sm:px-5 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 flex-shrink-0 min-h-[44px] sm:min-h-auto ${
                                     userPinnedPostIds.has(post.id)
                                       ? 'bg-amber-50 text-amber-700 border border-amber-200 shadow-sm'
                                       : 'text-gray-600 hover:bg-amber-50 hover:text-amber-600 border border-transparent hover:border-amber-200'
@@ -1615,7 +1795,7 @@ const CommunityHub = () => {
                                 {/* Save Action */}
                                 <button
                                   onClick={() => {
-                                    if (!authUser) {
+                                    if (!authUser || !isVerified) {
                                       setSelectedPostId(post.id);
                                       setAuthAction('save');
                                       setShowAuthModal(true);
@@ -1623,7 +1803,7 @@ const CommunityHub = () => {
                                       setShowSaveModal(post.id);
                                     }
                                   }}
-                                  className="group flex items-center gap-2.5 px-5 py-2.5 rounded-xl font-medium text-sm text-gray-600 hover:bg-violet-50 hover:text-violet-600 border border-transparent hover:border-violet-200 transition-all duration-200"
+                                  className="group flex items-center gap-1.5 sm:gap-2.5 px-3 sm:px-5 py-2.5 rounded-xl font-medium text-sm text-gray-600 hover:bg-violet-50 hover:text-violet-600 border border-transparent hover:border-violet-200 transition-all duration-200 flex-shrink-0 min-h-[44px] sm:min-h-auto"
                                   title="Save post"
                                 >
                                   <Bookmark className="w-4 h-4 group-hover:-rotate-6 transition-all duration-200" />
@@ -1641,7 +1821,7 @@ const CommunityHub = () => {
                       {showComments[post.id] && (
                         <div className="mt-4 pt-4 border-t border-gray-100">
                           {/* Comment Input */}
-                          {authUser ? (
+                          {authUser && isVerified ? (
                             <div className="mb-4">
                               <div className="flex gap-3">
                                 <div className="w-8 h-8 bg-gray-200 rounded-md flex items-center justify-center flex-shrink-0">
@@ -1654,7 +1834,7 @@ const CommunityHub = () => {
                                     value={commentText}
                                     onChange={setCommentText}
                                     placeholder="Write a comment... Use @username to mention someone"
-                                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF6600] focus:border-transparent resize-none text-sm"
+                                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF6600] focus:border-transparent resize-none text-sm text-gray-900 placeholder-gray-500 bg-white"
                                     onSubmit={() => handleAddComment(post.id)}
                                   />
                                   <div className="flex justify-end gap-2 mt-2">
@@ -1754,7 +1934,7 @@ const CommunityHub = () => {
           </div>
 
           {/* Sidebar - Desktop Only */}
-          <div className="lg:w-80 space-y-6">
+          <div className="hidden lg:block lg:w-80 space-y-6">
             {/* Hot Today */}
             <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
               <div className="bg-gradient-to-r from-red-500 to-orange-500 px-4 py-3">
@@ -2148,11 +2328,7 @@ const CommunityHub = () => {
                       place: w.winner_rank,
                       email: w.email
                     })) : 
-                  [
-                    { name: 'Sarah Chen', title: 'Senior QA Engineer at Microsoft', trick: 'AI-Powered Test Case Generation using GPT-4 for automated test scenario creation', avatar: '👑', place: 1 },
-                    { name: 'Mike Rodriguez', title: 'Lead Test Automation Engineer', trick: 'Cross-Browser Testing Automation with Selenium Grid and Docker containers', avatar: '🥈', place: 2 },
-                    { name: 'Emma Thompson', title: 'QA Manager at Amazon', trick: 'Performance Testing Optimization using JMeter and AWS CloudWatch integration', avatar: '🥉', place: 3 }
-                  ]
+                  []
                 ).map((winner, index) => {
                   const getPlaceStyles = (place) => {
                     switch(place) {
@@ -2431,8 +2607,14 @@ const CommunityHub = () => {
             <CreatePostModal
               isOpen={showCreatePost}
               onClose={() => setShowCreatePost(false)}
-              categories={categories.length > 0 ? categories : fallbackCategories}
-              onPostCreated={refreshPosts}
+              onPostCreated={() => {
+                console.log('Post created, refreshing board...');
+                refreshPosts();
+                // Force immediate refresh of displayed posts
+                setTimeout(() => {
+                  window.location.reload();
+                }, 1000);
+              }}
             />
           </ErrorBoundary>
         )}
@@ -2643,6 +2825,32 @@ const CommunityHub = () => {
             deadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
           }}
         />
+
+        {/* Connection Diagnostics Modal */}
+        {showDiagnostics && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+            <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+                <h2 className="text-xl font-bold text-gray-900">System Diagnostics</h2>
+                <button
+                  onClick={() => setShowDiagnostics(false)}
+                  className="p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="p-6">
+                <ConnectionDiagnostics 
+                  onRetry={() => {
+                    setShowDiagnostics(false);
+                    refreshPosts();
+                    setTimeout(() => window.location.reload(), 1000);
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        )}
 
       </div>
       

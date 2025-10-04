@@ -16,6 +16,7 @@
     "db:migrate": "node scripts/safe-migrate.js",
     "db:deploy": "node scripts/deploy-prod.js",
     "db:backup": "node scripts/backup-prod.js",
+    "db:backup-simple": "node scripts/simple-backup.js",
     "db:seed": "supabase seed --local",
     "db:diff": "supabase db diff -f",
     "db:deploy-direct": "node scripts/deploy-direct.js",
@@ -25,13 +26,14 @@
     "deploy:dev": "node scripts/deploy-environments.js dev",
     "deploy:prod": "node scripts/deploy-environments.js prod",
     "env:check": "node scripts/check-environment.js",
-    "setup": "chmod +x supabase-setup.sh && ./supabase-setup.sh"
+    "setup": "chmod +x supabase-setup.sh && ./supabase-setup.sh",
+    "build:prod": "node scripts/production-build.js",
+    "security:check": "npm audit --audit-level moderate"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.58.0",
-    "lucide-react": "^0.400.0",
-    "react": "18.2.0",
-    "react-dom": "18.2.0",
+    "lucide-react": "^0.263.1",
+    "nodemailer": "^7.0.6",
     "react-hot-toast": "^2.6.0",
     "react-router-dom": "^6.30.1"
   },
@@ -39,18 +41,18 @@
     "@types/react": "^18.2.43",
     "@types/react-dom": "^18.2.17",
     "@vitejs/plugin-react": "^4.7.0",
+    "@vitejs/plugin-legacy": "^5.4.2",
     "autoprefixer": "^10.4.21",
     "eslint": "^8.55.0",
     "eslint-plugin-react": "^7.33.2",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.5",
     "postcss": "^8.5.6",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
     "supabase": "^1.0.0",
     "tailwindcss": "^3.4.18",
-    "vite": "^5.4.20"
-  },
-  "overrides": {
-    "react": "18.2.0",
-    "react-dom": "18.2.0"
+    "vite": "^5.4.20",
+    "typescript": "^5.6.3"
   }
 }

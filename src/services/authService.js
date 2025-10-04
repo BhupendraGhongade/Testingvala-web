@@ -3,12 +3,12 @@ import { supabase } from '../lib/supabase';
 
 class AuthService {
   constructor() {
-    this.rateLimitKey = 'magic_link_requests';
-    this.sessionKey = 'testingvala_session';
-    this.deviceKey = 'testingvala_device_id';
-    this.maxRequests = 5;
-    this.rateLimitWindow = 60 * 60 * 1000; // 1 hour
-    this.sessionDuration = 30 * 24 * 60 * 60 * 1000; // 30 days
+    this.rateLimitKey = import.meta.env.VITE_RATE_LIMIT_KEY;
+    this.sessionKey = import.meta.env.VITE_SESSION_KEY;
+    this.deviceKey = import.meta.env.VITE_DEVICE_KEY;
+    this.maxRequests = parseInt(import.meta.env.VITE_MAX_REQUESTS) || 5;
+    this.rateLimitWindow = parseInt(import.meta.env.VITE_RATE_LIMIT_WINDOW) || 60 * 60 * 1000;
+    this.sessionDuration = parseInt(import.meta.env.VITE_SESSION_DURATION) || 30 * 24 * 60 * 60 * 1000;
   }
 
   // Generate unique device fingerprint
@@ -114,14 +114,14 @@ class AuthService {
         throw new Error(rateCheck.message);
       }
 
-      // Validate email format
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      // Validate email format with safe regex
+      const emailRegex = new RegExp('^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$');
       if (!emailRegex.test(email)) {
         throw new Error('Please enter a valid email address');
       }
 
-      // Generate CSRF token
-      const csrfToken = Math.random().toString(36).substring(2, 15);
+      // Generate secure CSRF token
+      const csrfToken = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
       sessionStorage.setItem('csrf_token', csrfToken);
 
       console.log(`📧 [${requestId}] Sending email request`, {
@@ -139,12 +139,16 @@ class AuthService {
         headers: { 
           'Content-Type': 'application/json',
           'X-CSRF-Token': csrfToken,
-          'X-Request-ID': requestId
+          'X-Request-ID': requestId,
+          'X-Requested-With': 'XMLHttpRequest',
+          'Origin': window.location.origin
         },
+        credentials: 'same-origin',
         body: JSON.stringify({ 
           email: email.trim().toLowerCase(),
           deviceId: this.getDeviceId(),
-          requestId
+          requestId,
+          csrfToken
         }),
         signal: controller.signal
       });
@@ -209,7 +213,18 @@ class AuthService {
     });
 
     try {
-      const response = await fetch(`/api/verify-token?token=${token}&email=${encodeURIComponent(email)}&requestId=${requestId}`);
+      // Validate inputs
+      if (!token || !email || token.length > 100 || email.length > 254) {
+        throw new Error('Invalid token or email format');
+      }
+      
+      const response = await fetch(`/api/verify-token?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}&requestId=${requestId}`, {
+        method: 'GET',
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        credentials: 'same-origin'
+      });
       
       if (!response.ok) {
         throw new Error('Token verification failed');

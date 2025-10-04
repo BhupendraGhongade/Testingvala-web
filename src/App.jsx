@@ -2,9 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Toaster } from 'react-hot-toast';
 import Header from './components/Header';
 import Hero from './components/Hero';
-
 import ContestSection from './components/ContestSection';
-import Winners from './components/Winners';
+
 import CommunityHub from './components/CommunityHub';
 import AboutUs from './components/AboutUs';
 import Contact from './components/Contact';
@@ -15,20 +14,15 @@ import BoardDetailPage from './components/BoardDetailPage';
 import PublicBoardsPage from './components/PublicBoardsPage';
 import AuthCallback from './components/AuthCallback';
 import AuthVerify from './components/AuthVerify';
-import ApiCallMonitor from './components/ApiCallMonitor';
-import ApiAuditDashboard from './components/ApiAuditDashboard';
 import AdminDashboard from './components/AdminDashboard';
-// import NavigationDebug from './components/NavigationDebug';
+import QuickAuth from './components/QuickAuth';
 
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { GlobalDataProvider } from './contexts/GlobalDataContext';
-import { useWebsiteData } from './contexts/GlobalDataContext';
-import { trackUserEvent } from './services/enterpriseAnalytics';
+import { GlobalDataProvider, useWebsiteData } from './contexts/GlobalDataContext';
 import { WifiOff, AlertCircle } from 'lucide-react';
-import './utils/testOptimizations';
-import './utils/globalApiLogger';
-import './utils/testApiOptimizations';
-import './utils/apiMonitor';
+import { initProductionGuard } from './utils/productionGuard';
+import { StorageCleanup } from './utils/storageCleanup';
+import './utils/debugHelpers.js';
 
 const AppContent = () => {
   const [currentPath, setCurrentPath] = useState(typeof window !== 'undefined' ? window.location.pathname : '/');
@@ -56,15 +50,20 @@ const AppContent = () => {
   const error = null; // Handle errors in the context
   const isOnline = !!data;
 
+  // Initialize production guard and storage cleanup
+  useEffect(() => {
+    initProductionGuard();
+    
+    // Clean up localStorage on app start
+    setTimeout(() => {
+      StorageCleanup.cleanup();
+    }, 1000);
+  }, []);
+
   // Track user authentication state changes
   useEffect(() => {
     if (user && isVerified) {
-      try {
-        trackUserEvent.loginAttempt(user.email, true);
-        trackUserEvent.emailVerified(user.email);
-      } catch (error) {
-        console.warn('Analytics tracking failed:', error);
-      }
+      console.log('User authenticated:', user.email);
     }
   }, [user, isVerified]);
 
@@ -79,11 +78,7 @@ const AppContent = () => {
       }
       
       // Track page views
-      try {
-        trackUserEvent.pageView(newPath);
-      } catch (error) {
-        console.warn('Analytics tracking failed:', error);
-      }
+      console.log('Page view:', newPath);
       
       // Check for post hash in URL
       const hash = window.location.hash;
@@ -138,26 +133,7 @@ const AppContent = () => {
         winners: '36'
       }
     },
-    winners: [
-      {
-        avatar: '🏆',
-        name: 'Sarah Johnson',
-        title: 'QA Automation Expert',
-        trick: 'Implemented a robust test automation framework that reduced testing time by 60% while maintaining 99% accuracy.'
-      },
-      {
-        avatar: '🥈',
-        name: 'Michael Chen',
-        title: 'Performance Testing Specialist',
-        trick: 'Developed innovative load testing strategies that identified critical bottlenecks before production deployment.'
-      },
-      {
-        avatar: '🥉',
-        name: 'Emily Rodriguez',
-        title: 'Mobile Testing Guru',
-        trick: 'Created comprehensive mobile testing protocols that improved app stability across all device types.'
-      }
-    ],
+
     about: {
       description: 'TestingVala.com is revolutionizing the QA industry by creating a platform where testing professionals can showcase their skills, learn from each other, and compete for recognition and rewards.',
       features: [
@@ -223,7 +199,6 @@ const AppContent = () => {
   const validatedData = {
     hero: websiteData.hero || defaultData.hero,
     contest: websiteData.contest || defaultData.contest,
-    winners: Array.isArray(websiteData.winners) ? websiteData.winners : defaultData.winners,
     about: websiteData.about || defaultData.about,
     contact: websiteData.contact || defaultData.contact
   };
@@ -326,7 +301,6 @@ const AppContent = () => {
             <Hero data={validatedData.hero} />
             <CommunityHub />
             <ContestSection contestData={validatedData.contest} />
-
             <AboutUs data={validatedData.about} />
             <Contact data={validatedData.contact} />
           </div>
@@ -334,9 +308,7 @@ const AppContent = () => {
       </main>
       
       <Footer />
-      <ApiCallMonitor />
-      <ApiAuditDashboard />
-      {/* <NavigationDebug /> */}
+      <QuickAuth />
     </div>
   );
 };

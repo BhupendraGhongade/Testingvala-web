@@ -13,10 +13,10 @@
 /*
 SMTP Host: smtp.gmail.com
 SMTP Port: 587
-SMTP User: info@testingvala.com
-SMTP Pass: [Your App Password - Generate from Google Account Settings]
+SMTP User: [SET_IN_DASHBOARD]
+SMTP Pass: [SET_IN_DASHBOARD]
 Sender Name: TestingVala Community
-Sender Email: info@testingvala.com
+Sender Email: [SET_IN_DASHBOARD]
 */
 
 -- 2. Custom Email Templates (Optional - can be set in Dashboard)

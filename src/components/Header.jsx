@@ -53,8 +53,8 @@ const Header = () => {
   const headerContent = (
     <header data-debug-header="true" className="bg-black/95 backdrop-blur-sm border-b border-gray-800 fixed top-0 left-0 w-full shadow-lg pointer-events-auto" style={{ borderWidth: '1px', zIndex: 8000 }}>
       <div className="relative">
-        {/* White pill logo flush to the left edge */}
-        <div className="absolute left-0 top-1/2 -translate-y-1/2 z-50">
+        {/* Responsive Logo Container */}
+        <div className="absolute left-2 sm:left-3 top-1/2 -translate-y-1/2 z-50">
           <a
             href="/"
             onClick={(e) => {
@@ -66,16 +66,16 @@ const Header = () => {
               window.location.href = '/';
             }}
             aria-label="Go to homepage"
-            className="flex items-center bg-white px-3 py-1 rounded-md shadow-md ml-3"
+            className="flex items-center bg-white px-2 sm:px-3 py-1 rounded-md shadow-md"
           >
-            <TestingValaLogo iconSize={36} textSize={16} />
+            <TestingValaLogo iconSize={28} textSize={14} />
           </a>
         </div>
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pl-36">
-          <div className="flex justify-end items-center h-16">
-            {/* Navigation (always visible) */}
-            <nav className="flex items-center space-x-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pl-24 sm:pl-32 md:pl-36">
+          <div className="flex justify-end items-center h-14 sm:h-16">
+            {/* Desktop Navigation - Hidden on mobile/tablet */}
+            <nav className="hidden lg:flex items-center space-x-4 xl:space-x-6 2xl:space-x-8">
               <a href="/" onClick={(e) => {
                 e.preventDefault();
                 flushSync(() => {
@@ -83,7 +83,7 @@ const Header = () => {
                   setShowResumeManagement(false);
                 });
                 window.location.href = '/';
-              }} className="text-gray-300 hover:text-white font-medium transition-colors duration-200">
+              }} className="text-gray-300 hover:text-white font-medium transition-colors duration-200 text-sm xl:text-base">
                 Home
               </a>
               <a href="/#contest" onClick={(e) => {
@@ -93,7 +93,7 @@ const Header = () => {
                   setShowResumeManagement(false);
                 });
                 window.location.href = '/#contest';
-              }} className="text-gray-300 hover:text-white font-medium transition-colors duration-200">
+              }} className="text-gray-300 hover:text-white font-medium transition-colors duration-200 text-sm xl:text-base">
                 Contest
               </a>
               <a href="/#community" onClick={(e) => {
@@ -103,7 +103,7 @@ const Header = () => {
                   setShowResumeManagement(false);
                 });
                 window.location.href = '/#community';
-              }} className="text-gray-300 hover:text-white font-medium transition-colors duration-200">
+              }} className="text-gray-300 hover:text-white font-medium transition-colors duration-200 text-sm xl:text-base">
                 Community
               </a>
               <a href="/#about" onClick={(e) => {
@@ -113,7 +113,7 @@ const Header = () => {
                   setShowResumeManagement(false);
                 });
                 window.location.href = '/#about';
-              }} className="text-gray-300 hover:text-white font-medium transition-colors duration-200">
+              }} className="text-gray-300 hover:text-white font-medium transition-colors duration-200 text-sm xl:text-base">
                 About
               </a>
               <a href="/#contact" onClick={(e) => {
@@ -123,7 +123,7 @@ const Header = () => {
                   setShowResumeManagement(false);
                 });
                 window.location.href = '/#contact';
-              }} className="text-gray-300 hover:text-white font-medium transition-colors duration-200">
+              }} className="text-gray-300 hover:text-white font-medium transition-colors duration-200 text-sm xl:text-base">
                 Contact
               </a>
 
@@ -140,32 +140,34 @@ const Header = () => {
                     window.dispatchEvent(new PopStateEvent('popstate'));
                   }
                 }}
-                className="text-gray-300 hover:text-white font-medium transition-all duration-200 flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-800"
+                className="text-gray-300 hover:text-white font-medium transition-all duration-200 flex items-center gap-1 xl:gap-2 px-2 xl:px-3 py-2 rounded-lg hover:bg-gray-800 text-sm xl:text-base"
               >
-                <Bookmark className="w-4 h-4" />
-                My Boards
+                <Bookmark className="w-3 h-3 xl:w-4 xl:h-4" />
+                <span className="hidden xl:inline">My Boards</span>
+                <span className="xl:hidden">Boards</span>
               </a>
               <button onClick={() => {
                 setShowResumeBuilder(false);
                 setShowResumeManagement(false);
                 openContestForm();
-              }} className="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 hover:shadow-lg transition-all duration-200 flex items-center gap-2 border border-blue-500">
-                <Trophy className="w-4 h-4" />
-                Join Contest
+              }} className="bg-blue-600 text-white px-3 xl:px-6 py-2 rounded-lg font-medium hover:bg-blue-700 hover:shadow-lg transition-all duration-200 flex items-center gap-1 xl:gap-2 border border-blue-500 text-sm xl:text-base">
+                <Trophy className="w-3 h-3 xl:w-4 xl:h-4" />
+                <span className="hidden xl:inline">Join Contest</span>
+                <span className="xl:hidden">Contest</span>
               </button>
             </nav>
 
-            {/* Mobile menu button */}
-            <button className="md:hidden p-2 rounded-md text-gray-300 hover:text-white hover:bg-gray-800 transition-colors duration-200" onClick={toggleMenu}>
-              {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            {/* Mobile menu button - only show on mobile */}
+            <button className="lg:hidden p-2 rounded-md text-gray-300 hover:text-white hover:bg-gray-800 transition-colors duration-200" onClick={toggleMenu}>
+              {isMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
           </div>
         </div>
 
-        {/* Mobile Navigation (stacked below header area) */}
+        {/* Mobile Navigation - Only show on actual mobile devices */}
         {isMenuOpen && (
-          <div className="md:hidden border-t border-gray-800 py-4 mt-16">
-            <nav className="flex flex-col space-y-4 px-4">
+          <div className="lg:hidden absolute top-full left-0 w-full bg-gray-900 border-t border-gray-700 shadow-2xl z-40">
+            <nav className="px-4 py-4 space-y-1 max-h-[80vh] overflow-y-auto">
               <a href="/" onClick={(e) => {
                 e.preventDefault();
                 flushSync(() => {
@@ -174,7 +176,9 @@ const Header = () => {
                   setIsMenuOpen(false);
                 });
                 window.location.href = '/';
-              }} className="text-gray-300 hover:text-white font-medium transition-colors duration-200">Home</a>
+              }} className="block px-4 py-3 text-gray-300 hover:text-white hover:bg-gray-800 rounded-lg font-medium transition-all duration-200">
+                Home
+              </a>
               <a href="/#contest" onClick={(e) => {
                 e.preventDefault();
                 flushSync(() => {
@@ -183,7 +187,9 @@ const Header = () => {
                   setIsMenuOpen(false);
                 });
                 window.location.href = '/#contest';
-              }} className="text-gray-300 hover:text-white font-medium transition-colors duration-200">Contest</a>
+              }} className="block px-4 py-3 text-gray-300 hover:text-white hover:bg-gray-800 rounded-lg font-medium transition-all duration-200">
+                Contest
+              </a>
               <a href="/#community" onClick={(e) => {
                 e.preventDefault();
                 flushSync(() => {
@@ -192,7 +198,9 @@ const Header = () => {
                   setIsMenuOpen(false);
                 });
                 window.location.href = '/#community';
-              }} className="text-gray-300 hover:text-white font-medium transition-colors duration-200">Community</a>
+              }} className="block px-4 py-3 text-gray-300 hover:text-white hover:bg-gray-800 rounded-lg font-medium transition-all duration-200">
+                Community
+              </a>
               <a href="/#about" onClick={(e) => {
                 e.preventDefault();
                 flushSync(() => {
@@ -201,7 +209,9 @@ const Header = () => {
                   setIsMenuOpen(false);
                 });
                 window.location.href = '/#about';
-              }} className="text-gray-300 hover:text-white font-medium transition-colors duration-200">About</a>
+              }} className="block px-4 py-3 text-gray-300 hover:text-white hover:bg-gray-800 rounded-lg font-medium transition-all duration-200">
+                About
+              </a>
               <a href="/#contact" onClick={(e) => {
                 e.preventDefault();
                 flushSync(() => {
@@ -210,7 +220,12 @@ const Header = () => {
                   setIsMenuOpen(false);
                 });
                 window.location.href = '/#contact';
-              }} className="text-gray-300 hover:text-white font-medium transition-colors duration-200">Contact</a>
+              }} className="block px-4 py-3 text-gray-300 hover:text-white hover:bg-gray-800 rounded-lg font-medium transition-all duration-200">
+                Contact
+              </a>
+              
+              <div className="border-t border-gray-700 my-2"></div>
+              
               <button
                 onClick={() => {
                   setIsMenuOpen(false);
@@ -220,9 +235,9 @@ const Header = () => {
                     setShowResumeBuilder(true);
                   }
                 }}
-                className="text-gray-300 hover:text-white font-medium transition-all duration-200 flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-800 w-full text-left"
+                className="w-full flex items-center gap-3 px-4 py-3 text-gray-300 hover:text-white hover:bg-gray-800 rounded-lg font-medium transition-all duration-200 text-left"
               >
-                <FileText className="w-4 h-4" />
+                <FileText className="w-5 h-5" />
                 AI Resume Builder
               </button>
               {isVerified && (
@@ -231,9 +246,9 @@ const Header = () => {
                     setIsMenuOpen(false);
                     setShowResumeManagement(true);
                   }}
-                  className="text-gray-300 hover:text-white font-medium transition-all duration-200 flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-800 w-full text-left"
+                  className="w-full flex items-center gap-3 px-4 py-3 text-gray-300 hover:text-white hover:bg-gray-800 rounded-lg font-medium transition-all duration-200 text-left"
                 >
-                  <FolderOpen className="w-4 h-4" />
+                  <FolderOpen className="w-5 h-5" />
                   Manage Resumes
                 </button>
               )}
@@ -251,15 +266,19 @@ const Header = () => {
                     window.dispatchEvent(new PopStateEvent('popstate'));
                   }
                 }}
-                className="text-gray-300 hover:text-white font-medium transition-all duration-200 flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-800"
+                className="w-full flex items-center gap-3 px-4 py-3 text-gray-300 hover:text-white hover:bg-gray-800 rounded-lg font-medium transition-all duration-200"
               >
-                <Bookmark className="w-4 h-4" />
+                <Bookmark className="w-5 h-5" />
                 My Boards
               </a>
+              
               <button onClick={() => {
                 setIsMenuOpen(false);
                 openContestForm();
-              }} className="bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 hover:shadow-lg transition-all duration-200 flex items-center justify-center gap-2 border border-blue-500"><Trophy className="w-4 h-4" /> Join Contest</button>
+              }} className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 hover:shadow-lg transition-all duration-200 flex items-center justify-center gap-2 border border-blue-500 mt-4">
+                <Trophy className="w-5 h-5" />
+                Join Contest
+              </button>
             </nav>
           </div>
         )}
@@ -282,9 +301,10 @@ const Header = () => {
               if (user && isVerified) {
                 // Check if this was triggered from resume builder or boards
                 const currentPath = window.location.pathname;
-                if (currentPath === '/boards' || window.location.hash.includes('boards')) {
+                const safePath = '/boards';
+                if (currentPath === safePath || document.location.pathname === safePath) {
                   // Use pushState instead of full page reload
-                  window.history.pushState({}, '', '/boards');
+                  window.history.pushState({}, '', safePath);
                   window.dispatchEvent(new PopStateEvent('popstate'));
                 } else {
                   setShowResumeBuilder(true);

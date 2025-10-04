@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ChevronDown, Search, Tag, Check } from 'lucide-react';
 
-const CategorySelector = ({ categories, selectedCategory, onCategoryChange, required = false }) => {
+const CategorySelector = ({ categories = [], selectedCategory, onCategoryChange, required = false }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const dropdownRef = useRef(null);
@@ -16,12 +16,15 @@ const CategorySelector = ({ categories, selectedCategory, onCategoryChange, requ
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const filteredCategories = categories.filter(cat =>
-    cat.name.toLowerCase().includes(searchTerm.toLowerCase())
+  // Ensure categories is always an array
+  const safeCategories = Array.isArray(categories) ? categories : [];
+  
+  const filteredCategories = safeCategories.filter(cat =>
+    cat?.name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const selectedCategoryName = selectedCategory 
-    ? categories.find(cat => cat.id === selectedCategory)?.name || 'Select a category'
+    ? safeCategories.find(cat => cat.id === selectedCategory)?.name || 'Select a category'
     : 'Select a category';
 
   const getCategoryIcon = (category) => {
@@ -78,13 +81,15 @@ const CategorySelector = ({ categories, selectedCategory, onCategoryChange, requ
                 placeholder="Search categories..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-md focus:ring-2 focus:ring-[#FF6600] focus:border-transparent text-sm"
+                className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-md focus:ring-2 focus:ring-[#FF6600] focus:border-transparent text-sm text-gray-900 placeholder-gray-500 bg-white"
               />
             </div>
           </div>
           
           <div className="max-h-60 overflow-y-auto">
             {filteredCategories.map((category) => {
+              if (!category || !category.id || !category.name) return null;
+              
               const isSelected = selectedCategory === category.id;
               
               return (
@@ -92,9 +97,13 @@ const CategorySelector = ({ categories, selectedCategory, onCategoryChange, requ
                   key={category.id}
                   type="button"
                   onClick={() => {
-                    onCategoryChange(category.id);
-                    setIsOpen(false);
-                    setSearchTerm('');
+                    try {
+                      onCategoryChange(category.id);
+                      setIsOpen(false);
+                      setSearchTerm('');
+                    } catch (error) {
+                      console.error('Error selecting category:', error);
+                    }
                   }}
                   className={`w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors flex items-center gap-3 ${
                     isSelected ? 'bg-[#FF6600] text-white hover:bg-[#E55A00]' : 'text-gray-700'
@@ -110,6 +119,12 @@ const CategorySelector = ({ categories, selectedCategory, onCategoryChange, requ
             {filteredCategories.length === 0 && searchTerm && (
               <div className="px-4 py-6 text-center text-gray-500 text-sm">
                 No categories found matching "{searchTerm}"
+              </div>
+            )}
+            
+            {safeCategories.length === 0 && !searchTerm && (
+              <div className="px-4 py-6 text-center text-gray-500 text-sm">
+                No categories available
               </div>
             )}
           </div>

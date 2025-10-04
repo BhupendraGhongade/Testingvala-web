@@ -281,8 +281,8 @@ const ContestSubmissionForm = ({ isOpen, onClose, contestData }) => {
                   type="text"
                   value={formData.fullName}
                   onChange={(e) => handleInputChange('fullName', e.target.value)}
-                  className={`w-full px-3 sm:px-4 py-2 sm:py-3 border rounded-lg sm:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base ${
-                    errors.fullName ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                  className={`w-full px-3 sm:px-4 py-2 sm:py-3 border rounded-lg sm:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base text-gray-900 placeholder-gray-500 ${
+                    errors.fullName ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-white'
                   }`}
                   placeholder="Full name"
                 />
@@ -302,8 +302,8 @@ const ContestSubmissionForm = ({ isOpen, onClose, contestData }) => {
                   type="email"
                   value={formData.email}
                   onChange={(e) => handleInputChange('email', e.target.value)}
-                  className={`w-full px-3 sm:px-4 py-2 sm:py-3 border rounded-lg sm:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base ${
-                    errors.email ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                  className={`w-full px-3 sm:px-4 py-2 sm:py-3 border rounded-lg sm:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base text-gray-900 placeholder-gray-500 ${
+                    errors.email ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-white'
                   }`}
                   placeholder="Email"
                 />
@@ -325,8 +325,8 @@ const ContestSubmissionForm = ({ isOpen, onClose, contestData }) => {
                   type="tel"
                   value={formData.mobile}
                   onChange={(e) => handleInputChange('mobile', e.target.value)}
-                  className={`w-full px-3 sm:px-4 py-2 sm:py-3 border rounded-lg sm:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base ${
-                    errors.mobile ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                  className={`w-full px-3 sm:px-4 py-2 sm:py-3 border rounded-lg sm:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base text-gray-900 placeholder-gray-500 ${
+                    errors.mobile ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-white'
                   }`}
                   placeholder="Mobile"
                 />
@@ -345,8 +345,8 @@ const ContestSubmissionForm = ({ isOpen, onClose, contestData }) => {
                 <select
                   value={formData.experience}
                   onChange={(e) => handleInputChange('experience', e.target.value)}
-                  className={`w-full px-3 sm:px-4 py-2 sm:py-3 border rounded-lg sm:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base ${
-                    errors.experience ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                  className={`w-full px-3 sm:px-4 py-2 sm:py-3 border rounded-lg sm:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base text-gray-900 ${
+                    errors.experience ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-white'
                   }`}
                 >
                   <option value="">Experience</option>
@@ -382,8 +382,8 @@ const ContestSubmissionForm = ({ isOpen, onClose, contestData }) => {
                 type="text"
                 value={formData.title}
                 onChange={(e) => handleInputChange('title', e.target.value)}
-                className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  errors.title ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500 ${
+                  errors.title ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-white'
                 }`}
                 placeholder="e.g., AI-Powered Test Case Generation, Smart Automation Framework"
               />
@@ -403,8 +403,8 @@ const ContestSubmissionForm = ({ isOpen, onClose, contestData }) => {
                 value={formData.description}
                 onChange={(e) => handleInputChange('description', e.target.value)}
                 rows={5}
-                className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none ${
-                  errors.description ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-gray-900 placeholder-gray-500 ${
+                  errors.description ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-white'
                 }`}
                 placeholder="Provide a comprehensive explanation of your testing technique, methodology, or innovation. Include implementation steps, tools used, and any unique approaches..."
               />
@@ -425,8 +425,8 @@ const ContestSubmissionForm = ({ isOpen, onClose, contestData }) => {
                 value={formData.impact}
                 onChange={(e) => handleInputChange('impact', e.target.value)}
                 rows={4}
-                className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none ${
-                  errors.impact ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-gray-900 placeholder-gray-500 ${
+                  errors.impact ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-white'
                 }`}
                 placeholder="Describe the measurable impact and benefits. Include metrics like time saved, efficiency improvements, defect reduction, cost savings, etc..."
               />

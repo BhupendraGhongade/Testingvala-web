@@ -161,7 +161,8 @@ const RichTextEditor = ({ value, onChange, placeholder = "Write your content..."
             value={value}
             onChange={(e) => onChange(e.target.value)}
             placeholder={placeholder}
-            className="w-full h-48 p-4 border-0 resize-none focus:outline-none"
+            className="w-full h-48 p-4 border-0 resize-none focus:outline-none text-gray-900 placeholder-gray-500 bg-white"
+            style={{ color: '#111827', backgroundColor: '#ffffff' }}
           />
         )}
       </div>

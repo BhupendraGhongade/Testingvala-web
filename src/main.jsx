@@ -1,7 +1,8 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import App from './App-clean.jsx'
+import App from './App.jsx'
 import './index.css'
+import './utils/emergencyStorageFix.js'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

@@ -44,15 +44,17 @@ const createShareCardDataUrl = async (winner, badgeLabel) => {
   ctx.font = 'normal 24px serif';
   ctx.fillText('This is to certify that', width/2, 240);
 
-  // Winner name (prominent)
+  // Winner name (prominent) - sanitized
   ctx.fillStyle = '#0f172a';
   ctx.font = 'bold 48px serif';
-  ctx.fillText(winner.name.toUpperCase(), width/2, 300);
+  const sanitizedName = (winner.name || '').replace(/[<>"'&\/<>]/g, '').substring(0, 50).toUpperCase();
+  ctx.fillText(sanitizedName, width/2, 300);
 
-  // Professional title
+  // Professional title - sanitized
   ctx.fillStyle = '#475569';
   ctx.font = 'italic 20px serif';
-  ctx.fillText(winner.title, width/2, 335);
+  const sanitizedTitle = (winner.title || '').replace(/[<>"'&\/<>]/g, '').substring(0, 100);
+  ctx.fillText(sanitizedTitle, width/2, 335);
 
   // Achievement description
   ctx.fillStyle = '#1e293b';

@@ -109,7 +109,7 @@ const MentionInput = ({
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
         disabled={disabled}
-        className={`${className} resize-none`}
+        className={`${className} resize-none text-gray-900 placeholder-gray-500 bg-white`}
         rows={3}
       />
       

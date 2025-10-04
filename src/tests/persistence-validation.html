@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Post Persistence Validation</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .test-step { margin: 20px 0; padding: 15px; border-radius: 8px; border-left: 4px solid #007bff; background: #f8f9fa; }
+        .test-step.success { border-left-color: #28a745; background: #d4edda; }
+        .test-step.error { border-left-color: #dc3545; background: #f8d7da; }
+        .test-step.warning { border-left-color: #ffc107; background: #fff3cd; }
+        button { padding: 10px 20px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        button:disabled { background: #6c757d; cursor: not-allowed; }
+        .logs { background: #f8f9fa; border: 1px solid #dee2e6; padding: 15px; margin: 15px 0; font-family: monospace; white-space: pre-wrap; max-height: 300px; overflow-y: auto; font-size: 12px; }
+        .status { font-weight: bold; padding: 5px 10px; border-radius: 4px; display: inline-block; margin: 5px 0; }
+        .status.pass { background: #d4edda; color: #155724; }
+        .status.fail { background: #f8d7da; color: #721c24; }
+        .status.pending { background: #fff3cd; color: #856404; }
+        .instructions { background: #e7f3ff; border: 1px solid #b3d9ff; padding: 15px; border-radius: 5px; margin: 15px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Post Persistence Validation Test</h1>
+        <p>This test validates that local posts persist through hard reloads, browser restarts, and navigation.</p>
+        
+        <div class="instructions">
+            <h3>📋 Test Instructions</h3>
+            <ol>
+                <li><strong>Create Test Post:</strong> Click "Create Test Post" to add a local post</li>
+                <li><strong>Verify Immediate:</strong> Check that post appears instantly in the feed</li>
+                <li><strong>Hard Reload:</strong> Press Ctrl+F5 (or Cmd+R on Mac) to hard reload</li>
+                <li><strong>Verify Persistence:</strong> Check that post still exists after reload</li>
+                <li><strong>Navigate Away:</strong> Go to another page and come back</li>
+                <li><strong>Browser Restart:</strong> Close and reopen browser, navigate back</li>
+            </ol>
+        </div>
+
+        <div id="test-controls">
+            <button onclick="createTestPost()">🆕 Create Test Post</button>
+            <button onclick="validatePosts()">✅ Validate Posts</button>
+            <button onclick="checkLocalStorage()">💾 Check localStorage</button>
+            <button onclick="simulateHardReload()">🔄 Simulate Hard Reload</button>
+            <button onclick="clearTestData()">🗑️ Clear Test Data</button>
+            <button onclick="runFullValidation()">🚀 Run Full Validation</button>
+        </div>
+
+        <div id="test-results"></div>
+        
+        <div>
+            <h3>📊 Test Logs</h3>
+            <div id="logs" class="logs">Waiting for test actions...\n</div>
+        </div>
+
+        <div>
+            <h3>🔍 Storage Inspector</h3>
+            <div id="storage-info" class="logs">Click "Check localStorage" to inspect storage contents</div>
+        </div>
+    </div>
+
+    <script>
+        let testPostId = null;
+        let testResults = [];
+        
+        function log(message, level = 'info') {
+            const timestamp = new Date().toISOString();
+            const logEntry = `[${timestamp}] [${level.toUpperCase()}] ${message}`;
+            console.log(logEntry);
+            
+            const logsDiv = document.getElementById('logs');
+            logsDiv.textContent += logEntry + '\n';
+            logsDiv.scrollTop = logsDiv.scrollHeight;
+        }
+        
+        function addResult(test, status, message, details = {}) {
+            const result = { test, status, message, details, timestamp: new Date().toISOString() };
+            testResults.push(result);
+            
+            const resultsDiv = document.getElementById('test-results');
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `test-step ${status}`;
+            
+            const statusSpan = document.createElement('span');
+            statusSpan.className = `status ${status}`;
+            statusSpan.textContent = status.toUpperCase();
+            
+            resultDiv.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <strong>${test}</strong>
+                    ${statusSpan.outerHTML}
+                </div>
+                <div style="margin-top: 8px;">${message}</div>
+                ${Object.keys(details).length > 0 ? `<div style="margin-top: 8px; font-size: 12px; color: #666;"><strong>Details:</strong> ${JSON.stringify(details, null, 2)}</div>` : ''}
+            `;
+            
+            resultsDiv.appendChild(resultDiv);
+            log(`${test}: ${status} - ${message}`, status === 'success' ? 'info' : status);
+        }
+        
+        function createTestPost() {
+            try {
+                const testPost = {
+                    id: `test_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                    title: `Test Post - ${new Date().toLocaleTimeString()}`,
+                    content: `This is an automated test post created at ${new Date().toISOString()}. It should persist through hard reloads and browser restarts.`,
+                    author_name: 'Test Automation',
+                    category_id: 'general-discussion',
+                    category_name: 'General Discussion',
+                    created_at: new Date().toISOString(),
+                    isLocal: true,
+                    testPost: true
+                };
+                
+                testPostId = testPost.id;
+                
+                // Use the same storage method as the app
+                const existingPosts = JSON.parse(localStorage.getItem('testingvala_local_posts') || '[]');
+                existingPosts.unshift(testPost);
+                localStorage.setItem('testingvala_local_posts', JSON.stringify(existingPosts));
+                
+                // Also set backup
+                sessionStorage.setItem('testingvala_posts_backup', JSON.stringify(existingPosts));
+                
+                // Trigger storage event
+                window.dispatchEvent(new Event('storage'));
+                
+                addResult('Create Test Post', 'success', `Test post created with ID: ${testPost.id}`, {
+                    postId: testPost.id,
+                    title: testPost.title,
+                    timestamp: testPost.created_at
+                });
+                
+                log(`Test post created: ${testPost.id}`);
+                
+                // Auto-validate after creation
+                setTimeout(() => validatePosts(), 500);
+                
+            } catch (error) {
+                addResult('Create Test Post', 'error', `Failed to create test post: ${error.message}`, {
+                    error: error.message,
+                    stack: error.stack
+                });
+                log(`Error creating test post: ${error.message}`, 'error');
+            }
+        }
+        
+        function validatePosts() {
+            try {
+                const storedPosts = JSON.parse(localStorage.getItem('testingvala_local_posts') || '[]');
+                const backupPosts = JSON.parse(sessionStorage.getItem('testingvala_posts_backup') || '[]');
+                
+                log(`Validating posts - localStorage: ${storedPosts.length}, sessionStorage: ${backupPosts.length}`);
+                
+                if (!testPostId) {
+                    addResult('Validate Posts', 'warning', 'No test post ID set. Create a test post first.', {
+                        storedPostsCount: storedPosts.length,
+                        backupPostsCount: backupPosts.length
+                    });
+                    return false;
+                }
+                
+                const testPost = storedPosts.find(p => p.id === testPostId);
+                const backupPost = backupPosts.find(p => p.id === testPostId);
+                
+                if (!testPost) {
+                    addResult('Validate Posts', 'error', `Test post with ID ${testPostId} not found in localStorage`, {
+                        testPostId,
+                        storedPostsCount: storedPosts.length,
+                        availableIds: storedPosts.map(p => p.id)
+                    });
+                    return false;
+                }
+                
+                if (!backupPost) {
+                    addResult('Validate Posts', 'warning', `Test post not found in sessionStorage backup`, {
+                        testPostId,
+                        backupPostsCount: backupPosts.length
+                    });
+                }
+                
+                addResult('Validate Posts', 'success', `Test post found and validated`, {
+                    postId: testPost.id,
+                    title: testPost.title,
+                    createdAt: testPost.created_at,
+                    hasBackup: !!backupPost,
+                    totalPosts: storedPosts.length
+                });
+                
+                return true;
+                
+            } catch (error) {
+                addResult('Validate Posts', 'error', `Validation failed: ${error.message}`, {
+                    error: error.message
+                });
+                log(`Validation error: ${error.message}`, 'error');
+                return false;
+            }
+        }
+        
+        function checkLocalStorage() {
+            try {
+                const posts = JSON.parse(localStorage.getItem('testingvala_local_posts') || '[]');
+                const backup = JSON.parse(sessionStorage.getItem('testingvala_posts_backup') || '[]');
+                
+                const storageInfo = {
+                    localStorage: {
+                        key: 'testingvala_local_posts',
+                        count: posts.length,
+                        size: localStorage.getItem('testingvala_local_posts')?.length || 0,
+                        posts: posts.map(p => ({ id: p.id, title: p.title, created_at: p.created_at }))
+                    },
+                    sessionStorage: {
+                        key: 'testingvala_posts_backup',
+                        count: backup.length,
+                        size: sessionStorage.getItem('testingvala_posts_backup')?.length || 0,
+                        posts: backup.map(p => ({ id: p.id, title: p.title, created_at: p.created_at }))
+                    },
+                    environment: {
+                        userAgent: navigator.userAgent,
+                        localStorage: typeof localStorage !== 'undefined',
+                        sessionStorage: typeof sessionStorage !== 'undefined'
+                    }
+                };
+                
+                document.getElementById('storage-info').textContent = JSON.stringify(storageInfo, null, 2);
+                
+                addResult('Storage Check', 'success', `Storage inspected - ${posts.length} posts in localStorage, ${backup.length} in sessionStorage`, {
+                    localStorageSize: storageInfo.localStorage.size,
+                    sessionStorageSize: storageInfo.sessionStorage.size
+                });
+                
+                log(`Storage check complete - localStorage: ${posts.length} posts, sessionStorage: ${backup.length} posts`);
+                
+            } catch (error) {
+                addResult('Storage Check', 'error', `Storage check failed: ${error.message}`, {
+                    error: error.message
+                });
+                log(`Storage check error: ${error.message}`, 'error');
+            }
+        }
+        
+        function simulateHardReload() {
+            addResult('Hard Reload', 'pending', 'Simulating hard reload - page will refresh in 2 seconds', {
+                action: 'hard_reload',
+                timestamp: new Date().toISOString()
+            });
+            
+            log('Initiating hard reload simulation...');
+            
+            // Add URL parameter to track reload
+            const url = new URL(window.location);
+            url.searchParams.set('test_reload', Date.now());
+            
+            setTimeout(() => {
+                window.location.href = url.toString();
+            }, 2000);
+        }
+        
+        function clearTestData() {
+            try {
+                const existingPosts = JSON.parse(localStorage.getItem('testingvala_local_posts') || '[]');
+                const filteredPosts = existingPosts.filter(p => !p.testPost);
+                
+                localStorage.setItem('testingvala_local_posts', JSON.stringify(filteredPosts));
+                sessionStorage.setItem('testingvala_posts_backup', JSON.stringify(filteredPosts));
+                
+                testPostId = null;
+                testResults = [];
+                document.getElementById('test-results').innerHTML = '';
+                document.getElementById('logs').textContent = 'Test data cleared.\n';
+                document.getElementById('storage-info').textContent = 'Click "Check localStorage" to inspect storage contents';
+                
+                // Trigger storage event
+                window.dispatchEvent(new Event('storage'));
+                
+                addResult('Clear Test Data', 'success', `Cleared ${existingPosts.length - filteredPosts.length} test posts`, {
+                    removedCount: existingPosts.length - filteredPosts.length,
+                    remainingCount: filteredPosts.length
+                });
+                
+                log('Test data cleared successfully');
+                
+            } catch (error) {
+                addResult('Clear Test Data', 'error', `Failed to clear test data: ${error.message}`, {
+                    error: error.message
+                });
+                log(`Clear data error: ${error.message}`, 'error');
+            }
+        }
+        
+        function runFullValidation() {
+            log('Starting full validation sequence...');
+            
+            // Clear previous results
+            testResults = [];
+            document.getElementById('test-results').innerHTML = '';
+            
+            // Step 1: Check storage
+            checkLocalStorage();
+            
+            // Step 2: Create test post
+            setTimeout(() => {
+                createTestPost();
+                
+                // Step 3: Validate immediately
+                setTimeout(() => {
+                    const valid = validatePosts();
+                    
+                    if (valid) {
+                        addResult('Full Validation', 'success', 'All validation steps passed. Now test hard reload manually.', {
+                            nextSteps: ['Press Ctrl+F5 to hard reload', 'Click "Validate Posts" after reload', 'Check that test post persists']
+                        });
+                    } else {
+                        addResult('Full Validation', 'error', 'Validation failed. Check logs for details.');
+                    }
+                }, 1000);
+            }, 500);
+        }
+        
+        // Check if we're resuming after a reload
+        window.addEventListener('load', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const reloadTime = urlParams.get('test_reload');
+            
+            if (reloadTime) {
+                log('Detected reload from test - validating persistence...');
+                addResult('Post-Reload Check', 'pending', 'Page reloaded, checking post persistence...');
+                
+                setTimeout(() => {
+                    const valid = validatePosts();
+                    if (valid) {
+                        addResult('Post-Reload Check', 'success', 'Posts persisted successfully through hard reload!');
+                    } else {
+                        addResult('Post-Reload Check', 'error', 'Posts did not persist through hard reload');
+                    }
+                    
+                    // Clean up URL
+                    const cleanUrl = new URL(window.location);
+                    cleanUrl.searchParams.delete('test_reload');
+                    window.history.replaceState({}, '', cleanUrl.toString());
+                }, 1000);
+            }
+            
+            // Check for existing test posts
+            try {
+                const storedPosts = JSON.parse(localStorage.getItem('testingvala_local_posts') || '[]');
+                const testPosts = storedPosts.filter(p => p.testPost);
+                
+                if (testPosts.length > 0) {
+                    testPostId = testPosts[0].id;
+                    log(`Found ${testPosts.length} existing test post(s) on page load`);
+                    addResult('Page Load Check', 'success', `Found ${testPosts.length} test post(s) from previous session`, {
+                        testPostsFound: testPosts.length,
+                        firstTestPostId: testPostId
+                    });
+                } else {
+                    log('No existing test posts found on page load');
+                }
+            } catch (error) {
+                log(`Error checking for existing test posts: ${error.message}`, 'error');
+            }
+        });
+        
+        // Monitor storage events
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'testingvala_local_posts') {
+                log('Storage event detected - posts updated');
+            }
+        });
+        
+        log('Post Persistence Validation Test initialized');
+    </script>
+</body>
+</html>

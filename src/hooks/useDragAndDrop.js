@@ -61,27 +61,30 @@ export const useDragAndDrop = ({
       transition: all 0.2s ease;
     `;
     
-    preview.innerHTML = `
-      <div style="display: flex; align-items: center; gap: 8px;">
-        <div style="
-          width: 24px; 
-          height: 24px; 
-          background: linear-gradient(135deg, #0057B7, #0066CC); 
-          border-radius: 6px; 
-          display: flex; 
-          align-items: center; 
-          justify-content: center;
-        ">
-          <span style="color: white; font-size: 12px; font-weight: bold;">${index + 1}</span>
-        </div>
-        <div style="flex: 1; min-width: 0;">
-          <h4 style="font-weight: 600; color: #111827; margin: 0; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-            ${item.name || item.title || 'Item'}
-          </h4>
-          <p style="color: #0057B7; font-size: 12px; font-weight: 500; margin: 0;">Moving...</p>
-        </div>
-      </div>
-    `;
+    const container = document.createElement('div');
+    container.style.cssText = 'display: flex; align-items: center; gap: 8px;';
+    
+    const badge = document.createElement('div');
+    badge.style.cssText = 'width: 24px; height: 24px; background: linear-gradient(135deg, #0057B7, #0066CC); border-radius: 6px; display: flex; align-items: center; justify-content: center;';
+    const badgeText = document.createElement('span');
+    badgeText.style.cssText = 'color: white; font-size: 12px; font-weight: bold;';
+    badgeText.textContent = String(index + 1);
+    badge.appendChild(badgeText);
+    
+    const content = document.createElement('div');
+    content.style.cssText = 'flex: 1; min-width: 0;';
+    const title = document.createElement('h4');
+    title.style.cssText = 'font-weight: 600; color: #111827; margin: 0; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;';
+    title.textContent = item.name || item.title || 'Item';
+    const status = document.createElement('p');
+    status.style.cssText = 'color: #0057B7; font-size: 12px; font-weight: 500; margin: 0;';
+    status.textContent = 'Moving...';
+    
+    content.appendChild(title);
+    content.appendChild(status);
+    container.appendChild(badge);
+    container.appendChild(content);
+    preview.appendChild(container);
     
     document.body.appendChild(preview);
     preview.style.left = '-9999px';
@@ -219,14 +222,24 @@ export const useDragAndDrop = ({
     event.preventDefault();
     
     try {
-      const data = JSON.parse(event.dataTransfer.getData('text/plain'));
+      const rawData = event.dataTransfer.getData('text/plain');
+      if (!rawData || typeof rawData !== 'string') {
+        console.warn('Invalid drop data');
+        return;
+      }
       
-      if (data.type !== 'reorder') {
+      const data = JSON.parse(rawData);
+      
+      if (!data || typeof data !== 'object' || data.type !== 'reorder') {
         console.warn('Invalid drop data type');
         return;
       }
 
-      const draggedIndex = data.index;
+      const draggedIndex = parseInt(data.index, 10);
+      if (isNaN(draggedIndex)) {
+        console.warn('Invalid drag index');
+        return;
+      }
       
       if (draggedIndex !== dropIndex && 
           draggedIndex >= 0 && 

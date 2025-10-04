@@ -42,15 +42,7 @@ CREATE TABLE IF NOT EXISTS payment_requests (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS forum_posts (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    title TEXT NOT NULL,
-    content TEXT NOT NULL,
-    author_name TEXT NOT NULL,
-    author_email TEXT NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+-- forum_posts table is created in migration
 
 -- Create admin schema and tables
 CREATE SCHEMA IF NOT EXISTS admin;
@@ -134,10 +126,27 @@ INSERT INTO payment_requests (user_name, user_email, email, user_phone, transact
   ('John Doe', 'john@example.com', 'john@example.com', '+1987654321', 'TEST789012', 'pending')
 ON CONFLICT (id) DO NOTHING;
 
--- Test forum posts
-INSERT INTO forum_posts (title, content, author_name, author_email) VALUES 
-  ('Welcome to Local Development', 'This is a test forum post for local development environment.', 'Test Admin', 'admin@example.com'),
-  ('Testing Best Practices', 'Here are some testing tips for local development...', 'Test User', 'testuser@example.com')
+-- Test forum posts (using proper schema)
+INSERT INTO forum_posts (title, content, category_id, author_name, status) 
+SELECT 
+  'Welcome to Local Development', 
+  'This is a test forum post for local development environment.', 
+  c.id, 
+  'Test Admin', 
+  'active'
+FROM forum_categories c WHERE c.slug = 'general-discussion'
+LIMIT 1
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO forum_posts (title, content, category_id, author_name, status) 
+SELECT 
+  'Testing Best Practices', 
+  'Here are some testing tips for local development...', 
+  c.id, 
+  'Test User', 
+  'active'
+FROM forum_categories c WHERE c.slug = 'manual-testing'
+LIMIT 1
 ON CONFLICT (id) DO NOTHING;
 
 -- Admin test data

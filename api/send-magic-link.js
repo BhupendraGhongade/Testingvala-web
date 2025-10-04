@@ -104,11 +104,18 @@ export default async function handler(req, res) {
   const requestId = Math.random().toString(36).substring(2, 15);
   const startTime = Date.now();
   
-  // Set CORS headers
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  // Set secure CORS headers
+  const origin = req.headers.origin;
+  const allowedOrigins = ['https://testingvala.com', 'https://www.testingvala.com', 'http://localhost:5173'];
+  if (allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-CSRF-Token, X-Requested-With');
   res.setHeader('Content-Type', 'application/json');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
   
   // Handle preflight
   if (req.method === 'OPTIONS') {
@@ -144,8 +151,8 @@ export default async function handler(req, res) {
       });
     }
     
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    // Validate email format with safe regex
+    const emailRegex = new RegExp('^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$');
     if (!emailRegex.test(email)) {
       return res.status(400).json({ 
         error: 'Invalid email format',

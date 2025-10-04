@@ -5,8 +5,11 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Load the professional email template
-const templatePath = path.join(__dirname, 'templates', 'professional-email.html');
+// Load the modern email template with path validation
+const templatePath = path.resolve(__dirname, 'templates', 'modern-email.html');
+if (!templatePath.startsWith(path.resolve(__dirname))) {
+  throw new Error('Invalid template path');
+}
 const baseTemplate = fs.readFileSync(templatePath, 'utf8');
 
 // Template replacement function
@@ -44,15 +47,15 @@ export function getMagicLinkEmail(email, magicLink) {
 // Account Verification Email Template
 export function getVerificationEmail(email, verificationLink) {
   const variables = {
-    subject: 'Verify your TestingVala account',
-    preheader: 'Complete your account setup by verifying your email address',
+    subject: '🚀 Verify your TestingVala account',
+    preheader: 'One click to join the global QA excellence community',
     icon: '✅',
     title: 'Verify Your Account',
-    message: 'Thank you for joining TestingVala! To complete your account setup and start accessing our professional QA community, please verify your email address.',
-    additional_content: 'Once verified, you\'ll have full access to contests, resources, and our global QA network.',
+    message: 'Welcome to TestingVala! You\'re just one click away from joining our global community of QA professionals.',
+    additional_content: 'Click the button below to verify your email and unlock access to contests, resources, and networking opportunities.',
     cta_url: verificationLink,
-    cta_text: 'Verify Email Address',
-    security_message: 'This verification link expires in 24 hours. If you didn\'t create a TestingVala account, you can safely ignore this email.'
+    cta_text: 'Verify My Account',
+    security_message: 'This verification link expires in 24 hours for security. If you didn\'t sign up for TestingVala, please ignore this email.'
   };
   
   return {

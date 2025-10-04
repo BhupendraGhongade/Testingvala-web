@@ -4,19 +4,7 @@
 -- Create admin schema for admin-only tables
 CREATE SCHEMA IF NOT EXISTS admin;
 
--- Move admin-related tables to admin schema (if they exist)
-DO $$
-BEGIN
-    -- Move admin_sessions to admin schema
-    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'admin_sessions') THEN
-        ALTER TABLE public.admin_sessions SET SCHEMA admin;
-    END IF;
-    
-    -- Move payment_config to admin schema  
-    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'payment_config') THEN
-        ALTER TABLE public.payment_config SET SCHEMA admin;
-    END IF;
-END $$;
+-- Tables are already created in admin schema in first migration
 
 -- Ensure proper RLS policies
 ALTER TABLE IF EXISTS admin.admin_sessions ENABLE ROW LEVEL SECURITY;
