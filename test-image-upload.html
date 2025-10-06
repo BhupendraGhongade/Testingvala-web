@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Image Upload</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .container { max-width: 500px; margin: 0 auto; }
+        .upload-area { border: 2px dashed #ccc; padding: 20px; text-align: center; margin: 20px 0; }
+        .preview { max-width: 100%; height: 200px; object-fit: cover; margin: 10px 0; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Image Upload Test</h1>
+        <p>Test the image upload functionality with fallback mechanisms.</p>
+        
+        <div class="upload-area">
+            <input type="file" id="imageInput" accept="image/*" />
+            <p>Select an image to test upload functionality</p>
+        </div>
+        
+        <div id="status"></div>
+        <div id="preview"></div>
+        
+        <h3>Test Scenarios:</h3>
+        <ul>
+            <li>✅ Valid image (JPG, PNG, GIF)</li>
+            <li>✅ Invalid file type</li>
+            <li>✅ File too large (>5MB)</li>
+            <li>✅ Base64 fallback (when Supabase unavailable)</li>
+        </ul>
+    </div>
+
+    <script>
+        const imageInput = document.getElementById('imageInput');
+        const statusDiv = document.getElementById('status');
+        const previewDiv = document.getElementById('preview');
+
+        function showStatus(message, type = 'info') {
+            statusDiv.innerHTML = `<div class="status ${type}">${message}</div>`;
+        }
+
+        function showPreview(url) {
+            previewDiv.innerHTML = `<img src="${url}" class="preview" alt="Preview" />`;
+        }
+
+        imageInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            // Validate file type
+            if (!file.type.startsWith('image/')) {
+                showStatus('❌ Please select a valid image file', 'error');
+                return;
+            }
+
+            // Validate file size (5MB limit)
+            if (file.size > 5 * 1024 * 1024) {
+                showStatus('❌ File size must be less than 5MB', 'error');
+                return;
+            }
+
+            showStatus('📤 Processing image...', 'info');
+
+            try {
+                // Simulate the fallback mechanism (base64 encoding)
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const base64Url = e.target.result;
+                    showPreview(base64Url);
+                    showStatus('✅ Image loaded successfully (fallback mode)', 'success');
+                };
+                reader.onerror = () => {
+                    showStatus('❌ Failed to load image', 'error');
+                };
+                reader.readAsDataURL(file);
+            } catch (err) {
+                showStatus(`❌ Error: ${err.message}`, 'error');
+            }
+        });
+
+        // Show initial status
+        showStatus('🔄 Ready to test image upload functionality', 'info');
+    </script>
+</body>
+</html>

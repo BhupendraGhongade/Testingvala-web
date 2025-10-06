@@ -1,0 +1,117 @@
+{
+  "name": "TestingVala - Professional QA Community",
+  "short_name": "TestingVala",
+  "description": "Professional Software Testing Community Platform for QA experts worldwide",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#FF6600",
+  "background_color": "#ffffff",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": ["productivity", "education", "business"],
+  "screenshots": [
+    {
+      "src": "/testingvala-logo.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide"
+    }
+  ],
+  "icons": [
+    {
+      "src": "/testingvala-symbol.svg",
+      "sizes": "72x72",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/testingvala-symbol.svg",
+      "sizes": "96x96",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/testingvala-symbol.svg",
+      "sizes": "128x128",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/testingvala-symbol.svg",
+      "sizes": "144x144",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/testingvala-symbol.svg",
+      "sizes": "152x152",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/testingvala-symbol.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/testingvala-symbol.svg",
+      "sizes": "384x384",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/testingvala-symbol.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Community Hub",
+      "short_name": "Community",
+      "description": "Access the QA community discussions",
+      "url": "/#community",
+      "icons": [{ "src": "/testingvala-symbol.svg", "sizes": "192x192" }]
+    },
+    {
+      "name": "Current Contest",
+      "short_name": "Contest",
+      "description": "View current QA contest",
+      "url": "/#contest",
+      "icons": [{ "src": "/testingvala-symbol.svg", "sizes": "192x192" }]
+    },
+    {
+      "name": "AI Resume Builder",
+      "short_name": "Resume",
+      "description": "Build professional resume with AI",
+      "url": "/resume-builder",
+      "icons": [{ "src": "/testingvala-symbol.svg", "sizes": "192x192" }]
+    }
+  ],
+  "share_target": {
+    "action": "/share",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  },
+  "protocol_handlers": [
+    {
+      "protocol": "web+testingvala",
+      "url": "/?handler=%s"
+    }
+  ],
+  "edge_side_panel": {
+    "preferred_width": 400
+  },
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  }
+}

@@ -2,14 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Sparkles, FileText, CreditCard, CheckCircle, Crown, Zap, Clock, Star, AlertCircle, Download, X, Copy } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { supabase } from '../lib/supabase';
+import AuthModal from './AuthModal';
+import { useAuth } from '../contexts/AuthContext';
 
 const AIResumeBuilderPage = ({ onBack, userEmail }) => {
+  const { user, isVerified } = useAuth();
   const [step, setStep] = useState('check'); // check, payment, builder
   const [subscription, setSubscription] = useState(null);
   const [paymentConfig, setPaymentConfig] = useState(null);
   const [jobDescription, setJobDescription] = useState('');
   const [generatedResume, setGeneratedResume] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
   const [pendingPayment, setPendingPayment] = useState(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -21,18 +25,32 @@ const AIResumeBuilderPage = ({ onBack, userEmail }) => {
   });
 
   useEffect(() => {
-    if (userEmail) {
+    if (!user || !isVerified) {
+      setShowAuthModal(true);
+      return;
+    }
+    
+    const currentUserEmail = user?.email || userEmail;
+    if (currentUserEmail) {
       checkSubscription();
       loadPaymentConfig();
     }
-  }, [userEmail]);
+  }, [user, isVerified, userEmail]);
+
+  const handleAuthSuccess = () => {
+    setShowAuthModal(false);
+    toast.success('Welcome! You can now access the AI Resume Builder.');
+  };
 
   const checkSubscription = async () => {
+    const currentUserEmail = user?.email || userEmail;
+    if (!currentUserEmail) return;
+    
     try {
       const { data: activeData } = await supabase
         .from('premium_users')
         .select('*')
-        .eq('user_email', userEmail)
+        .eq('user_email', currentUserEmail)
         .gt('expires_at', new Date().toISOString())
         .single();
       
@@ -45,7 +63,7 @@ const AIResumeBuilderPage = ({ onBack, userEmail }) => {
       const { data: pendingData } = await supabase
         .from('payment_requests')
         .select('*')
-        .eq('user_email', userEmail)
+        .eq('user_email', currentUserEmail)
         .eq('status', 'pending')
         .order('created_at', { ascending: false })
         .limit(1)
@@ -80,12 +98,13 @@ const AIResumeBuilderPage = ({ onBack, userEmail }) => {
       return;
     }
 
+    const currentUserEmail = user?.email || userEmail;
     setIsGenerating(true);
     try {
       const mockResume = {
         personal: {
           name: 'Professional Name',
-          email: userEmail,
+          email: currentUserEmail,
           phone: '+91 XXXXXXXXXX',
           location: 'City, Country'
         },
@@ -110,7 +129,7 @@ const AIResumeBuilderPage = ({ onBack, userEmail }) => {
       };
 
       await supabase.from('ai_resume_generations').insert({
-        user_email: userEmail,
+        user_email: currentUserEmail,
         job_description: jobDescription,
         generated_resume: mockResume
       });
@@ -126,32 +145,9 @@ const AIResumeBuilderPage = ({ onBack, userEmail }) => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={onBack}
-                className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all duration-200 group"
-              >
-                <svg className="w-5 h-5 group-hover:-translate-x-0.5 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-                <span className="font-medium">Back</span>
-              </button>
-              <div className="w-px h-6 bg-gray-300"></div>
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-gradient-to-br from-purple-600 to-pink-600 rounded-lg flex items-center justify-center">
-                  <Zap className="w-5 h-5 text-white" />
-                </div>
-                <h1 className="text-xl font-bold text-gray-900">AI Resume Builder</h1>
-              </div>
-            </div>
-            <div className="w-16"></div>
-          </div>
-        </div>
-      </div>
+
+
+
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -355,7 +351,7 @@ const AIResumeBuilderPage = ({ onBack, userEmail }) => {
 
       {/* Payment Modal */}
       {showPaymentModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4" style={{ zIndex: 50000 }}>
           <div className="bg-white rounded-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
@@ -386,7 +382,7 @@ const AIResumeBuilderPage = ({ onBack, userEmail }) => {
                     <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
                     <input
                       type="email"
-                      value={userEmail}
+                      value={user?.email || userEmail}
                       disabled
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
                     />
@@ -479,7 +475,7 @@ const AIResumeBuilderPage = ({ onBack, userEmail }) => {
                       try {
                         await supabase.from('payment_requests').insert({
                           user_name: paymentForm.name,
-                          user_email: userEmail,
+                          user_email: user?.email || userEmail,
                           user_phone: paymentForm.phone,
                           transaction_id: paymentForm.transactionId
                         });
@@ -502,6 +498,14 @@ const AIResumeBuilderPage = ({ onBack, userEmail }) => {
           </div>
         </div>
       )}
+      
+      {/* Authentication Modal */}
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        onSuccess={handleAuthSuccess}
+        action="resume"
+      />
     </div>
   );
 };

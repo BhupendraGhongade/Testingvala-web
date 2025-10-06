@@ -2,42 +2,377 @@
 // This version works with existing dependencies only
 
 export const resumeTemplates = {
-  modern: {
-    name: 'Modern Professional',
-    colors: {
-      primary: '#1a365d',
-      secondary: '#2c5282',
-      accent: '#3182ce'
-    }
+  // Modern Minimalist Series
+  modernMinimal: {
+    name: 'Modern Minimalist',
+    category: 'Minimalist',
+    level: 'All Levels',
+    colors: { primary: '#000000', secondary: '#333333', accent: '#666666' },
+    layout: 'single-column'
   },
-  executive: {
-    name: 'Executive Premium', 
-    colors: {
-      primary: '#2d3748',
-      secondary: '#4a5568',
-      accent: '#d69e2e'
-    }
+  cleanWhite: {
+    name: 'Clean White Space',
+    category: 'Minimalist', 
+    level: 'All Levels',
+    colors: { primary: '#1a1a1a', secondary: '#404040', accent: '#737373' },
+    layout: 'single-column'
   },
-  ats: {
+  
+  // Tech Professional Series
+  techPro: {
+    name: 'Tech Professional',
+    category: 'Technical',
+    level: 'Mid-Senior',
+    colors: { primary: '#2c3e50', secondary: '#34495e', accent: '#7f8c8d' },
+    layout: 'single-column'
+  },
+  qaSpecialist: {
+    name: 'QA Specialist',
+    category: 'Technical',
+    level: 'All Levels', 
+    colors: { primary: '#1e3a8a', secondary: '#3b82f6', accent: '#93c5fd' },
+    layout: 'single-column'
+  },
+  
+  // Two-Column Modern Series
+  twoColumnModern: {
+    name: 'Two-Column Modern',
+    category: 'Two-Column',
+    level: 'All Levels',
+    colors: { primary: '#000000', secondary: '#333333', accent: '#666666' },
+    layout: 'two-column'
+  },
+  skillsSidebar: {
+    name: 'Skills Sidebar',
+    category: 'Two-Column',
+    level: 'Mid-Senior',
+    colors: { primary: '#1f2937', secondary: '#374151', accent: '#6b7280' },
+    layout: 'two-column'
+  },
+  
+  // Timeline & Experience Focus
+  timelineExp: {
+    name: 'Timeline Experience',
+    category: 'Timeline',
+    level: 'Mid-Senior',
+    colors: { primary: '#000000', secondary: '#333333', accent: '#666666' },
+    layout: 'timeline'
+  },
+  projectFlow: {
+    name: 'QA Project Flow',
+    category: 'Timeline',
+    level: 'Senior',
+    colors: { primary: '#1a1a1a', secondary: '#404040', accent: '#737373' },
+    layout: 'timeline'
+  },
+  
+  // Bold Accent Series
+  boldAccent: {
+    name: 'Bold Accent',
+    category: 'Accent',
+    level: 'All Levels',
+    colors: { primary: '#000000', secondary: '#1f2937', accent: '#3b82f6' },
+    layout: 'single-column'
+  },
+  skillsHighlight: {
+    name: 'Skills Highlight',
+    category: 'Accent',
+    level: 'Mid-Senior',
+    colors: { primary: '#1a1a1a', secondary: '#2d3748', accent: '#4299e1' },
+    layout: 'single-column'
+  },
+  
+  // Automation Focused
+  automationPro: {
+    name: 'Automation Professional',
+    category: 'Automation',
+    level: 'Mid-Senior',
+    colors: { primary: '#000000', secondary: '#333333', accent: '#059669' },
+    layout: 'single-column'
+  },
+  sdetFocus: {
+    name: 'SDET Focused',
+    category: 'Automation',
+    level: 'Senior',
+    colors: { primary: '#1f2937', secondary: '#374151', accent: '#10b981' },
+    layout: 'single-column'
+  },
+  frameworkExpert: {
+    name: 'Framework Expert',
+    category: 'Automation',
+    level: 'Senior',
+    colors: { primary: '#000000', secondary: '#2d3748', accent: '#38a169' },
+    layout: 'single-column'
+  },
+  
+  // Executive QA Series
+  executiveQA: {
+    name: 'Executive QA',
+    category: 'Executive',
+    level: 'Senior-Lead',
+    colors: { primary: '#000000', secondary: '#1a1a1a', accent: '#4a4a4a' },
+    layout: 'executive'
+  },
+  qaManager: {
+    name: 'QA Manager',
+    category: 'Executive',
+    level: 'Lead-Manager',
+    colors: { primary: '#1f2937', secondary: '#374151', accent: '#6b7280' },
+    layout: 'executive'
+  },
+  qualityDirector: {
+    name: 'Quality Director',
+    category: 'Executive',
+    level: 'Director',
+    colors: { primary: '#000000', secondary: '#2d2d2d', accent: '#595959' },
+    layout: 'executive'
+  },
+  
+  // Creative Yet ATS-Safe
+  creativeATS: {
+    name: 'Creative ATS-Safe',
+    category: 'Creative',
+    level: 'All Levels',
+    colors: { primary: '#2d3748', secondary: '#4a5568', accent: '#718096' },
+    layout: 'creative'
+  },
+  modernCreative: {
+    name: 'Modern Creative',
+    category: 'Creative',
+    level: 'Mid-Senior',
+    colors: { primary: '#1a202c', secondary: '#2d3748', accent: '#4a5568' },
+    layout: 'creative'
+  },
+  
+  // Global CV Formats
+  globalUS: {
+    name: 'Global US Format',
+    category: 'Global',
+    level: 'All Levels',
+    colors: { primary: '#000000', secondary: '#333333', accent: '#666666' },
+    layout: 'us-format'
+  },
+  globalEU: {
+    name: 'Global EU Format',
+    category: 'Global',
+    level: 'All Levels',
+    colors: { primary: '#1a1a1a', secondary: '#404040', accent: '#737373' },
+    layout: 'eu-format'
+  },
+  globalIndia: {
+    name: 'Global India Format',
+    category: 'Global',
+    level: 'All Levels',
+    colors: { primary: '#000000', secondary: '#2d2d2d', accent: '#595959' },
+    layout: 'india-format'
+  },
+  
+  // Fresh Graduate Series
+  freshGrad: {
+    name: 'Fresh Graduate QA',
+    category: 'Entry-Level',
+    level: 'Fresher',
+    colors: { primary: '#1f2937', secondary: '#374151', accent: '#6b7280' },
+    layout: 'entry-level'
+  },
+  juniorTester: {
+    name: 'Junior Tester',
+    category: 'Entry-Level',
+    level: 'Junior',
+    colors: { primary: '#000000', secondary: '#333333', accent: '#4299e1' },
+    layout: 'entry-level'
+  },
+  
+  // Specialized QA Roles
+  performanceTester: {
+    name: 'Performance Tester',
+    category: 'Specialized',
+    level: 'Mid-Senior',
+    colors: { primary: '#000000', secondary: '#2d3748', accent: '#ed8936' },
+    layout: 'specialized'
+  },
+  securityTester: {
+    name: 'Security Tester',
+    category: 'Specialized',
+    level: 'Senior',
+    colors: { primary: '#1a202c', secondary: '#2d3748', accent: '#e53e3e' },
+    layout: 'specialized'
+  },
+  mobileTester: {
+    name: 'Mobile QA Tester',
+    category: 'Specialized',
+    level: 'Mid-Senior',
+    colors: { primary: '#000000', secondary: '#333333', accent: '#805ad5' },
+    layout: 'specialized'
+  },
+  
+  // ATS Optimized Series
+  atsOptimized: {
     name: 'ATS Optimized',
-    colors: {
-      primary: '#000000',
-      secondary: '#333333',
-      accent: '#666666'
-    }
+    category: 'ATS',
+    level: 'All Levels',
+    colors: { primary: '#000000', secondary: '#333333', accent: '#666666' },
+    layout: 'ats-optimized'
   },
-  creative: {
-    name: 'Creative Tech',
-    colors: {
-      primary: '#553c9a',
-      secondary: '#7c3aed',
-      accent: '#8b5cf6'
+  aiScannerFriendly: {
+    name: 'AI Scanner Friendly',
+    category: 'ATS',
+    level: 'All Levels',
+    colors: { primary: '#1a1a1a', secondary: '#404040', accent: '#737373' },
+    layout: 'ats-optimized'
+  }
+};
+
+// Template-specific CSS generators
+const getTemplateCSS = (templateConfig) => {
+  const { layout, colors } = templateConfig;
+  
+  const baseCSS = `
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+      line-height: 1.6; 
+      color: #333; 
+      max-width: 8.5in;
+      margin: 0 auto;
+      padding: 0.5in;
+      background: white;
     }
+    .header { 
+      text-align: center; 
+      margin-bottom: 30px; 
+      padding-bottom: 20px;
+    }
+    .name { 
+      font-size: 28px; 
+      font-weight: 700; 
+      color: ${colors.primary}; 
+      margin-bottom: 8px;
+      letter-spacing: -0.5px;
+    }
+    .title { 
+      font-size: 18px; 
+      color: ${colors.secondary}; 
+      margin-bottom: 10px;
+      font-weight: 500;
+    }
+    .contact { 
+      font-size: 12px; 
+      color: #666; 
+      line-height: 1.4;
+    }
+    .section { 
+      margin-bottom: 25px; 
+    }
+    .section-title { 
+      font-size: 16px; 
+      font-weight: 700; 
+      color: ${colors.primary}; 
+      text-transform: uppercase; 
+      padding-bottom: 5px;
+      margin-bottom: 15px;
+      letter-spacing: 0.5px;
+    }
+    .content { 
+      font-size: 12px; 
+      line-height: 1.5;
+    }
+    .experience-item, .project-item, .education-item { 
+      margin-bottom: 15px; 
+    }
+    .item-header { 
+      font-weight: 600; 
+      color: ${colors.primary};
+      margin-bottom: 6px;
+      font-size: 13px;
+    }
+    .item-details { 
+      font-style: italic; 
+      color: #666; 
+      margin-bottom: 5px;
+      font-size: 11px;
+    }
+    .achievements { 
+      margin-left: 15px; 
+    }
+    .achievement { 
+      margin-bottom: 3px;
+      font-size: 11px;
+    }
+    .skills-grid { 
+      display: grid; 
+      grid-template-columns: 1fr 1fr; 
+      gap: 10px;
+    }
+    .skill-category { 
+      margin-bottom: 10px;
+    }
+    .skill-category-title { 
+      font-weight: 600; 
+      color: ${colors.primary};
+      margin-bottom: 6px;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    .competencies { 
+      display: flex; 
+      flex-wrap: wrap; 
+      gap: 8px;
+    }
+    .competency { 
+      background: #f8f8f8; 
+      padding: 4px 8px; 
+      border-radius: 3px; 
+      font-size: 11px;
+      border: 1px solid #e0e0e0;
+      color: ${colors.primary};
+      font-weight: 400;
+    }
+    @media print {
+      body { margin: 0; padding: 0.3in; }
+      .section { page-break-inside: avoid; }
+    }
+  `;
+  
+  // Layout-specific CSS
+  switch (layout) {
+    case 'two-column':
+      return baseCSS + `
+        .resume-container { display: grid; grid-template-columns: 1fr 2fr; gap: 30px; }
+        .sidebar { background: #f9f9f9; padding: 20px; border-radius: 5px; }
+        .main-content { padding-left: 20px; }
+        .section-title { border-bottom: 2px solid ${colors.accent}; }
+      `;
+    case 'timeline':
+      return baseCSS + `
+        .experience-item { position: relative; padding-left: 20px; border-left: 2px solid ${colors.accent}; }
+        .experience-item::before { content: ''; position: absolute; left: -6px; top: 5px; width: 10px; height: 10px; background: ${colors.primary}; border-radius: 50%; }
+        .section-title { border-bottom: 3px solid ${colors.primary}; }
+      `;
+    case 'executive':
+      return baseCSS + `
+        .header { border-bottom: 3px solid ${colors.primary}; }
+        .section-title { font-size: 18px; border-bottom: 2px solid ${colors.primary}; }
+        .name { font-size: 32px; }
+        .title { font-size: 20px; }
+      `;
+    case 'creative':
+      return baseCSS + `
+        .header { background: linear-gradient(135deg, #f8f9fa, #e9ecef); padding: 25px; border-radius: 8px; }
+        .section-title { position: relative; }
+        .section-title::after { content: ''; position: absolute; bottom: -2px; left: 0; width: 40px; height: 2px; background: ${colors.accent}; }
+      `;
+    default:
+      return baseCSS + `
+        .header { border-bottom: 1px solid ${colors.primary}; }
+        .section-title { border-bottom: 1px solid ${colors.accent}; }
+      `;
   }
 };
 
 // Generate HTML resume for preview and printing
-export const generateHTMLResume = (resumeData, template = 'modern', sectionsEnabled = {}) => {
+export const generateHTMLResume = (resumeData, template = 'modernMinimal', sectionsEnabled = {}) => {
   const templateConfig = resumeTemplates[template];
   
   const html = `
@@ -47,102 +382,7 @@ export const generateHTMLResume = (resumeData, template = 'modern', sectionsEnab
       <meta charset="UTF-8">
       <title>${resumeData.personal.name || 'Resume'} - QA Resume</title>
       <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { 
-          font-family: Arial, sans-serif; 
-          line-height: 1.6; 
-          color: #333; 
-          max-width: 8.5in;
-          margin: 0 auto;
-          padding: 0.5in;
-          background: white;
-        }
-        .header { 
-          text-align: center; 
-          margin-bottom: 30px; 
-          border-bottom: 2px solid ${templateConfig.colors.primary};
-          padding-bottom: 20px;
-        }
-        .name { 
-          font-size: 28px; 
-          font-weight: bold; 
-          color: ${templateConfig.colors.primary}; 
-          margin-bottom: 5px;
-        }
-        .title { 
-          font-size: 18px; 
-          color: ${templateConfig.colors.secondary}; 
-          margin-bottom: 10px;
-        }
-        .contact { 
-          font-size: 12px; 
-          color: #666; 
-          line-height: 1.4;
-        }
-        .section { 
-          margin-bottom: 25px; 
-        }
-        .section-title { 
-          font-size: 16px; 
-          font-weight: bold; 
-          color: ${templateConfig.colors.primary}; 
-          text-transform: uppercase; 
-          border-bottom: 1px solid ${templateConfig.colors.accent};
-          padding-bottom: 5px;
-          margin-bottom: 15px;
-        }
-        .content { 
-          font-size: 12px; 
-          line-height: 1.5;
-        }
-        .experience-item, .project-item, .education-item { 
-          margin-bottom: 15px; 
-        }
-        .item-header { 
-          font-weight: bold; 
-          color: ${templateConfig.colors.secondary};
-          margin-bottom: 5px;
-        }
-        .item-details { 
-          font-style: italic; 
-          color: #666; 
-          margin-bottom: 5px;
-        }
-        .achievements { 
-          margin-left: 15px; 
-        }
-        .achievement { 
-          margin-bottom: 3px; 
-        }
-        .skills-grid { 
-          display: grid; 
-          grid-template-columns: 1fr 1fr; 
-          gap: 10px;
-        }
-        .skill-category { 
-          margin-bottom: 10px;
-        }
-        .skill-category-title { 
-          font-weight: bold; 
-          color: ${templateConfig.colors.secondary};
-          margin-bottom: 5px;
-        }
-        .competencies { 
-          display: flex; 
-          flex-wrap: wrap; 
-          gap: 8px;
-        }
-        .competency { 
-          background: ${templateConfig.colors.accent}20; 
-          padding: 4px 8px; 
-          border-radius: 4px; 
-          font-size: 11px;
-          border: 1px solid ${templateConfig.colors.accent};
-        }
-        @media print {
-          body { margin: 0; padding: 0.3in; }
-          .section { page-break-inside: avoid; }
-        }
+        ${getTemplateCSS(templateConfig)}
       </style>
     </head>
     <body>

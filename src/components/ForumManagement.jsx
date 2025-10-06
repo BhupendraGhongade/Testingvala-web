@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Search, Filter, Trash2, Edit2, Eye, EyeOff, MessageSquare, Heart, Calendar, User, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
+import ConfirmationModal from './ConfirmationModal';
 
 const ForumManagement = () => {
   const [posts, setPosts] = useState([]);
@@ -13,6 +14,8 @@ const ForumManagement = () => {
     active: 0,
     reported: 0
   });
+  const [showDeleteModal, setShowDeleteModal] = useState(null);
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
 
   useEffect(() => {
     fetchPosts();
@@ -51,17 +54,25 @@ const ForumManagement = () => {
 
 
   const deletePost = async (postId) => {
-    if (!confirm('Are you sure you want to permanently delete this post?')) return;
+    const post = posts.find(p => p.id === postId);
+    if (!post) return;
+    
+    setShowDeleteModal(post);
+  };
+
+  const confirmDeletePost = async () => {
+    if (!showDeleteModal) return;
     
     try {
       const { error } = await supabase
         .from('forum_posts')
         .delete()
-        .eq('id', postId);
+        .eq('id', showDeleteModal.id);
 
       if (error) throw error;
 
-      setPosts(prev => prev.filter(post => post.id !== postId));
+      setPosts(prev => prev.filter(post => post.id !== showDeleteModal.id));
+      setShowDeleteModal(null);
       toast.success('Post deleted permanently');
       fetchPosts(); // Refresh stats
     } catch (error) {
@@ -76,8 +87,10 @@ const ForumManagement = () => {
       return;
     }
 
-    if (!confirm(`Delete ${selectedPosts.size} selected posts permanently?`)) return;
+    setShowBulkDeleteModal(true);
+  };
 
+  const confirmBulkDelete = async () => {
     try {
       const postIds = Array.from(selectedPosts);
       const { error } = await supabase
@@ -89,6 +102,7 @@ const ForumManagement = () => {
 
       setPosts(prev => prev.filter(post => !selectedPosts.has(post.id)));
       setSelectedPosts(new Set());
+      setShowBulkDeleteModal(false);
       toast.success(`${postIds.length} posts deleted`);
       fetchPosts();
     } catch (error) {
@@ -320,6 +334,32 @@ const ForumManagement = () => {
       <div className="text-sm text-gray-500 text-center">
         Showing {filteredPosts.length} of {posts.length} posts
       </div>
+
+      {/* Delete Post Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={!!showDeleteModal}
+        onClose={() => setShowDeleteModal(null)}
+        onConfirm={confirmDeletePost}
+        title="Delete Post"
+        message="Are you sure you want to permanently delete this post? This action cannot be undone."
+        confirmText="Delete Post"
+        cancelText="Cancel"
+        type="danger"
+        itemName={showDeleteModal?.title}
+        itemDescription={`By ${showDeleteModal?.user_profiles?.full_name || showDeleteModal?.user_profiles?.username || 'Anonymous'} • ${showDeleteModal?.forum_categories?.name || 'Uncategorized'}`}
+      />
+
+      {/* Bulk Delete Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showBulkDeleteModal}
+        onClose={() => setShowBulkDeleteModal(false)}
+        onConfirm={confirmBulkDelete}
+        title="Delete Multiple Posts"
+        message={`Are you sure you want to permanently delete ${selectedPosts.size} selected posts? This action cannot be undone.`}
+        confirmText={`Delete ${selectedPosts.size} Posts`}
+        cancelText="Cancel"
+        type="danger"
+      />
     </div>
   );
 };

@@ -8,3 +8,50 @@ dist/
 *.log
 .vscode/
 .idea/
+
+# Temporary files
+*.tmp
+*.backup
+*-backup.*
+dev.log
+
+# Cleanup files
+CLEANUP_*.md
+FINAL_*.md
+# Supabase
+.env.local
+supabase/.temp
+supabase/.branches
+supabase/.git
+
+# Backups (keep local, don't commit)
+backups/
+
+# Dependencies
+node_modules/
+
+# Environment files
+.env
+.env.production
+
+# Logs
+*.log
+npm-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db

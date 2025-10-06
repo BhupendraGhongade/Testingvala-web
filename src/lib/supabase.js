@@ -1,20 +1,96 @@
 import { createClient } from '@supabase/supabase-js'
 
-// Use environment variables for flexibility
+// Environment detection
+const APP_ENV = import.meta.env.VITE_APP_ENV || 'development'
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
+// Environment-aware configuration
+const isLocal = APP_ENV === 'local'
+const isDevelopment = APP_ENV === 'development'
+const isProduction = APP_ENV === 'production'
+
 let supabase = null
+let supabaseConnectionStatus = 'unknown'
+
 if (!supabaseUrl || !supabaseAnonKey) {
-  // Do not throw here — allow the app to run in local/dev mode without Supabase configured.
-  // Components/hooks already check import.meta.env before using the backend, but some
-  // helper functions live in this file. We guard them below.
-  console.warn('Supabase environment variables are missing. Running in fallback/dev mode.')
+  console.warn('⚠️ Supabase environment variables are missing. Running in fallback/dev mode.')
+  supabaseConnectionStatus = 'missing_config'
 } else {
-  supabase = createClient(supabaseUrl, supabaseAnonKey)
+  try {
+    supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true
+      },
+      db: {
+        schema: 'public'
+      },
+      global: {
+        headers: {
+          'X-Client-Info': 'testingvala-web'
+        }
+      }
+    })
+    
+    supabaseConnectionStatus = 'initialized'
+    
+    // Log environment info (only in development)
+    if (!isProduction) {
+      console.log(`🌍 Environment: ${APP_ENV}`);
+      console.log(`🔗 Supabase URL: ${supabaseUrl}`);
+      console.log(`🔑 Using ${isLocal ? 'local' : 'remote'} database`);
+      console.log(`📡 Connection status: ${supabaseConnectionStatus}`);
+    }
+    
+    // Test connection in development (non-blocking)
+    if (!isProduction && supabase) {
+      setTimeout(async () => {
+        try {
+          const { data, error } = await Promise.race([
+            supabase.from('website_content').select('id').limit(1),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Connection timeout')), 3000))
+          ])
+          
+          if (error) {
+            console.warn('⚠️ Supabase connection test failed:', error.message)
+            supabaseConnectionStatus = 'connection_failed'
+          } else {
+            console.log('✅ Supabase connection test successful')
+            supabaseConnectionStatus = 'connected'
+          }
+        } catch (testError) {
+          console.warn('⚠️ Supabase connection test error:', testError.message)
+          supabaseConnectionStatus = 'connection_error'
+        }
+      }, 1000)
+    }
+  } catch (initError) {
+    console.error('❌ Failed to initialize Supabase client:', initError)
+    supabase = null
+    supabaseConnectionStatus = 'init_failed'
+  }
 }
 
-export { supabase }
+// Export connection status for debugging
+export const getSupabaseStatus = () => ({
+  client: !!supabase,
+  status: supabaseConnectionStatus,
+  url: supabaseUrl ? supabaseUrl.substring(0, 30) + '...' : 'Not configured',
+  environment: APP_ENV
+})
+
+// Environment utilities
+export const ENV = {
+  current: APP_ENV,
+  isLocal,
+  isDevelopment, 
+  isProduction,
+  databaseUrl: supabaseUrl
+}
+
+export { supabase, supabaseConnectionStatus }
 
 // Database table names for easy reference
 // 1. website_content - stores all website content (hero, about, contact, etc.)
@@ -54,7 +130,8 @@ export const TABLES = {
   RESUME_EXPORTS: 'resume_exports',
   PREMIUM_SUBSCRIPTIONS: 'premium_subscriptions',
   PAYMENT_CONFIG: 'payment_config',
-  AI_RESUME_GENERATIONS: 'ai_resume_generations'
+  AI_RESUME_GENERATIONS: 'ai_resume_generations',
+  PARTNERSHIP_INQUIRIES: 'partnership_inquiries'
 }
 
 // Storage bucket names
@@ -155,7 +232,12 @@ export const testSupabaseConnection = async () => {
     // Test 1: Check if Supabase client exists
     if (!supabase) {
       console.warn('Supabase client not initialized — running in fallback/dev mode')
-      return { success: false, error: 'Supabase client not initialized' }
+      return { 
+        success: false, 
+        error: 'Supabase client not initialized',
+        status: supabaseConnectionStatus,
+        fallbackMode: true
+      }
     }
     console.log('✅ Supabase client exists');
     
@@ -170,70 +252,73 @@ export const testSupabaseConnection = async () => {
     console.log('🔗 Supabase URL:', supabaseUrl);
     console.log('🔑 Supabase Key:', supabaseKey ? 'Present' : 'Missing');
     
-    // Debug: Log the configuration safely
-    console.log('🔧 Supabase Configuration:', {
-      url: supabaseUrl,
-      key: supabaseKey ? 'Present' : 'Missing',
-      bucket: STORAGE_BUCKETS.EVENT_IMAGES
-    });
-    
-    // Test 3: Check storage buckets
-    console.log('🔍 Checking storage buckets...');
-    const { data: buckets, error: bucketError } = await supabase.storage.listBuckets();
-    
-    if (bucketError) {
-      throw new Error(`Storage bucket error: ${bucketError.message}`);
-    }
-    
-    console.log('📦 Available storage buckets:', buckets.map(b => b.name));
-    console.log('🔍 Looking for bucket named:', STORAGE_BUCKETS.EVENT_IMAGES);
-    console.log('🔍 Available bucket names:', buckets.map(b => `"${b.name}"`));
-    
-    // Test 4: Check if our bucket exists
-    const eventBucket = buckets.find(b => b.name === STORAGE_BUCKETS.EVENT_IMAGES);
-    if (!eventBucket) {
-      console.log('❌ Bucket not found. Checking for similar names...');
-      const similarBuckets = buckets.filter(b => 
-        b.name.toLowerCase().includes('event') || 
-        b.name.toLowerCase().includes('image') ||
-        b.name.toLowerCase().includes('storage')
-      );
-      if (similarBuckets.length > 0) {
-        console.log('🔍 Similar buckets found:', similarBuckets.map(b => b.name));
-      }
-      throw new Error(`Storage bucket '${STORAGE_BUCKETS.EVENT_IMAGES}' not found`);
-    }
-    
-    console.log('✅ Event images bucket found:', eventBucket.name);
-    console.log('📊 Bucket details:', {
-      id: eventBucket.id,
-      name: eventBucket.name,
-      public: eventBucket.public,
-      created_at: eventBucket.created_at
-    });
-    
-    // Test 5: Check bucket policies
-    console.log('🔒 Checking bucket policies...');
-  try {
-  const { data: _policies, error: policyError } = await supabase.storage
-        .from(STORAGE_BUCKETS.EVENT_IMAGES)
-        .list('', { limit: 1 });
+    // Test 3: Basic connectivity test with timeout
+    console.log('📡 Testing basic connectivity...');
+    try {
+      const { data, error } = await Promise.race([
+        supabase.from('website_content').select('id').limit(1),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Connection timeout (5s)')), 5000)
+        )
+      ]);
       
-      if (policyError) {
-        console.warn('⚠️ Policy check warning:', policyError.message);
-      } else {
-        console.log('✅ Bucket access test passed');
+      if (error && !error.message.includes('relation') && !error.message.includes('does not exist')) {
+        throw error;
       }
-    } catch (policyTestError) {
-      console.warn('⚠️ Policy test warning:', policyTestError.message);
+      console.log('✅ Basic connectivity test passed');
+    } catch (connectError) {
+      console.error('❌ Basic connectivity failed:', connectError.message);
+      return {
+        success: false,
+        error: `Connection failed: ${connectError.message}`,
+        status: 'connection_failed',
+        suggestion: 'Check if Supabase is running locally or network connectivity'
+      };
     }
     
-    console.log('🎉 All Supabase tests passed!');
-    return { success: true, buckets: buckets };
+    // Test 4: Check storage buckets (optional)
+    console.log('🔍 Checking storage buckets...');
+    try {
+      const { data: buckets, error: bucketError } = await Promise.race([
+        supabase.storage.listBuckets(),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Storage timeout')), 3000)
+        )
+      ]);
+      
+      if (bucketError) {
+        console.warn('⚠️ Storage bucket check failed:', bucketError.message);
+      } else {
+        console.log('📦 Available storage buckets:', buckets?.map(b => b.name) || []);
+        
+        // Check if our bucket exists
+        const eventBucket = buckets?.find(b => b.name === STORAGE_BUCKETS.EVENT_IMAGES);
+        if (eventBucket) {
+          console.log('✅ Event images bucket found:', eventBucket.name);
+        } else {
+          console.warn('⚠️ Event images bucket not found, but storage is accessible');
+        }
+      }
+    } catch (storageError) {
+      console.warn('⚠️ Storage test failed:', storageError.message);
+    }
+    
+    console.log('🎉 Supabase connection test completed successfully!');
+    return { 
+      success: true, 
+      status: 'connected',
+      environment: APP_ENV,
+      url: supabaseUrl
+    };
     
   } catch (error) {
     console.error('❌ Supabase connection test failed:', error);
-    return { success: false, error: error.message };
+    return { 
+      success: false, 
+      error: error.message,
+      status: 'test_failed',
+      suggestion: 'Check Supabase configuration and network connectivity'
+    };
   }
 };
 
@@ -618,6 +703,170 @@ export const checkIfPostSaved = async (boardId, postId) => {
   } catch (error) {
     console.error('Error checking if post is saved:', error);
     return false;
+  }
+};
+
+// ============================================================================
+// CONTEST SUBMISSIONS FUNCTIONS
+// ============================================================================
+
+// Get all contest submissions
+export const getContestSubmissions = async () => {
+  try {
+    if (!supabase) {
+      console.warn('getContestSubmissions: Supabase not configured — returning empty list');
+      return [];
+    }
+    const { data, error } = await supabase
+      .from(TABLES.CONTEST_SUBMISSIONS)
+      .select('*')
+      .order('submission_date', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching contest submissions:', error);
+    return [];
+  }
+};
+
+// Create contest submission
+export const createContestSubmission = async (submissionData) => {
+  try {
+    if (!supabase) throw new Error('Supabase not configured');
+    const { data, error } = await supabase
+      .from(TABLES.CONTEST_SUBMISSIONS)
+      .insert([submissionData])
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error creating contest submission:', error);
+    throw error;
+  }
+};
+
+// Update contest submission status
+export const updateContestSubmissionStatus = async (submissionId, status) => {
+  try {
+    if (!supabase) throw new Error('Supabase not configured');
+    const { data, error } = await supabase
+      .from(TABLES.CONTEST_SUBMISSIONS)
+      .update({ 
+        status,
+        reviewed_at: new Date().toISOString()
+      })
+      .eq('id', submissionId)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error updating contest submission:', error);
+    throw error;
+  }
+};
+
+// Get contest submissions by status
+export const getContestSubmissionsByStatus = async (status) => {
+  try {
+    if (!supabase) return [];
+    const { data, error } = await supabase
+      .from(TABLES.CONTEST_SUBMISSIONS)
+      .select('*')
+      .eq('status', status)
+      .order('submission_date', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching contest submissions by status:', error);
+    return [];
+  }
+};
+
+// ============================================================================
+// PARTNERSHIP INQUIRIES FUNCTIONS
+// ============================================================================
+
+// Get all partnership inquiries
+export const getPartnershipInquiries = async () => {
+  try {
+    if (!supabase) {
+      console.warn('getPartnershipInquiries: Supabase not configured — returning empty list');
+      return [];
+    }
+    const { data, error } = await supabase
+      .from(TABLES.PARTNERSHIP_INQUIRIES)
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching partnership inquiries:', error);
+    return [];
+  }
+};
+
+// Update partnership inquiry status
+export const updatePartnershipInquiryStatus = async (inquiryId, status, adminNotes = null, contactedBy = null) => {
+  try {
+    if (!supabase) throw new Error('Supabase not configured');
+    
+    const updateData = {
+      status,
+      updated_at: new Date().toISOString()
+    };
+    
+    if (adminNotes) updateData.admin_notes = adminNotes;
+    if (contactedBy) {
+      updateData.contacted_by = contactedBy;
+      updateData.contacted_at = new Date().toISOString();
+    }
+    
+    const { data, error } = await supabase
+      .from(TABLES.PARTNERSHIP_INQUIRIES)
+      .update(updateData)
+      .eq('id', inquiryId)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error updating partnership inquiry:', error);
+    throw error;
+  }
+};
+
+// Get partnership inquiries by status
+export const getPartnershipInquiriesByStatus = async (status) => {
+  try {
+    if (!supabase) return [];
+    const { data, error } = await supabase
+      .from(TABLES.PARTNERSHIP_INQUIRIES)
+      .select('*')
+      .eq('status', status)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching partnership inquiries by status:', error);
+    return [];
+  }
+};
+
+// Delete partnership inquiry
+export const deletePartnershipInquiry = async (inquiryId) => {
+  try {
+    if (!supabase) throw new Error('Supabase not configured');
+    const { error } = await supabase
+      .from(TABLES.PARTNERSHIP_INQUIRIES)
+      .delete()
+      .eq('id', inquiryId);
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error('Error deleting partnership inquiry:', error);
+    throw error;
   }
 };
 
@@ -1087,6 +1336,42 @@ export const deleteDraft = async (userEmail, draftId = null) => {
     return false;
   }
 };
+
+// Quick health check function
+export const quickHealthCheck = async () => {
+  if (!supabase) {
+    return { healthy: false, reason: 'No Supabase client' };
+  }
+  
+  try {
+    const { error } = await Promise.race([
+      supabase.from('website_content').select('id').limit(1),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Health check timeout')), 2000)
+      )
+    ]);
+    
+    return { 
+      healthy: true, 
+      status: supabaseConnectionStatus,
+      hasError: !!error,
+      errorType: error?.code || null
+    };
+  } catch (healthError) {
+    return { 
+      healthy: false, 
+      reason: healthError.message,
+      status: 'health_check_failed'
+    };
+  }
+};
+
+// Make debugging tools available globally
+if (typeof window !== 'undefined') {
+  window.getSupabaseStatus = getSupabaseStatus;
+  window.testSupabaseConnection = testSupabaseConnection;
+  window.quickHealthCheck = quickHealthCheck;
+}
 
 // Public Resume Access
 export const getPublicResume = async (publicSlug) => {

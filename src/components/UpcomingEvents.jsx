@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Calendar, Clock, ExternalLink, ChevronRight, Users, DollarSign, Star, AlertCircle, MapPin, User } from 'lucide-react';
-import { getUpcomingEvents } from '../lib/supabase';
+import { useEventsData } from '../contexts/GlobalDataContext';
 import toast from 'react-hot-toast';
 
 const UpcomingEvents = () => {
-  const [events, setEvents] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { events, loading } = useEventsData();
   const [error, setError] = useState(null);
   const [_usingDemo, setUsingDemo] = useState(false);
 
@@ -52,35 +51,7 @@ const UpcomingEvents = () => {
     }
   ];
 
-  // Fetch events from database
-  const fetchEvents = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await getUpcomingEvents()
-
-      if (!data || data.length === 0) {
-        console.log('No upcoming events found')
-        setEvents([])
-      } else {
-        setEvents(data || [])
-      }
-    } catch (err) {
-      console.error('Error fetching events', err);
-      setError('Failed to load upcoming events');
-      toast.error('Failed to load upcoming events');
-
-      // On fetch error, show empty events
-      setEvents([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchEvents();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Events are now loaded via unified context - no additional API calls needed
 
   const formatDate = (dateString) => {
     try {

@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minimal Post Persistence Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .pass { background: #d4edda; border: 1px solid #c3e6cb; }
+        .fail { background: #f8d7da; border: 1px solid #f5c6cb; }
+        button { padding: 8px 16px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        .logs { background: #f8f9fa; border: 1px solid #dee2e6; padding: 10px; margin: 10px 0; font-family: monospace; white-space: pre-wrap; max-height: 200px; overflow-y: auto; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Minimal Post Persistence Test</h1>
+    
+    <div>
+        <button onclick="createPost()">Create Test Post</button>
+        <button onclick="validatePost()">Validate Post</button>
+        <button onclick="hardReload()">Hard Reload</button>
+        <button onclick="clearData()">Clear Data</button>
+    </div>
+    
+    <div id="results"></div>
+    <div id="logs" class="logs">Ready for testing...\n</div>
+
+    <script>
+        let testPostId = null;
+        
+        function log(message) {
+            const timestamp = new Date().toISOString();
+            const entry = `[${timestamp}] ${message}`;
+            console.log(entry);
+            document.getElementById('logs').textContent += entry + '\n';
+            document.getElementById('logs').scrollTop = document.getElementById('logs').scrollHeight;
+        }
+        
+        function addResult(test, passed, message) {
+            const div = document.createElement('div');
+            div.className = `test ${passed ? 'pass' : 'fail'}`;
+            div.innerHTML = `<strong>${test}:</strong> ${passed ? 'PASS' : 'FAIL'} - ${message}`;
+            document.getElementById('results').appendChild(div);
+            log(`${test}: ${passed ? 'PASS' : 'FAIL'} - ${message}`);
+        }
+        
+        function createPost() {
+            const post = {
+                id: `test_${Date.now()}`,
+                title: 'Test Post',
+                content: 'This is a test post for persistence validation',
+                created_at: new Date().toISOString(),
+                isLocal: true
+            };
+            
+            testPostId = post.id;
+            
+            try {
+                const existing = JSON.parse(localStorage.getItem('testingvala_posts') || '[]');
+                existing.unshift(post);
+                localStorage.setItem('testingvala_posts', JSON.stringify(existing));
+                
+                addResult('Create Post', true, `Post created with ID: ${post.id}`);
+                log(`Created post: ${post.id}`);
+            } catch (error) {
+                addResult('Create Post', false, `Error: ${error.message}`);
+            }
+        }
+        
+        function validatePost() {
+            if (!testPostId) {
+                addResult('Validate Post', false, 'No test post ID available');
+                return;
+            }
+            
+            try {
+                const stored = JSON.parse(localStorage.getItem('testingvala_posts') || '[]');
+                const found = stored.find(p => p.id === testPostId);
+                
+                if (found) {
+                    addResult('Validate Post', true, `Post found: ${found.title}`);
+                } else {
+                    addResult('Validate Post', false, `Post not found with ID: ${testPostId}`);
+                }
+            } catch (error) {
+                addResult('Validate Post', false, `Error: ${error.message}`);
+            }
+        }
+        
+        function hardReload() {
+            log('Initiating hard reload...');
+            window.location.reload(true);
+        }
+        
+        function clearData() {
+            localStorage.removeItem('testingvala_posts');
+            testPostId = null;
+            document.getElementById('results').innerHTML = '';
+            document.getElementById('logs').textContent = 'Data cleared.\n';
+            log('Test data cleared');
+        }
+        
+        // Check for existing posts on load
+        window.addEventListener('load', () => {
+            try {
+                const stored = JSON.parse(localStorage.getItem('testingvala_posts') || '[]');
+                if (stored.length > 0) {
+                    const testPosts = stored.filter(p => p.id && p.id.startsWith('test_'));
+                    if (testPosts.length > 0) {
+                        testPostId = testPosts[0].id;
+                        addResult('Page Load', true, `Found ${testPosts.length} test post(s) after reload`);
+                    }
+                }
+                log(`Page loaded - found ${stored.length} total posts`);
+            } catch (error) {
+                log(`Load error: ${error.message}`);
+            }
+        });
+    </script>
+</body>
+</html>

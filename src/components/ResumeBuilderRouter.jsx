@@ -17,31 +17,54 @@ const ResumeBuilderRouter = ({ isOpen, onClose }) => {
   const [formData, setFormData] = useState({ name: '', phone: '', transactionId: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
+  const [hasError, setHasError] = useState(false);
   const { user, isVerified, loading } = useAuth();
 
   useEffect(() => {
-    if (isOpen) {
-      loadPaymentConfig();
+    try {
+      if (isOpen) {
+        loadPaymentConfig();
+      }
+      
+      const handleNavigateToAI = (event) => {
+        try {
+          setUserEmail(event.detail.userEmail);
+          setCurrentPage('ai-builder');
+        } catch (error) {
+          console.error('Navigate to AI error:', error);
+        }
+      };
+
+      const handleNavigateToQA = (event) => {
+        try {
+          setUserEmail(event.detail.userEmail);
+          setCurrentPage('qa-builder');
+        } catch (error) {
+          console.error('Navigate to QA error:', error);
+        }
+      };
+
+      const handleNavigation = (event) => {
+        // Close resume builder when navigating to other pages
+        if (event.detail.path !== window.location.pathname) {
+          onClose();
+        }
+      };
+
+      window.addEventListener('navigate-to-ai-builder', handleNavigateToAI);
+      window.addEventListener('navigate-to-qa-builder', handleNavigateToQA);
+      window.addEventListener('navigate', handleNavigation);
+
+      return () => {
+        window.removeEventListener('navigate-to-ai-builder', handleNavigateToAI);
+        window.removeEventListener('navigate-to-qa-builder', handleNavigateToQA);
+        window.removeEventListener('navigate', handleNavigation);
+      };
+    } catch (error) {
+      console.error('ResumeBuilderRouter useEffect error:', error);
+      setHasError(true);
     }
-    
-    const handleNavigateToAI = (event) => {
-      setUserEmail(event.detail.userEmail);
-      setCurrentPage('ai-builder');
-    };
-
-    const handleNavigateToQA = (event) => {
-      setUserEmail(event.detail.userEmail);
-      setCurrentPage('qa-builder');
-    };
-
-    window.addEventListener('navigate-to-ai-builder', handleNavigateToAI);
-    window.addEventListener('navigate-to-qa-builder', handleNavigateToQA);
-
-    return () => {
-      window.removeEventListener('navigate-to-ai-builder', handleNavigateToAI);
-      window.removeEventListener('navigate-to-qa-builder', handleNavigateToQA);
-    };
-  }, [isOpen]);
+  }, [isOpen, onClose]);
 
   const handleBack = () => {
     setCurrentPage('selection');
@@ -49,14 +72,24 @@ const ResumeBuilderRouter = ({ isOpen, onClose }) => {
 
   const loadPaymentConfig = async () => {
     try {
+      if (!supabase) {
+        console.warn('Supabase not configured, using default payment config');
+        setPaymentConfig({ monthly_price: 99, upi_id: 'testingvala@paytm' });
+        return;
+      }
       const { data } = await supabase
         .from('payment_config')
         .select('*')
         .eq('id', 1)
         .single();
-      if (data) setPaymentConfig(data);
+      if (data) {
+        setPaymentConfig(data);
+      } else {
+        setPaymentConfig({ monthly_price: 99, upi_id: 'testingvala@paytm' });
+      }
     } catch (error) {
       console.error('Error loading payment config:', error);
+      setPaymentConfig({ monthly_price: 99, upi_id: 'testingvala@paytm' });
     }
   };
 
@@ -82,6 +115,11 @@ const ResumeBuilderRouter = ({ isOpen, onClose }) => {
     setIsSubmitting(true);
     
     try {
+      if (!supabase) {
+        toast.error('Database not configured. Please contact support.');
+        return;
+      }
+      
       const { error } = await supabase.from('payment_requests').insert({
         user_name: formData.name,
         user_email: user?.email || userEmail,
@@ -99,6 +137,7 @@ const ResumeBuilderRouter = ({ isOpen, onClose }) => {
       setPaymentStep('success');
       
     } catch (error) {
+      console.error('Payment submission error:', error);
       toast.error('Submission failed. Please try again.');
     } finally {
       setIsSubmitting(false);
@@ -123,53 +162,123 @@ const ResumeBuilderRouter = ({ isOpen, onClose }) => {
   };
 
   const handleBuilderAccess = (builderType) => {
-    if (builderType === 'ai-payment') {
+    try {
+      if (builderType === 'ai-payment') {
+        if (!user || !isVerified) {
+          setPendingAction('ai-payment');
+          setShowAuthModal(true);
+          return;
+        }
+        setUserEmail(user.email);
+        setCurrentPage('ai-payment');
+        return;
+      }
+      
       if (!user || !isVerified) {
-        setPendingAction('ai-payment');
+        setPendingAction(builderType);
         setShowAuthModal(true);
         return;
       }
+      
       setUserEmail(user.email);
-      setCurrentPage('ai-payment');
-      return;
+      setCurrentPage(builderType);
+    } catch (error) {
+      console.error('Builder access error:', error);
+      toast.error('Failed to access resume builder. Please try again.');
+      setHasError(true);
     }
-    
-    if (!user || !isVerified) {
-      setPendingAction(builderType);
-      setShowAuthModal(true);
-      return;
-    }
-    
-    setUserEmail(user.email);
-    setCurrentPage(builderType);
   };
 
   const handleAuthSuccess = () => {
-    setShowAuthModal(false);
-    if (pendingAction && user && isVerified) {
-      setUserEmail(user.email);
-      setCurrentPage(pendingAction);
-      setPendingAction(null);
+    try {
+      setShowAuthModal(false);
+      if (pendingAction && user && isVerified) {
+        setUserEmail(user.email);
+        setCurrentPage(pendingAction);
+        setPendingAction(null);
+      }
+    } catch (error) {
+      console.error('Auth success handling error:', error);
+      toast.error('Authentication successful, but failed to proceed. Please try again.');
+      setHasError(true);
     }
   };
 
   // Check verification status when user changes
   useEffect(() => {
-    if (user && isVerified && pendingAction) {
-      setUserEmail(user.email);
-      setCurrentPage(pendingAction);
-      setPendingAction(null);
-      setShowAuthModal(false);
+    try {
+      if (user && isVerified && pendingAction) {
+        setUserEmail(user.email);
+        setCurrentPage(pendingAction);
+        setPendingAction(null);
+        setShowAuthModal(false);
+      }
+    } catch (error) {
+      console.error('Auth status check error:', error);
+      setHasError(true);
     }
   }, [user, isVerified, pendingAction]);
 
+  // Error boundary
+  if (hasError) {
+    return (
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[8001] flex items-center justify-center p-4">
+        <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 text-center">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <AlertCircle className="w-8 h-8 text-red-600" />
+          </div>
+          <h3 className="text-xl font-bold text-gray-900 mb-2">Something went wrong</h3>
+          <p className="text-gray-600 mb-4">We encountered an error loading the resume builder.</p>
+          <div className="flex gap-3">
+            <button
+              onClick={() => setHasError(false)}
+              className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Try Again
+            </button>
+            <button
+              onClick={onClose}
+              className="flex-1 bg-gray-200 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (!isOpen) return null;
+
+  // Show loading state while auth is loading
+  if (loading) {
+    return (
+      <div className="fixed inset-0 bg-white z-[7999] flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading resume builder...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Full-page AI Resume Builder
   if (currentPage === 'ai-builder') {
     return (
-      <div className="fixed inset-0 bg-white z-[10000]">
-        <AIResumeBuilderPage onBack={handleBack} userEmail={userEmail} />
+      <div className="fixed inset-0 bg-white" style={{ top: '64px', zIndex: 7999 }}>
+        {/* Single Back Button */}
+        <div className="absolute top-4 left-4 sm:left-6 z-10">
+          <button 
+            onClick={handleBack}
+            className="flex items-center gap-2 px-3 py-2 sm:px-4 sm:py-2 bg-white border border-gray-300 rounded-lg shadow-md hover:shadow-lg hover:bg-gray-50 transition-all text-sm sm:text-base"
+          >
+            <ArrowLeft className="w-4 h-4 text-gray-600" />
+            <span className="font-medium text-gray-700">Back</span>
+          </button>
+        </div>
+        <div className="h-full overflow-y-auto">
+          <AIResumeBuilderPage onBack={handleBack} userEmail={userEmail} />
+        </div>
       </div>
     );
   }
@@ -177,36 +286,20 @@ const ResumeBuilderRouter = ({ isOpen, onClose }) => {
   // AI Payment Flow
   if (currentPage === 'ai-payment') {
     return (
-      <div className="fixed inset-0 bg-white z-[10000]">
-        {/* Header */}
-        <div className="bg-white border-b border-gray-200 shadow-sm">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-between h-16">
-              <div className="flex items-center gap-4">
-                <button 
-                  onClick={handleBackToSelection}
-                  className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all duration-200 group"
-                >
-                  <ArrowLeft className="w-5 h-5 group-hover:-translate-x-0.5 transition-transform duration-200" />
-                  <span className="font-medium">Back</span>
-                </button>
-                <div className="w-px h-6 bg-gray-300"></div>
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-gradient-to-br from-purple-600 to-pink-600 rounded-lg flex items-center justify-center">
-                    <Sparkles className="w-5 h-5 text-white" />
-                  </div>
-                  <h1 className="text-xl font-bold text-gray-900">AI Resume Builder</h1>
-                </div>
-              </div>
-              <button onClick={handleClose} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                <X className="w-5 h-5 text-gray-500 hover:text-gray-700" />
-              </button>
-            </div>
-          </div>
+      <div className="fixed inset-0 bg-white" style={{ top: '64px', zIndex: 7999 }}>
+        {/* Single Back Button */}
+        <div className="absolute top-4 left-4 sm:left-6 z-10">
+          <button 
+            onClick={handleBackToSelection}
+            className="flex items-center gap-2 px-3 py-2 sm:px-4 sm:py-2 bg-white border border-gray-300 rounded-lg shadow-md hover:shadow-lg hover:bg-gray-50 transition-all text-sm sm:text-base"
+          >
+            <ArrowLeft className="w-4 h-4 text-gray-600" />
+            <span className="font-medium text-gray-700">Back</span>
+          </button>
         </div>
 
         {/* Content */}
-        <div className="flex-1 bg-gradient-to-br from-purple-50 to-pink-50 overflow-y-auto">
+        <div className="h-full bg-gradient-to-br from-purple-50 to-pink-50 overflow-y-auto">
           <div className="max-w-lg mx-auto px-4 py-6">
             {/* Progress Steps */}
             <div className="flex items-center justify-center mb-6">
@@ -495,46 +588,41 @@ const ResumeBuilderRouter = ({ isOpen, onClose }) => {
   // Full-page Enhanced QA Resume Builder
   if (currentPage === 'qa-builder') {
     return (
-      <div className="fixed inset-0 bg-white z-[10000]">
-        <CompleteEnhancedResumeBuilder onBack={handleBack} userEmail={userEmail} />
+      <div className="fixed inset-0 bg-white" style={{ top: '64px', zIndex: 7999 }}>
+        {/* Single Back Button */}
+        <div className="absolute top-4 left-4 sm:left-6 z-10">
+          <button 
+            onClick={handleBack}
+            className="flex items-center gap-2 px-3 py-2 sm:px-4 sm:py-2 bg-white border border-gray-300 rounded-lg shadow-md hover:shadow-lg hover:bg-gray-50 transition-all text-sm sm:text-base"
+          >
+            <ArrowLeft className="w-4 h-4 text-gray-600" />
+            <span className="font-medium text-gray-700">Back</span>
+          </button>
+        </div>
+        <div className="h-full overflow-y-auto">
+          <CompleteEnhancedResumeBuilder onBack={handleBack} userEmail={userEmail} />
+        </div>
       </div>
     );
   }
 
   // Selection Screen - Professional Full Page Layout
-  return (
-    <div className="fixed inset-0 bg-white z-[10000]">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-4">
-              <button 
-                onClick={handleClose}
-                className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all duration-200 group"
-              >
-                <svg className="w-5 h-5 group-hover:-translate-x-0.5 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-                <span className="font-medium">Back</span>
-              </button>
-              <div className="w-px h-6 bg-gray-300"></div>
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-                  <FileText className="w-5 h-5 text-white" />
-                </div>
-                <h1 className="text-xl font-bold text-gray-900">Resume Builder</h1>
-              </div>
-            </div>
-            <button onClick={handleClose} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-              <X className="w-5 h-5 text-gray-500 hover:text-gray-700" />
-            </button>
-          </div>
+  try {
+    return (
+      <div className="fixed inset-0 bg-white" style={{ top: '64px', zIndex: 7999 }}>
+        {/* Single Back Button for all pages */}
+        <div className="absolute top-4 left-4 sm:left-6 z-10">
+          <button 
+            onClick={handleClose}
+            className="flex items-center gap-2 px-3 py-2 sm:px-4 sm:py-2 bg-white border border-gray-300 rounded-lg shadow-md hover:shadow-lg hover:bg-gray-50 transition-all text-sm sm:text-base"
+          >
+            <ArrowLeft className="w-4 h-4 text-gray-600" />
+            <span className="font-medium text-gray-700">Back</span>
+          </button>
         </div>
-      </div>
 
-      {/* Content */}
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
+        {/* Content */}
+        <div className="h-full bg-gradient-to-br from-gray-50 to-blue-50 overflow-y-auto">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           {/* Hero Section */}
           <div className="text-center mb-16">
@@ -654,8 +742,13 @@ const ResumeBuilderRouter = ({ isOpen, onClose }) => {
         onSuccess={handleAuthSuccess}
         action="resume"
       />
-    </div>
-  );
+      </div>
+    );
+  } catch (error) {
+    console.error('ResumeBuilderRouter render error:', error);
+    setHasError(true);
+    return null;
+  }
 };
 
 export default ResumeBuilderRouter;

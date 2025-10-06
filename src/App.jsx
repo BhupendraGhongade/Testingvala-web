@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Toaster } from 'react-hot-toast';
 import Header from './components/Header';
 import Hero from './components/Hero';
-import UpcomingEvents from './components/UpcomingEvents';
 import ContestSection from './components/ContestSection';
 
 import CommunityHub from './components/CommunityHub';
@@ -13,21 +12,74 @@ import EventsPage from './components/EventsPage';
 import BoardsPage from './components/BoardsPage';
 import BoardDetailPage from './components/BoardDetailPage';
 import PublicBoardsPage from './components/PublicBoardsPage';
+import AuthCallback from './components/AuthCallback';
+import AuthVerify from './components/AuthVerify';
+import AdminDashboard from './components/AdminDashboard';
+import QuickAuth from './components/QuickAuth';
 
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { useWebsiteData } from './hooks/useWebsiteData';
-import { Wifi, WifiOff, AlertCircle } from 'lucide-react';
+import { GlobalDataProvider, useWebsiteData } from './contexts/GlobalDataContext';
+import { WifiOff, AlertCircle } from 'lucide-react';
+import { initProductionGuard } from './utils/productionGuard';
+import { StorageCleanup } from './utils/storageCleanup';
+import './utils/debugHelpers.js';
 
 const AppContent = () => {
   const [currentPath, setCurrentPath] = useState(typeof window !== 'undefined' ? window.location.pathname : '/');
   const [boardView, setBoardView] = useState({ type: 'list', boardId: null });
 
-  const { user, isVerified } = useAuth();
-  const { data, loading, error, isOnline } = useWebsiteData();
+  // Add error boundaries for hooks
+  let user = null, isVerified = false, data = null, loading = false;
+  
+  try {
+    const authData = useAuth();
+    user = authData.user;
+    isVerified = authData.isVerified;
+  } catch (error) {
+    console.error('Auth hook error:', error);
+  }
+  
+  try {
+    const websiteData = useWebsiteData();
+    data = websiteData.data;
+    loading = websiteData.loading;
+  } catch (error) {
+    console.error('Website data hook error:', error);
+  }
+  
+  const error = null; // Handle errors in the context
+  const isOnline = !!data;
 
-  React.useEffect(() => {
+  // Initialize production guard and storage cleanup
+  useEffect(() => {
+    initProductionGuard();
+    
+    // Clean up localStorage on app start
+    setTimeout(() => {
+      StorageCleanup.cleanup();
+    }, 1000);
+  }, []);
+
+  // Track user authentication state changes
+  useEffect(() => {
+    if (user && isVerified) {
+      console.log('User authenticated:', user.email);
+    }
+  }, [user, isVerified]);
+
+  useEffect(() => {
     const handler = () => {
-      setCurrentPath(window.location.pathname);
+      const newPath = window.location.pathname;
+      setCurrentPath(newPath);
+      
+      // Reset board view when navigating away from boards
+      if (newPath !== '/boards') {
+        setBoardView({ type: 'list', boardId: null });
+      }
+      
+      // Track page views
+      console.log('Page view:', newPath);
+      
       // Check for post hash in URL
       const hash = window.location.hash;
       if (hash.startsWith('#community-post-')) {
@@ -73,28 +125,15 @@ const AppContent = () => {
       prizes: '1st Place: $500 | 2nd Place: $300 | 3rd Place: $200',
       submission: 'Share your QA trick with detailed explanation and impact',
       deadline: '2025-01-31',
-      status: 'Active Now'
-    },
-    winners: [
-      {
-        avatar: '🏆',
-        name: 'Sarah Johnson',
-        title: 'QA Automation Expert',
-        trick: 'Implemented a robust test automation framework that reduced testing time by 60% while maintaining 99% accuracy.'
-      },
-      {
-        avatar: '🥈',
-        name: 'Michael Chen',
-        title: 'Performance Testing Specialist',
-        trick: 'Developed innovative load testing strategies that identified critical bottlenecks before production deployment.'
-      },
-      {
-        avatar: '🥉',
-        name: 'Emily Rodriguez',
-        title: 'Mobile Testing Guru',
-        trick: 'Created comprehensive mobile testing protocols that improved app stability across all device types.'
+      status: 'Active Now',
+      stats: {
+        participants: '2,500+',
+        countries: '45+',
+        submissions: '1,200+',
+        winners: '36'
       }
-    ],
+    },
+
     about: {
       description: 'TestingVala.com is revolutionizing the QA industry by creating a platform where testing professionals can showcase their skills, learn from each other, and compete for recognition and rewards.',
       features: [
@@ -153,19 +192,16 @@ const AppContent = () => {
     );
   }
 
-  // Use data or fallback to defaults, ensuring all required properties exist
-  const safeData = data || defaultData;
+  // Use optimized data structure
+  const websiteData = data || {};
   
   // Ensure all sections have the required structure
   const validatedData = {
-    hero: safeData.hero || defaultData.hero,
-    contest: safeData.contest || defaultData.contest,
-    winners: Array.isArray(safeData.winners) ? safeData.winners : defaultData.winners,
-    about: safeData.about || defaultData.about,
-    contact: safeData.contact || defaultData.contact
+    hero: websiteData.hero || defaultData.hero,
+    contest: websiteData.contest || defaultData.contest,
+    about: websiteData.about || defaultData.about,
+    contact: websiteData.contact || defaultData.contact
   };
-
-  console.log('App.jsx - Data structure:', { originalData: data, validatedData, isOnline });
 
   return (
     <div className="min-h-screen bg-white">
@@ -217,7 +253,13 @@ const AppContent = () => {
       <Header />
       
       <main style={{ paddingTop: '80px' }}>
-        {currentPath === '/events' ? (
+        {currentPath === '/auth/callback' ? (
+          <AuthCallback />
+        ) : currentPath === '/auth/verify' ? (
+          <AuthVerify />
+        ) : currentPath === '/admin' ? (
+          <AdminDashboard />
+        ) : currentPath === '/events' ? (
           <EventsPage />
         ) : currentPath === '/boards' ? (
           boardView.type === 'detail' ? (
@@ -235,40 +277,75 @@ const AppContent = () => {
           ) : isVerified ? (
             <BoardsPage 
               user={user} 
-              onBack={() => window.history.back()}
+              onBack={() => {
+                setBoardView({ type: 'list', boardId: null });
+                window.history.pushState({}, '', '/');
+                window.dispatchEvent(new PopStateEvent('popstate'));
+              }}
               onViewBoard={(boardId) => setBoardView({ type: 'detail', boardId })}
               onViewPublic={() => setBoardView({ type: 'public', boardId: null })}
             />
           ) : (
             <PublicBoardsPage
               user={user}
-              onBack={() => window.history.back()}
+              onBack={() => {
+                setBoardView({ type: 'list', boardId: null });
+                window.history.pushState({}, '', '/');
+                window.dispatchEvent(new PopStateEvent('popstate'));
+              }}
               onViewBoard={(boardId) => setBoardView({ type: 'detail', boardId })}
             />
           )
         ) : (
-          <>
+          <div key="home-content">
             <Hero data={validatedData.hero} />
-            <UpcomingEvents key={`events-${Date.now()}`} />
             <CommunityHub />
-            <ContestSection data={validatedData.contest} />
+            <ContestSection contestData={validatedData.contest} />
             <AboutUs data={validatedData.about} />
             <Contact data={validatedData.contact} />
-          </>
+          </div>
         )}
       </main>
       
       <Footer />
+      <QuickAuth />
     </div>
   );
 };
 
 function App() {
-  return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
-  );
+  // Add safety check for React
+  if (!React || !React.createElement) {
+    console.error('React not properly initialized');
+    return React.createElement('div', { 
+      style: { 
+        padding: '20px', 
+        textAlign: 'center', 
+        fontFamily: 'Arial, sans-serif' 
+      } 
+    }, 'Loading...');
+  }
+
+  try {
+    return (
+      <AuthProvider>
+        <GlobalDataProvider>
+          <AppContent />
+        </GlobalDataProvider>
+      </AuthProvider>
+    );
+  } catch (error) {
+    console.error('App render error:', error);
+    return (
+      <div style={{ padding: '20px', textAlign: 'center', fontFamily: 'Arial, sans-serif' }}>
+        <h2>Something went wrong</h2>
+        <p>Please refresh the page to try again.</p>
+        <button onClick={() => window.location.reload()} style={{ padding: '10px 20px', marginTop: '10px' }}>
+          Refresh Page
+        </button>
+      </div>
+    );
+  }
 }
 
 export default App;

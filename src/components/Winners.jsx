@@ -1,119 +1,134 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import { Trophy, Star, Award, Users, Clock, Linkedin, Share2, Download, Clipboard, Instagram, Check, Crown, Medal, Zap } from 'lucide-react';
+import { Trophy, Star, Award, Users, Clock, Linkedin, Share2, Download, Clipboard, Instagram, Check, Crown, Medal, Zap, MessageCircle } from 'lucide-react';
+import { useWinnersData } from '../contexts/GlobalDataContext';
 
 const createShareCardDataUrl = async (winner, badgeLabel) => {
   const width = 1200;
-  const height = 630;
+  const height = 900;
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
   const ctx = canvas.getContext('2d');
 
-  // Premium dark gradient background
-  const grad = ctx.createLinearGradient(0, 0, width, height);
-  grad.addColorStop(0, '#0f172a');
-  grad.addColorStop(0.3, '#1e293b');
-  grad.addColorStop(0.7, '#334155');
-  grad.addColorStop(1, '#475569');
-  ctx.fillStyle = grad;
+  // Professional white background
+  ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, width, height);
 
-  // Gold accent border for premium feel
-  ctx.strokeStyle = '#fbbf24';
-  ctx.lineWidth = 8;
-  ctx.strokeRect(20, 20, width - 40, height - 40);
+  // Professional border
+  ctx.strokeStyle = '#e2e8f0';
+  ctx.lineWidth = 4;
+  ctx.strokeRect(30, 30, width - 60, height - 60);
   
-  // Inner gold border
-  ctx.strokeStyle = '#f59e0b';
+  // Inner accent border
+  ctx.strokeStyle = '#FF6600';
   ctx.lineWidth = 3;
-  ctx.strokeRect(35, 35, width - 70, height - 70);
+  ctx.strokeRect(40, 40, width - 80, height - 80);
 
-  // Achievement badge background
-  const badgeGrad = ctx.createLinearGradient(0, 50, 0, 200);
-  badgeGrad.addColorStop(0, '#fbbf24');
-  badgeGrad.addColorStop(1, '#f59e0b');
-  ctx.fillStyle = badgeGrad;
-  ctx.fillRect(50, 50, width - 100, 150);
+  // Header section
+  ctx.fillStyle = '#FF6600';
+  ctx.fillRect(60, 60, width - 120, 120);
+  
+  // Certificate title
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 40px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('CERTIFICATE OF EXCELLENCE', width/2, 130);
+  
+  // Subtitle
+  ctx.font = 'bold 22px sans-serif';
+  ctx.fillText('Quality Assurance Professional Recognition', width/2, 165);
 
-  // Achievement text
+  // Main content area
+  ctx.fillStyle = '#1e293b';
+  ctx.font = 'normal 24px serif';
+  ctx.fillText('This is to certify that', width/2, 240);
+
+  // Winner name (prominent) - sanitized
   ctx.fillStyle = '#0f172a';
-  ctx.font = 'bold 42px sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText('🏆 ACHIEVEMENT UNLOCKED 🏆', width/2, 110);
+  ctx.font = 'bold 48px serif';
+  const sanitizedName = (winner.name || '').replace(/[<>"'&\/<>]/g, '').substring(0, 50).toUpperCase();
+  ctx.fillText(sanitizedName, width/2, 300);
+
+  // Professional title - sanitized
+  ctx.fillStyle = '#475569';
+  ctx.font = 'italic 20px serif';
+  const sanitizedTitle = (winner.title || '').replace(/[<>"'&\/<>]/g, '').substring(0, 100);
+  ctx.fillText(sanitizedTitle, width/2, 335);
+
+  // Achievement description
+  ctx.fillStyle = '#1e293b';
+  ctx.font = 'normal 22px serif';
+  ctx.fillText('has achieved', width/2, 390);
   
+  // Award level - using actual place numbers
+  const achievements = {
+    '1st Place': { title: '1ST PLACE WINNER', color: '#FFD700', emoji: '🥇' },
+    '2nd Place': { title: '2ND PLACE WINNER', color: '#C0C0C0', emoji: '🥈' },
+    '3rd Place': { title: '3RD PLACE WINNER', color: '#CD7F32', emoji: '🥉' }
+  };
+  const achievement = achievements[badgeLabel] || achievements['1st Place'];
+  
+  // Award emoji
+  ctx.font = '60px sans-serif';
+  ctx.fillText(achievement.emoji, width/2, 450);
+  
+  // Award title
+  ctx.fillStyle = achievement.color;
   ctx.font = 'bold 36px sans-serif';
-  ctx.fillText(`${badgeLabel.toUpperCase()} WINNER`, width/2, 160);
+  ctx.fillText(achievement.title, width/2, 500);
 
-  // Winner name (prominent white text)
-  ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 52px sans-serif';
-  ctx.fillText(winner.name, width/2, 250);
-
-  // Professional title with gold accent
-  ctx.fillStyle = '#fbbf24';
-  ctx.font = 'bold 28px sans-serif';
-  ctx.fillText(winner.title, width/2, 290);
-
-  // Innovation highlight box
-  ctx.fillStyle = 'rgba(251, 191, 36, 0.1)';
-  ctx.fillRect(80, 320, width - 160, 120);
+  // Recognition text
+  ctx.fillStyle = '#1e293b';
+  ctx.font = 'normal 18px serif';
+  ctx.fillText('in the TestingVala QA Professional Contest', width/2, 540);
+  ctx.fillText('for exceptional expertise in Quality Assurance', width/2, 565);
   
-  ctx.strokeStyle = '#fbbf24';
-  ctx.lineWidth = 2;
-  ctx.strokeRect(80, 320, width - 160, 120);
+  // Date and certification number
+  const currentDate = new Date().toLocaleDateString('en-US', { 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  });
+  
+  ctx.fillStyle = '#64748b';
+  ctx.font = 'normal 16px sans-serif';
+  ctx.fillText(`Awarded on ${currentDate}`, width/2, 620);
+  
+  const certId = `QA-${badgeLabel.replace(/\s+/g, '').toUpperCase()}-${Date.now().toString().slice(-6)}`;
+  ctx.fillText(`Certificate ID: ${certId}`, width/2, 645);
 
-  // Innovation text
-  ctx.fillStyle = '#e5e7eb';
-  ctx.font = '20px sans-serif';
+  // Signature area
+  ctx.fillStyle = '#0f172a';
+  ctx.font = 'bold 18px sans-serif';
   ctx.textAlign = 'left';
+  ctx.fillText('TestingVala Certification Authority', 80, 730);
   
-  const text = winner.trick || '';
-  const maxWidth = width - 200;
-  const maxLines = 3;
-  let y = 350;
-  const words = text.split(' ');
-  let line = '';
-  let lineCount = 0;
+  ctx.font = 'normal 14px sans-serif';
+  ctx.fillStyle = '#64748b';
+  ctx.fillText('Premier QA Community & Professional Development', 80, 750);
   
-  for (let n = 0; n < words.length && lineCount < maxLines; n++) {
-    const testLine = line + words[n] + ' ';
-    const metrics = ctx.measureText(testLine);
-    if (metrics.width > maxWidth && n > 0) {
-      if (lineCount === maxLines - 1) {
-        ctx.fillText(line.trim() + '...', 100, y);
-        break;
-      }
-      ctx.fillText(line, 100, y);
-      line = words[n] + ' ';
-      y += 28;
-      lineCount++;
-    } else {
-      line = testLine;
-    }
-  }
-  if (line && lineCount < maxLines) {
-    ctx.fillText(line, 100, y);
-  }
-
-  // Premium footer section
-  ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
-  ctx.fillRect(0, height - 120, width, 120);
-  
-  // TestingVala branding
-  ctx.fillStyle = '#fbbf24';
-  ctx.font = 'bold 32px sans-serif';
+  // QR Code placeholder - positioned safely within bounds
+  ctx.strokeStyle = '#e2e8f0';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(width - 140, 700, 60, 60);
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '10px sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText('TESTINGVALA', width/2, height - 80);
+  ctx.fillText('Verify at', width - 110, 745);
+  ctx.fillText('testingvala.com', width - 110, 755);
+
+  // Footer branding - increased height to fit both lines
+  ctx.fillStyle = '#FF6600';
+  ctx.fillRect(60, height - 100, width - 120, 60);
   
   ctx.fillStyle = '#ffffff';
-  ctx.font = '18px sans-serif';
-  ctx.fillText('Premier QA Community • Monthly Contests • Career Growth', width/2, height - 50);
+  ctx.font = 'bold 18px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('www.testingvala.com | info@testingvala.com', width/2, height - 70);
   
-  // Contact info in clickable format
-  ctx.fillStyle = '#60a5fa';
-  ctx.font = 'bold 16px sans-serif';
-  ctx.fillText('📧 info@testingvala.com  |  🌐 www.testingvala.com', width/2, height - 20);
+  ctx.font = '14px sans-serif';
+  ctx.fillText('Empowering QA Professionals Worldwide', width/2, height - 50);
 
   return canvas.toDataURL('image/png');
 };
@@ -123,39 +138,30 @@ const downloadShareCard = async (winner, badgeLabel) => {
     const dataUrl = await createShareCardDataUrl(winner, badgeLabel);
     const link = document.createElement('a');
     link.href = dataUrl;
-    link.download = `${winner.name.replace(/\s+/g, '_')}_winner_card.png`;
+    link.download = `TestingVala_QA_Certificate_${winner.name.replace(/\s+/g, '_')}_${badgeLabel.replace(/\s+/g, '')}.png`;
     document.body.appendChild(link);
     link.click();
     link.remove();
-    toast.success('Download started — check your downloads');
+    toast.success('🏆 Professional certificate downloaded successfully!');
   } catch (err) {
-    console.error('Failed to generate share card', err);
-    toast.error('Failed to generate share card');
+    console.error('Failed to generate certificate', err);
+    toast.error('Failed to generate certificate');
   }
 };
 
 const Winners = ({ data }) => {
+  const { winners: winnersData, loading } = useWinnersData();
+  const [winners, setWinners] = useState([]);
+
+  // Get last month name dynamically
+  const getLastMonthName = () => {
+    const now = new Date();
+    const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    return lastMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  };
+
   const defaultData = {
-    winners: [
-      {
-        avatar: '👑',
-        name: 'Sarah Johnson',
-        title: 'QA Automation Expert',
-        trick: 'Implemented a robust test automation framework that reduced testing time by 60% while maintaining 99% accuracy.'
-      },
-      {
-        avatar: '🥈',
-        name: 'Michael Chen',
-        title: 'Performance Testing Specialist',
-        trick: 'Developed innovative load testing strategies that identified critical bottlenecks before production deployment.'
-      },
-      {
-        avatar: '🥉',
-        name: 'Emily Rodriguez',
-        title: 'Mobile Testing Guru',
-        trick: 'Created comprehensive mobile testing protocols that improved app stability across all device types.'
-      }
-    ],
+    winners: [],
     stats: {
       participants: '500+',
       prizes: '$25,000+',
@@ -163,8 +169,90 @@ const Winners = ({ data }) => {
     }
   };
 
+  useEffect(() => {
+    if (winnersData && winnersData.length > 0) {
+      // Process winners data from unified context
+      const winnersMap = new Map();
+      
+      winnersData.forEach(winner => {
+        const rank = parseInt(winner.winner_rank);
+        if (rank >= 1 && rank <= 3 && !isNaN(rank)) {
+          const formattedWinner = {
+            avatar: rank === 1 ? '👑' : rank === 2 ? '🥈' : '🥉',
+            name: winner.name || 'Anonymous Winner',
+            title: winner.role || winner.company || 'QA Professional',
+            trick: winner.technique_description || winner.technique_title || 'Innovative QA technique',
+            rank: rank,
+            email: winner.email
+          };
+          winnersMap.set(rank, formattedWinner);
+        }
+      });
+      
+      const formattedWinners = [];
+      for (let rank = 1; rank <= 3; rank++) {
+        if (winnersMap.has(rank)) {
+          formattedWinners.push(winnersMap.get(rank));
+        }
+      }
+      
+      setWinners(formattedWinners);
+    }
+  }, [winnersData]);
+  
+  // Direct database verification function
+  const verifyDatabase = async () => {
+    if (!supabase) {
+      toast.error('Supabase not configured');
+      return;
+    }
+    
+    try {
+      console.log('🔍 Starting database verification...');
+      
+      // Check table exists and has data
+      const { data: allData, error: allError } = await supabase
+        .from('contest_submissions')
+        .select('id, name, email, winner_rank, status')
+        .limit(10);
+      
+      console.log('📊 Table sample:', allData, allError);
+      
+      // Check specific user
+      const { data: userData, error: userError } = await supabase
+        .from('contest_submissions')
+        .select('*')
+        .eq('email', 'bghongade@york.ie');
+      
+      console.log('👤 Bhupendra data:', userData, userError);
+      
+      // Check winners
+      const { data: winnersData, error: winnersError } = await supabase
+        .from('contest_submissions')
+        .select('*')
+        .in('winner_rank', [1, 2, 3]);
+      
+      console.log('🏆 Winners data:', winnersData, winnersError);
+      
+      // Check with different query
+      const { data: altWinners, error: altError } = await supabase
+        .from('contest_submissions')
+        .select('*')
+        .not('winner_rank', 'is', null);
+      
+      console.log('🏆 Alt winners query:', altWinners, altError);
+      
+      toast.success('Database verification complete - check console');
+      
+    } catch (error) {
+      console.error('❌ Database verification failed:', error);
+      toast.error('Database verification failed');
+    }
+  };
+
+  // Winners are now loaded via unified context - no additional API calls needed
+
   const safeData = data || defaultData;
-  const winners = Array.isArray(safeData.winners) ? safeData.winners : defaultData.winners;
   const stats = safeData.stats || defaultData.stats;
   
   const safeStats = {
@@ -174,16 +262,34 @@ const Winners = ({ data }) => {
   };
 
   const shareLinkedIn = (winner, badgeLabel) => {
-    const shareText = `🏆 ACHIEVEMENT UNLOCKED: ${badgeLabel.toUpperCase()} WINNER! 🏆\n\n🎯 Congratulations to ${winner.name} (${winner.title})\n\n💡 Winning Innovation:\n${winner.trick.substring(0, 180)}...\n\n🚀 Ready to showcase YOUR QA expertise?\n✅ Join 10,000+ QA professionals\n✅ Monthly contests with cash prizes\n✅ Career advancement opportunities\n✅ Industry recognition\n\n📧 Contact: info@testingvala.com\n🌐 Join now: www.testingvala.com\n\n#QATesting #TestAutomation #CareerGrowth #Achievement #TestingVala`;
-    const shareUrl = `https://testingvala.com/?utm_source=linkedin&utm_medium=social&utm_campaign=winner_achievement&winner=${encodeURIComponent(winner.name)}#winners`;
-    const url = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}&title=${encodeURIComponent(`🏆 ${badgeLabel.toUpperCase()} WINNER - TestingVala Achievement`)}&summary=${encodeURIComponent(shareText)}`;
+    const achievements = {
+      '1st Place': { emoji: '🥇', title: 'CHAMPION', subtitle: 'Gold Medal Winner', color: '#FFD700' },
+      '2nd Place': { emoji: '🥈', title: 'EXCELLENCE', subtitle: 'Silver Medal Winner', color: '#C0C0C0' },
+      '3rd Place': { emoji: '🥉', title: 'ACHIEVER', subtitle: 'Bronze Medal Winner', color: '#CD7F32' }
+    };
+    
+    const achievement = achievements[badgeLabel] || achievements['1st Place'];
+    
+    const shareText = `${achievement.emoji} QA ${achievement.title} CERTIFIED ${achievement.emoji}\n\n🏅 Proud to announce ${winner.name} as ${badgeLabel} Winner\n🏢 ${winner.title} | TestingVala Contest Winner\n\n🚀 WHAT THIS MEANS:\n✅ Recognized among TOP QA professionals globally\n✅ Validated expertise in Quality Assurance\n✅ Part of elite 1% QA community\n✅ Industry-certified innovation leader\n\n🌟 JOIN THE QA ELITE:\n🎯 Monthly skill competitions\n💰 Cash prizes & recognition\n🤝 Network with 10,000+ QA experts\n📈 Accelerate your QA career\n\n🔗 Compete & Win: www.testingvala.com\n📧 info@testingvala.com\n\n#QAChampion #TestingExcellence #QualityAssurance #TestAutomation #CareerGrowth #TestingVala #QALeadership #TechCareers`;
+    
+    const shareUrl = `https://testingvala.com/?utm_source=linkedin&utm_medium=social&utm_campaign=qa_winner&winner=${encodeURIComponent(winner.name)}#winners`;
+    const url = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}&title=${encodeURIComponent(`${achievement.emoji} QA ${achievement.title} - ${winner.name}`)}&summary=${encodeURIComponent(shareText)}`;
     window.open(url, '_blank');
   };
 
   const copyShareText = (winner, badgeLabel) => {
-    const text = `🏆 ACHIEVEMENT UNLOCKED: ${badgeLabel.toUpperCase()} WINNER! 🏆\n\n🎯 ${winner.name} - ${winner.title}\n\n💡 Award-Winning QA Innovation:\n${winner.trick}\n\n🚀 JOIN THE ELITE QA COMMUNITY\n\n✨ What you get at TestingVala:\n✅ Monthly contests with REAL cash prizes\n✅ 10,000+ elite QA professionals\n✅ Career advancement opportunities\n✅ Industry recognition & achievements\n✅ Expert mentorship & networking\n\n📧 Apply now: info@testingvala.com\n🌐 Join today: www.testingvala.com\n\n#QATesting #TestAutomation #Achievement #CareerGrowth #TestingVala #QAExcellence`;
+    const achievements = {
+      '1st Place': { emoji: '🥇', title: 'CHAMPION', subtitle: 'Gold Medal Winner' },
+      '2nd Place': { emoji: '🥈', title: 'EXCELLENCE', subtitle: 'Silver Medal Winner' },
+      '3rd Place': { emoji: '🥉', title: 'ACHIEVER', subtitle: 'Bronze Medal Winner' }
+    };
+    
+    const achievement = achievements[badgeLabel] || achievements['1st Place'];
+    
+    const text = `${achievement.emoji} QA ${achievement.title} CERTIFIED ${achievement.emoji}\n\n🏅 ${winner.name} - ${achievement.subtitle}\n🏢 ${winner.title}\n🏆 TestingVala Contest Winner\n\n🌟 ACHIEVEMENT HIGHLIGHTS:\n✅ TOP 1% QA Professional Recognition\n✅ Industry-Validated Expertise\n✅ Elite QA Community Member\n✅ Innovation & Excellence Award\n\n🚀 READY TO JOIN THE QA ELITE?\n\n🎯 What TestingVala Offers:\n💰 Monthly contests with real cash prizes\n🤝 Network with 10,000+ QA professionals\n📈 Career advancement opportunities\n🎓 Skill validation & industry recognition\n🌍 Global QA community access\n\n🔗 Start Your Journey: www.testingvala.com\n📧 Get Started: info@testingvala.com\n\n#QAChampion #TestingExcellence #QualityAssurance #TestAutomation #CareerSuccess #TestingVala #QALeadership #TechCareers #ProfessionalGrowth`;
+    
     navigator.clipboard?.writeText(text).then(() => {
-      toast.success('🏆 Achievement share content copied!');
+      toast.success('🏆 Professional achievement content copied!');
     }).catch((err) => {
       console.error('Failed to copy share text', err);
       toast.error('Failed to copy');
@@ -192,7 +298,7 @@ const Winners = ({ data }) => {
 
   return (
     <>
-      <section id="winners" className="py-16 bg-gradient-to-br from-gray-50 via-white to-orange-50 relative overflow-hidden">
+      <section id="winners" data-section="winners" className="py-16 bg-gradient-to-br from-gray-50 via-white to-orange-50 relative overflow-hidden">
         {/* Background Pattern */}
         <div className="absolute inset-0 opacity-5">
           <div className="absolute top-20 left-20 w-32 h-32 bg-[#FF6600] rounded-full blur-3xl"></div>
@@ -202,49 +308,83 @@ const Winners = ({ data }) => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
           {/* Header */}
           <div className="text-center mb-16">
-            <div className="inline-flex items-center gap-2 bg-gradient-to-r from-[#FF6600] to-[#E55A00] text-white px-6 py-3 rounded-full text-sm font-semibold mb-6 shadow-lg">
-              <Trophy className="w-5 h-5" />
-              Hall of Fame
+            <div className="flex items-center justify-center gap-4 mb-6">
+              <div className="inline-flex items-center gap-2 bg-gradient-to-r from-[#FF6600] to-[#E55A00] text-white px-6 py-3 rounded-full text-sm font-semibold shadow-lg">
+                <Trophy className="w-5 h-5" />
+                Hall of Fame
+              </div>
             </div>
             <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6 bg-gradient-to-r from-gray-900 via-[#0057B7] to-[#FF6600] bg-clip-text text-transparent">
-              Previous Winners
+              Last Month Contest Winners
             </h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
-              Meet the exceptional QA professionals who have won our monthly contests and shared their innovative testing techniques with the community.
+              Congratulations to our {getLastMonthName()} contest winners! These exceptional QA professionals showcased innovative testing techniques and earned recognition in our community.
             </p>
           </div>
 
           {/* Winners Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
-            {winners.map((winner, index) => {
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            </div>
+          ) : winners.length === 0 ? (
+            <div className="text-center py-16 bg-white rounded-2xl shadow-lg border border-gray-100 mb-16">
+              <Trophy className="w-20 h-20 text-gray-300 mx-auto mb-6" />
+              <h3 className="text-2xl font-bold text-gray-900 mb-4">No Winners Yet</h3>
+              <p className="text-gray-600 text-lg mb-8 max-w-md mx-auto">
+                Contest winners will be announced here once the judging is complete. Stay tuned!
+              </p>
+              <button 
+                onClick={() => { window.location.hash = 'contest'; }}
+                className="bg-gradient-to-r from-[#FF6600] to-[#E55A00] text-white px-6 py-3 rounded-xl font-semibold hover:shadow-lg transition-all duration-300 flex items-center gap-2 mx-auto"
+              >
+                <Trophy className="w-5 h-5" />
+                Enter Contest Now
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-16">
+              {winners.map((winner, index) => {
               const place = index + 1;
               const badgeLabel = place === 1 ? '1st Place' : place === 2 ? '2nd Place' : place === 3 ? '3rd Place' : `${place}th Place`;
               
               const getPlaceStyles = (place) => {
                 switch(place) {
                   case 1: return {
-                    gradient: 'from-yellow-400 via-yellow-500 to-yellow-600',
-                    badge: 'bg-gradient-to-r from-yellow-100 to-amber-100 text-yellow-800 border-yellow-200',
-                    icon: <Crown className="w-5 h-5" />,
-                    glow: 'shadow-yellow-200'
+                    gradient: 'from-[#FFD700] via-[#FFA500] to-[#FF6600]',
+                    badge: 'bg-gradient-to-r from-yellow-100 to-orange-100 text-yellow-900 border-yellow-400',
+                    icon: <Crown className="w-4 h-4" />,
+                    cardBg: 'bg-gradient-to-br from-yellow-50 via-orange-50 to-red-50',
+                    border: 'border-yellow-200',
+                    medal: '🥇',
+                    title: 'CHAMPION'
                   };
                   case 2: return {
-                    gradient: 'from-gray-300 via-gray-400 to-gray-500',
-                    badge: 'bg-gradient-to-r from-gray-100 to-slate-100 text-gray-800 border-gray-200',
-                    icon: <Medal className="w-5 h-5" />,
-                    glow: 'shadow-gray-200'
+                    gradient: 'from-[#C0C0C0] via-[#A9A9A9] to-[#808080]',
+                    badge: 'bg-gradient-to-r from-gray-100 to-slate-100 text-gray-900 border-gray-400',
+                    icon: <Medal className="w-4 h-4" />,
+                    cardBg: 'bg-gradient-to-br from-gray-50 via-slate-50 to-zinc-50',
+                    border: 'border-gray-200',
+                    medal: '🥈',
+                    title: 'EXCELLENCE'
                   };
                   case 3: return {
-                    gradient: 'from-orange-400 via-orange-500 to-orange-600',
-                    badge: 'bg-gradient-to-r from-orange-100 to-amber-100 text-orange-800 border-orange-200',
-                    icon: <Award className="w-5 h-5" />,
-                    glow: 'shadow-orange-200'
+                    gradient: 'from-[#CD7F32] via-[#D2691E] to-[#A0522D]',
+                    badge: 'bg-gradient-to-r from-orange-100 to-amber-100 text-orange-900 border-orange-400',
+                    icon: <Award className="w-4 h-4" />,
+                    cardBg: 'bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50',
+                    border: 'border-orange-200',
+                    medal: '🥉',
+                    title: 'ACHIEVER'
                   };
                   default: return {
-                    gradient: 'from-blue-400 via-blue-500 to-blue-600',
-                    badge: 'bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-800 border-blue-200',
-                    icon: <Star className="w-5 h-5" />,
-                    glow: 'shadow-blue-200'
+                    gradient: 'from-[#0057B7] to-[#FF6600]',
+                    badge: 'bg-gradient-to-r from-blue-100 to-orange-100 text-blue-900 border-blue-400',
+                    icon: <Star className="w-4 h-4" />,
+                    cardBg: 'bg-gradient-to-br from-blue-50 to-orange-50',
+                    border: 'border-blue-200',
+                    medal: '🏆',
+                    title: 'WINNER'
                   };
                 }
               };
@@ -252,166 +392,107 @@ const Winners = ({ data }) => {
               const placeStyles = getPlaceStyles(place);
 
               return (
-                <div key={index} className={`group relative bg-white rounded-2xl shadow-lg hover:shadow-2xl ${placeStyles.glow} transition-all duration-500 transform hover:-translate-y-3 overflow-hidden border border-gray-100`}>
-                  {/* Animated Background */}
-                  <div className="absolute inset-0 bg-gradient-to-br from-transparent via-gray-50/50 to-orange-50/30 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                  
-                  {/* Place Badge */}
-                  <div className={`absolute top-6 left-6 px-4 py-2 rounded-full text-sm font-bold border ${placeStyles.badge} flex items-center gap-2 shadow-sm z-10`}>
+                <div key={index} className={`group relative ${placeStyles.cardBg} rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 overflow-hidden border-2 ${placeStyles.border} backdrop-blur-sm`}>
+                  {/* Premium Badge */}
+                  <div className={`absolute top-4 right-4 px-3 py-1.5 rounded-full text-xs font-bold border-2 ${placeStyles.badge} flex items-center gap-1 shadow-lg z-10`}>
                     {placeStyles.icon}
-                    {badgeLabel}
+                    {placeStyles.title}
                   </div>
 
-                  <div className="relative p-8 text-center">
-                    {/* Avatar with Animated Ring */}
-                    <div className="relative w-28 h-28 mx-auto mb-6">
-                      <div className={`absolute inset-0 bg-gradient-to-br ${placeStyles.gradient} rounded-full animate-pulse group-hover:animate-spin transition-all duration-1000`}></div>
-                      <div className="relative w-24 h-24 mx-auto mt-2 rounded-full bg-white flex items-center justify-center text-4xl shadow-lg border-4 border-white">
-                        {winner.avatar || '🏆'}
+                  {/* Medal Overlay */}
+                  <div className="absolute top-4 left-4 text-3xl opacity-20 group-hover:opacity-40 transition-opacity duration-300">
+                    {placeStyles.medal}
+                  </div>
+
+                  <div className="relative p-6 text-center">
+                    {/* Professional Avatar */}
+                    <div className="relative w-20 h-20 mx-auto mb-5">
+                      <div className={`absolute inset-0 bg-gradient-to-br ${placeStyles.gradient} rounded-full animate-pulse group-hover:animate-none transition-all duration-500`}></div>
+                      <div className="relative w-18 h-18 mx-auto mt-1 rounded-full bg-white flex items-center justify-center text-3xl shadow-xl border-4 border-white">
+                        {winner.avatar || placeStyles.medal}
                       </div>
                       
-                      {/* Verified Badge */}
+                      {/* Verified Professional Badge */}
                       <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-1 shadow-lg">
-                        <div className="bg-green-500 text-white rounded-full p-1.5 w-8 h-8 flex items-center justify-center">
-                          <Check className="w-4 h-4" />
+                        <div className="bg-green-500 text-white rounded-full p-1.5 w-7 h-7 flex items-center justify-center">
+                          <Check className="w-3 h-3" />
                         </div>
                       </div>
                     </div>
 
-                    {/* Winner Info */}
-                    <div className="mb-6">
-                      <h3 className="text-2xl font-bold text-gray-900 mb-2 group-hover:text-[#FF6600] transition-colors duration-300">
+                    {/* Winner Professional Info */}
+                    <div className="mb-5">
+                      <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-[#FF6600] transition-colors duration-300">
                         {winner.name}
                       </h3>
-                      <div className="inline-flex items-center gap-2 bg-gray-100 px-3 py-1 rounded-full text-sm font-medium text-gray-700">
+                      <div className="inline-flex items-center gap-2 bg-white/80 backdrop-blur-sm px-3 py-1.5 rounded-full text-sm font-semibold text-gray-800 shadow-sm">
                         <Zap className="w-4 h-4 text-[#FF6600]" />
-                        {winner.title}
+                        QA {placeStyles.title}
                       </div>
+                      <p className="text-xs text-gray-600 mt-2 font-medium">{winner.title}</p>
                     </div>
 
-                    {/* Winning Trick */}
-                    <div className="bg-gradient-to-br from-gray-50 to-orange-50 p-6 rounded-xl text-left mb-6 border border-gray-100 group-hover:border-orange-200 transition-colors duration-300">
-                      <h4 className="font-bold text-gray-900 mb-3 flex items-center gap-2">
+                    {/* Achievement Highlight */}
+                    <div className="bg-white/70 backdrop-blur-sm p-4 rounded-xl text-left mb-5 border border-white/60 shadow-sm">
+                      <h4 className="font-bold text-gray-900 mb-2 flex items-center gap-2 text-sm">
                         <Trophy className="w-4 h-4 text-[#FF6600]" />
-                        Winning QA Innovation
+                        Certified Excellence
                       </h4>
-                      <p className="text-sm leading-relaxed text-gray-700">{winner.trick}</p>
+                      <p className="text-xs leading-relaxed text-gray-700">
+                        Recognized for outstanding QA innovation and professional excellence in quality assurance practices.
+                      </p>
                     </div>
 
-                    {/* Social Actions */}
-                    <div className="flex items-center justify-center gap-3 mb-4">
+                    {/* Social Share Actions */}
+                    <div className="flex items-center justify-center gap-2">
                       <button
                         onClick={() => shareLinkedIn(winner, badgeLabel)}
-                        className="group/btn p-3 bg-[#0A66C2] text-white rounded-xl shadow-sm hover:shadow-lg hover:scale-110 transition-all duration-200"
-                        title="Share on LinkedIn"
+                        className="flex items-center gap-1 px-3 py-2 bg-[#0A66C2] text-white rounded-lg shadow-sm hover:shadow-md hover:bg-[#004182] transition-all duration-200 text-xs font-medium"
                       >
-                        <Linkedin className="w-4 h-4 group-hover/btn:rotate-12 transition-transform" />
+                        <Linkedin className="w-3 h-3" />
+                        LinkedIn
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          const achievements = {
+                            '1st Place': { emoji: '🥇', title: 'CHAMPION' },
+                            '2nd Place': { emoji: '🥈', title: 'EXCELLENCE' },
+                            '3rd Place': { emoji: '🥉', title: 'ACHIEVER' }
+                          };
+                          const achievement = achievements[badgeLabel] || achievements['1st Place'];
+                          const whatsappText = `${achievement.emoji} QA ${achievement.title} CERTIFIED ${achievement.emoji}\n\n🏅 ${winner.name} - ${badgeLabel} Winner\n🏢 ${winner.title}\n🏆 TestingVala Contest Winner\n\n🌟 Recognized for outstanding QA excellence!\n\n🚀 Join the QA Elite Community:\n💰 Monthly contests with cash prizes\n🤝 Network with 10,000+ QA professionals\n📈 Accelerate your QA career\n\n🔗 www.testingvala.com\n📧 info@testingvala.com\n\n#QAChampion #TestingVala #QualityAssurance`;
+                          const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(whatsappText)}`;
+                          window.open(whatsappUrl, '_blank');
+                        }}
+                        className="flex items-center gap-1 px-3 py-2 bg-[#25D366] text-white rounded-lg shadow-sm hover:shadow-md hover:bg-[#1DA851] transition-all duration-200 text-xs font-medium"
+                      >
+                        <MessageCircle className="w-3 h-3" />
+                        WhatsApp
                       </button>
 
                       <button
                         onClick={() => downloadShareCard(winner, badgeLabel)}
-                        className="group/btn p-3 bg-gray-900 text-white rounded-xl shadow-sm hover:shadow-lg hover:scale-110 transition-all duration-200"
-                        title="Download card"
+                        className="flex items-center gap-1 px-3 py-2 bg-gray-800 text-white rounded-lg shadow-sm hover:shadow-md hover:bg-gray-900 transition-all duration-200 text-xs font-medium"
                       >
-                        <Download className="w-4 h-4 group-hover/btn:translate-y-1 transition-transform" />
+                        <Download className="w-3 h-3" />
+                        Certificate
                       </button>
-
-                      <button
-                        onClick={() => copyShareText(winner, badgeLabel)}
-                        className="group/btn p-3 bg-gray-100 text-gray-800 rounded-xl shadow-sm hover:shadow-lg hover:scale-110 transition-all duration-200"
-                        title="Copy share text"
-                      >
-                        <Clipboard className="w-4 h-4 group-hover/btn:rotate-12 transition-transform" />
-                      </button>
-                    </div>
-
-                    <div className="text-xs text-gray-500">
-                      Proudly hosted by <span className="text-[#FF6600] font-semibold">TestingVala</span>
                     </div>
                   </div>
                 </div>
               );
             })}
-          </div>
-
-          {/* Call to Action */}
-          <div className="text-center">
-            <div className="bg-white rounded-2xl p-8 shadow-xl max-w-2xl mx-auto border border-gray-100 relative overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-br from-[#FF6600]/5 to-[#0057B7]/5"></div>
-              <div className="relative">
-                <div className="w-16 h-16 bg-gradient-to-br from-[#FF6600] to-[#E55A00] rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
-                  <Trophy className="w-8 h-8 text-white" />
-                </div>
-                <h3 className="text-3xl font-bold text-gray-900 mb-4">Ready to Join the Winners Circle?</h3>
-                <p className="text-gray-600 mb-6 text-lg leading-relaxed">
-                  Share your QA expertise and compete with the best testing professionals worldwide. Your innovation could be featured next!
-                </p>
-                <button 
-                  onClick={() => { window.location.hash = 'contest'; }}
-                  className="bg-gradient-to-r from-[#FF6600] to-[#E55A00] text-white px-8 py-4 rounded-xl font-bold text-lg hover:shadow-2xl transition-all duration-300 flex items-center gap-3 mx-auto hover:scale-105 group"
-                >
-                  <Trophy className="w-6 h-6 group-hover:rotate-12 transition-transform" />
-                  View Contest & Enter Now
-                </button>
-              </div>
             </div>
-          </div>
+          )}
+
+
         </div>
       </section>
 
-      {/* Contest Statistics */}
-      <section className="py-16 bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-10 left-10 w-64 h-64 bg-[#FF6600] rounded-full blur-3xl"></div>
-          <div className="absolute bottom-10 right-10 w-80 h-80 bg-[#0057B7] rounded-full blur-3xl"></div>
-        </div>
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-          <div className="text-center mb-12">
-            <h2 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-white via-orange-200 to-blue-200 bg-clip-text text-transparent">
-              Contest Statistics
-            </h2>
-            <p className="text-xl text-gray-300 max-w-3xl mx-auto">
-              Track your progress and see how you compare with other participants. Updated in real-time.
-            </p>
-          </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            <div className="group bg-white/10 backdrop-blur-sm rounded-2xl p-8 text-center border border-white/20 hover:border-[#FF6600]/50 transition-all duration-300 hover:transform hover:-translate-y-2">
-              <div className="w-20 h-20 bg-gradient-to-br from-[#FF6600] to-[#E55A00] rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300">
-                <Users className="w-10 h-10 text-white" />
-              </div>
-              <div className="text-4xl md:text-5xl font-bold mb-2 bg-gradient-to-r from-white to-orange-200 bg-clip-text text-transparent">
-                {safeStats.participants}
-              </div>
-              <div className="text-lg font-semibold text-gray-200 mb-2">Active Participants</div>
-              <p className="text-sm text-gray-400">Contestants currently competing</p>
-            </div>
 
-            <div className="group bg-white/10 backdrop-blur-sm rounded-2xl p-8 text-center border border-white/20 hover:border-[#0057B7]/50 transition-all duration-300 hover:transform hover:-translate-y-2">
-              <div className="w-20 h-20 bg-gradient-to-br from-[#0057B7] to-[#003d82] rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300">
-                <Trophy className="w-10 h-10 text-white" />
-              </div>
-              <div className="text-4xl md:text-5xl font-bold mb-2 bg-gradient-to-r from-white to-blue-200 bg-clip-text text-transparent">
-                {safeStats.prizes}
-              </div>
-              <div className="text-lg font-semibold text-gray-200 mb-2">Total Prizes</div>
-              <p className="text-sm text-gray-400">Awarded across all contests</p>
-            </div>
-
-            <div className="group bg-white/10 backdrop-blur-sm rounded-2xl p-8 text-center border border-white/20 hover:border-yellow-500/50 transition-all duration-300 hover:transform hover:-translate-y-2">
-              <div className="w-20 h-20 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300">
-                <Clock className="w-10 h-10 text-white" />
-              </div>
-              <div className="text-4xl md:text-5xl font-bold mb-2 bg-gradient-to-r from-white to-yellow-200 bg-clip-text text-transparent">
-                {safeStats.support}
-              </div>
-              <div className="text-lg font-semibold text-gray-200 mb-2">Support Available</div>
-              <p className="text-sm text-gray-400">Help and contest assistance</p>
-            </div>
-          </div>
-        </div>
-      </section>
     </>
   );
 };

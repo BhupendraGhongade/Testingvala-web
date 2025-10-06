@@ -1,7 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Bookmark, Plus, Edit2, Trash2, Lock, Globe, X, MoreHorizontal, ArrowLeft } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
+import { useSimpleDragDrop } from '../hooks/useSimpleDragDrop';
+import ConfirmationModal from './ConfirmationModal';
+
+import { 
+  loadBoardsWithOrdering, 
+  createBoardWithPosition, 
+  optimisticReorderBoards, 
+  validateBoardData, 
+  sanitizeText 
+} from '../utils/boardUtils';
 
 const isValidImageUrl = (url) => {
   if (!url) return true;
@@ -11,10 +21,6 @@ const isValidImageUrl = (url) => {
   } catch {
     return false;
   }
-};
-
-const sanitizeText = (text) => {
-  return text.replace(/<[^>]*>/g, '').trim();
 };
 
 const BoardsPage = ({ user, onBack, onViewBoard, onViewPublic }) => {
@@ -31,12 +37,9 @@ const BoardsPage = ({ user, onBack, onViewBoard, onViewPublic }) => {
   });
   const [showDropdown, setShowDropdown] = useState({});
   const [error, setError] = useState(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(null);
 
-  useEffect(() => {
-    loadBoards();
-  }, []);
-
-  const loadBoards = async () => {
+  const loadBoards = useCallback(async () => {
     if (!supabase) {
       setError('Database not configured');
       setLoading(false);
@@ -53,37 +56,7 @@ const BoardsPage = ({ user, onBack, onViewBoard, onViewPublic }) => {
     setError(null);
     
     try {
-      const { data: boardsData, error: boardsError } = await supabase
-        .from('user_boards')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (boardsError) {
-        if (boardsError.code === 'PGRST116' || boardsError.message?.includes('relation "user_boards" does not exist')) {
-          setError('Boards feature not set up. Please run the database setup script.');
-          return;
-        }
-        throw boardsError;
-      }
-
-      // Load boards with save counts
-      const boardsWithSaves = await Promise.all(
-        (boardsData || []).map(async (board) => {
-          try {
-            const { count } = await supabase
-              .from('board_pins')
-              .select('*', { count: 'exact', head: true })
-              .eq('board_id', board.id);
-            
-            return { ...board, save_count: count || 0 };
-          } catch (error) {
-            console.warn(`Could not load save count for board ${board.id}:`, error);
-            return { ...board, save_count: 0 };
-          }
-        })
-      );
-
+      const boardsWithSaves = await loadBoardsWithOrdering(user.id);
       setBoards(boardsWithSaves);
 
       // Update saves state for backward compatibility
@@ -99,39 +72,31 @@ const BoardsPage = ({ user, onBack, onViewBoard, onViewPublic }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.id]);
+
+  useEffect(() => {
+    loadBoards();
+  }, [loadBoards]);
 
   const createBoard = async () => {
-    const sanitizedName = sanitizeText(newBoard.name);
-    if (!sanitizedName) {
-      toast.error('Board name is required');
-      return;
-    }
-    
-    const imageUrl = newBoard.cover_image_url.trim();
-    if (imageUrl && !isValidImageUrl(imageUrl)) {
-      toast.error('Please enter a valid image URL');
+    const validation = validateBoardData(newBoard);
+    if (!validation.isValid) {
+      validation.errors.forEach(error => toast.error(error));
       return;
     }
 
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('user_boards')
-        .insert({
-          user_id: user.id,
-          name: sanitizedName,
-          description: sanitizeText(newBoard.description) || null,
-          is_private: newBoard.is_private,
-          cover_image_url: imageUrl || null
-        })
-        .select()
-        .single();
+      const boardData = {
+        name: sanitizeText(newBoard.name),
+        description: sanitizeText(newBoard.description) || null,
+        is_private: newBoard.is_private,
+        cover_image_url: newBoard.cover_image_url.trim() || null
+      };
 
-      if (error) throw error;
-
-      setBoards(prev => [data, ...prev]);
-      setSaves(prev => ({ ...prev, [data.id]: 0 }));
+      const newBoardData = await createBoardWithPosition(user.id, boardData);
+      setBoards(prev => [newBoardData, ...prev]);
+      setSaves(prev => ({ ...prev, [newBoardData.id]: 0 }));
       resetForm();
       toast.success('Board created successfully!');
     } catch (error) {
@@ -146,23 +111,28 @@ const BoardsPage = ({ user, onBack, onViewBoard, onViewPublic }) => {
     const board = boards.find(b => b.id === boardId);
     if (!board) return;
 
-    if (!confirm(`Delete "${board.name}"? All saves will be removed.`)) return;
+    setShowDeleteModal(board);
+  };
+
+  const confirmDeleteBoard = async () => {
+    if (!showDeleteModal) return;
 
     try {
       const { error } = await supabase
         .from('user_boards')
         .delete()
-        .eq('id', boardId);
+        .eq('id', showDeleteModal.id);
 
       if (error) throw error;
 
-      setBoards(prev => prev.filter(b => b.id !== boardId));
+      setBoards(prev => prev.filter(b => b.id !== showDeleteModal.id));
       setSaves(prev => {
         const newSaves = { ...prev };
-        delete newSaves[boardId];
+        delete newSaves[showDeleteModal.id];
         return newSaves;
       });
       setShowDropdown({});
+      setShowDeleteModal(null);
       toast.success('Board deleted!');
     } catch (error) {
       console.error('Error deleting board:', error);
@@ -174,6 +144,53 @@ const BoardsPage = ({ user, onBack, onViewBoard, onViewPublic }) => {
     setEditingBoard(null);
     setShowCreateBoard(false);
     setNewBoard({ name: '', description: '', is_private: false, cover_image_url: '' });
+  };
+
+  // Drag and drop functionality
+  const handleReorder = useCallback(async (fromIndex, toIndex) => {
+    if (fromIndex === toIndex) return;
+    
+    try {
+      const updatedBoards = await optimisticReorderBoards(boards, fromIndex, toIndex, user.id);
+      setBoards(updatedBoards);
+    } catch (error) {
+      // Error handling is done in optimisticReorderBoards
+      console.error('Reorder failed:', error);
+    }
+  }, [boards, user.id]);
+
+  const handleReorderStart = useCallback((index, item) => {
+    // Optional: Add any start logic here
+    console.log('Started reordering board:', item.name);
+  }, []);
+
+  const handleReorderEnd = useCallback(() => {
+    // Optional: Add any end logic here
+    console.log('Finished reordering boards');
+  }, []);
+
+  // Drag and drop functionality
+  const {
+    draggedIndex,
+    dragOverIndex,
+    handleDragStart,
+    handleDragEnd,
+    handleDragOver,
+    handleDrop,
+    isDragging
+  } = useSimpleDragDrop(boards, handleReorder);
+
+  // Simple move up/down functions
+  const moveUp = (index) => {
+    if (index > 0) {
+      handleReorder(index, index - 1);
+    }
+  };
+
+  const moveDown = (index) => {
+    if (index < boards.length - 1) {
+      handleReorder(index, index + 1);
+    }
   };
 
   return (
@@ -257,16 +274,66 @@ const BoardsPage = ({ user, onBack, onViewBoard, onViewPublic }) => {
           </div>
         )}
 
-        {/* Boards Grid */}
+        {/* Reorder Instructions */}
+        {!loading && !error && boards.length > 1 && (
+          <div className={`mb-6 p-4 rounded-xl transition-all ${
+            isDragging ? 'bg-green-50 border-green-200' : 'bg-blue-50 border-blue-200'
+          } border`}>
+            <p className="text-sm font-medium">
+              {isDragging ? '🎯 Drop to reorder' : '✨ Drag boards or use ↑↓ buttons to reorder'}
+            </p>
+          </div>
+        )}
+
+        {/* Professional Boards Grid */}
         {!loading && !error && boards.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-            {boards.map((board) => (
-              <div 
-                key={board.id} 
-                onClick={() => onViewBoard(board.id)}
-                className="group bg-white rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-300 cursor-pointer overflow-hidden transform hover:-translate-y-2 hover:scale-105 border border-gray-100"
-              >
-                <div className="relative h-40 bg-gradient-to-br from-blue-500 via-purple-600 to-pink-500 overflow-hidden">
+            {boards.map((board, index) => {
+              return (
+                <div key={board.id}>
+                  <div 
+                    draggable
+                    onDragStart={() => handleDragStart(index)}
+                    onDragEnd={handleDragEnd}
+                    onDragOver={(e) => handleDragOver(e, index)}
+                    onDrop={(e) => handleDrop(e, index)}
+                    className={`group bg-white rounded-3xl shadow-lg hover:shadow-2xl overflow-hidden border relative cursor-move transition-all ${
+                      draggedIndex === index ? 'opacity-50 scale-95 border-blue-500' :
+                      dragOverIndex === index ? 'border-green-500 bg-green-50 scale-105' :
+                      'border-gray-100'
+                    }`}
+                  >
+                    {/* Move Up/Down Buttons */}
+                    {boards.length > 1 && (
+                      <div className="absolute top-2 left-2 z-30 flex flex-col gap-1">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            moveUp(index);
+                          }}
+                          disabled={index === 0}
+                          className="w-6 h-6 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white rounded text-xs flex items-center justify-center"
+                          title="Move up"
+                        >
+                          ↑
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            moveDown(index);
+                          }}
+                          disabled={index === boards.length - 1}
+                          className="w-6 h-6 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white rounded text-xs flex items-center justify-center"
+                          title="Move down"
+                        >
+                          ↓
+                        </button>
+                      </div>
+                    )}
+                  
+                  {/* Board Content */}
+                  <div className="relative">
+                <div className="relative h-40 bg-[#0057B7] overflow-hidden">
                   {board.cover_image_url && isValidImageUrl(board.cover_image_url) ? (
                     <>
                       <img
@@ -279,7 +346,7 @@ const BoardsPage = ({ user, onBack, onViewBoard, onViewPublic }) => {
                   ) : (
                     <>
                       <div className="w-full h-full flex items-center justify-center relative overflow-hidden">
-                        <div className="absolute inset-0 bg-gradient-to-br from-blue-400 via-purple-500 to-pink-500 animate-pulse"></div>
+                        <div className="absolute inset-0 bg-[#0057B7] opacity-90"></div>
                         <Bookmark className="w-16 h-16 text-white opacity-80 relative z-10 group-hover:scale-125 transition-transform duration-300" />
                       </div>
                       <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
@@ -315,7 +382,7 @@ const BoardsPage = ({ user, onBack, onViewBoard, onViewPublic }) => {
                   </div>
 
                   {/* Privacy Badge */}
-                  <div className="absolute top-3 left-3">
+                  <div className="absolute top-3 left-16">
                     <div className={`px-3 py-1 rounded-full text-xs font-medium backdrop-blur-sm ${
                       board.is_private 
                         ? 'bg-red-500/20 text-red-100 border border-red-400/30' 
@@ -358,16 +425,25 @@ const BoardsPage = ({ user, onBack, onViewBoard, onViewPublic }) => {
                       <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
                       Created {new Date(board.created_at).toLocaleDateString()}
                     </div>
-                    <div className="text-xs font-medium text-blue-600 group-hover:text-blue-700 transition-colors">
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onViewBoard(board.id);
+                      }}
+                      className="text-xs font-medium text-blue-600 group-hover:text-blue-700 transition-colors hover:underline"
+                    >
                       View Board →
-                    </div>
+                    </button>
                   </div>
                 </div>
 
-                {/* Hover Glow Effect */}
-                <div className="absolute inset-0 rounded-3xl bg-gradient-to-r from-blue-400/0 via-purple-400/0 to-pink-400/0 group-hover:from-blue-400/10 group-hover:via-purple-400/10 group-hover:to-pink-400/10 transition-all duration-500 pointer-events-none"></div>
-              </div>
-            ))}
+                {/* Professional Hover Glow Effect */}
+                <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-blue-500/0 via-blue-500/0 to-blue-500/5 group-hover:from-blue-500/5 group-hover:via-blue-500/10 group-hover:to-blue-500/15 transition-all duration-500 pointer-events-none"></div>
+                  </div>
+                </div>
+                </div>
+              );
+            })}
           </div>
         )}
 
@@ -469,6 +545,20 @@ const BoardsPage = ({ user, onBack, onViewBoard, onViewPublic }) => {
             </div>
           </div>
         )}
+
+        {/* Delete Confirmation Modal */}
+        <ConfirmationModal
+          isOpen={!!showDeleteModal}
+          onClose={() => setShowDeleteModal(null)}
+          onConfirm={confirmDeleteBoard}
+          title="Delete Board"
+          message="Are you sure you want to delete this board? All saves in this board will be permanently removed."
+          confirmText="Delete Board"
+          cancelText="Cancel"
+          type="danger"
+          itemName={showDeleteModal?.name}
+          itemDescription={showDeleteModal?.description}
+        />
       </div>
     </div>
   );
