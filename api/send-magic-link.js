@@ -1,5 +1,8 @@
-// PRODUCTION-READY MAGIC LINK API - BULLETPROOF VERSION
+// PRODUCTION-READY MAGIC LINK API - WORLD CLASS TEMPLATE v2.0
 import { createClient } from '@supabase/supabase-js';
+
+// Template version for cache busting
+const TEMPLATE_VERSION = '2.0.0';
 
 // Environment validation with fallbacks
 const requiredEnvVars = {
@@ -36,7 +39,7 @@ const rateLimitStore = new Map();
 const RATE_LIMIT_MAX = 5;
 const RATE_LIMIT_WINDOW = 60 * 60 * 1000; // 1 hour
 
-// World-class professional email template
+// World-class professional email template v2.0
 function getEmailTemplate(email, magicLink) {
   return `<!DOCTYPE html>
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
@@ -390,13 +393,14 @@ export default async function handler(req, res) {
       }
       
       const messageId = result.data?.[0]?.message_id || requestId;
-      console.log(`[magic-link] [${requestId}] ✅ EMAIL SENT: ${messageId}`);
+      console.log(`[magic-link] [${requestId}] ✅ EMAIL SENT: ${messageId} (Template v${TEMPLATE_VERSION})`);
       
       return res.status(200).json({
         success: true,
         messageId,
         message: 'Verification email sent successfully',
         provider: 'zeptomail',
+        templateVersion: TEMPLATE_VERSION,
         requestId
       });
       
