@@ -1,5 +1,6 @@
 // Enterprise Authentication Service
 import { supabase } from '../lib/supabase';
+<<<<<<< HEAD
 import { secureFetch, generateCSRFToken, setCSRFToken } from '../utils/csrf';
 import { sanitizeEmail } from '../utils/sanitizer';
 
@@ -8,6 +9,14 @@ class AuthService {
     this.rateLimitKey = import.meta.env.VITE_RATE_LIMIT_KEY || 'rate_limit';
     this.sessionKey = import.meta.env.VITE_SESSION_KEY || 'auth_session';
     this.deviceKey = import.meta.env.VITE_DEVICE_KEY || 'device_id';
+=======
+
+class AuthService {
+  constructor() {
+    this.rateLimitKey = import.meta.env.VITE_RATE_LIMIT_KEY;
+    this.sessionKey = import.meta.env.VITE_SESSION_KEY;
+    this.deviceKey = import.meta.env.VITE_DEVICE_KEY;
+>>>>>>> origin/main
     this.maxRequests = parseInt(import.meta.env.VITE_MAX_REQUESTS) || 5;
     this.rateLimitWindow = parseInt(import.meta.env.VITE_RATE_LIMIT_WINDOW) || 60 * 60 * 1000;
     this.sessionDuration = parseInt(import.meta.env.VITE_SESSION_DURATION) || 30 * 24 * 60 * 60 * 1000;
@@ -116,15 +125,26 @@ class AuthService {
         throw new Error(rateCheck.message);
       }
 
+<<<<<<< HEAD
       // Sanitize and validate email
       const sanitizedEmail = sanitizeEmail(email);
       if (!sanitizedEmail) {
+=======
+      // Validate email format with safe regex
+      const emailRegex = new RegExp('^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$');
+      if (!emailRegex.test(email)) {
+>>>>>>> origin/main
         throw new Error('Please enter a valid email address');
       }
 
       // Generate secure CSRF token
+<<<<<<< HEAD
       const csrfToken = generateCSRFToken();
       setCSRFToken(csrfToken);
+=======
+      const csrfToken = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+      sessionStorage.setItem('csrf_token', csrfToken);
+>>>>>>> origin/main
 
       console.log(`📧 [${requestId}] Sending email request`, {
         email,
@@ -136,6 +156,7 @@ class AuthService {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
 
+<<<<<<< HEAD
       const response = await secureFetch('/api/secure-send-magic-link', {
         method: 'POST',
         headers: { 
@@ -145,6 +166,20 @@ class AuthService {
         },
         body: JSON.stringify({ 
           email: sanitizedEmail,
+=======
+      const response = await fetch('/api/send-magic-link', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': csrfToken,
+          'X-Request-ID': requestId,
+          'X-Requested-With': 'XMLHttpRequest',
+          'Origin': window.location.origin
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify({ 
+          email: email.trim().toLowerCase(),
+>>>>>>> origin/main
           deviceId: this.getDeviceId(),
           requestId,
           csrfToken

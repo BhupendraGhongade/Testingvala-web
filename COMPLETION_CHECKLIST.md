@@ -16,8 +16,17 @@
 
 ### 3. Email Service Setup (CRITICAL)
 **Status**: Needs immediate completion
+<<<<<<< HEAD
 **Action Required**: Ensure the Vercel Serverless Function at `/api/send-magic-link.js` is deployed and configured with the correct ZeptoMail environment variables. The local `simple-zepto-server.cjs` is for local testing ONLY and must not be part of the production deployment.
 **Expected Result**: Magic link emails are sent via the serverless API endpoint, which is scalable and compatible with Vercel.
+=======
+**Action Required**:
+```bash
+# Start the ZeptoMail server
+node simple-zepto-server.cjs
+```
+**Expected Result**: Magic link emails will work via ZeptoMail
+>>>>>>> origin/main
 
 ### 4. Supabase Database Setup
 **Status**: SQL scripts ready, needs execution
@@ -43,7 +52,14 @@
 ## 🎯 IMMEDIATE NEXT STEPS
 
 ### Step 1: Start Email Service (2 minutes)
+<<<<<<< HEAD
 The email service is a serverless function on Vercel. No local server needs to be started for production. For local development, you can use the local server or call the Vercel dev endpoint.
+=======
+```bash
+cd /Users/bghongade/Testingvala-AdminUser
+node simple-zepto-server.cjs
+```
+>>>>>>> origin/main
 
 ### Step 2: Start Development Server (1 minute)
 ```bash
@@ -79,10 +95,16 @@ npm run dev
 ## 🚨 CRITICAL ACTIONS NEEDED
 
 1. **START EMAIL SERVER**: `node simple-zepto-server.cjs`
+<<<<<<< HEAD
 1. **DEPLOY SERVERLESS FUNCTION**: Ensure `/api/send-magic-link.js` is deployed correctly on Vercel.
 2. **EXECUTE SQL SCRIPTS**: In Supabase Dashboard.
 3. **CONFIGURE ENV VARS**: Set all ZeptoMail and Supabase variables in Vercel.
 4. **TEST AUTHENTICATION**: Verify the end-to-end magic link flow on the deployed site.
+=======
+2. **START DEV SERVER**: `npm run dev`
+3. **EXECUTE SQL SCRIPTS**: In Supabase Dashboard
+4. **TEST AUTHENTICATION**: Verify magic link flow
+>>>>>>> origin/main
 
 ## 📊 COMPLETION PROGRESS
 
@@ -106,6 +128,21 @@ After completion:
 - ✅ Community features working
 - ✅ Resume builder operational
 
+<<<<<<< HEAD
+=======
+## 🔗 QUICK START COMMANDS
+
+```bash
+# Terminal 1: Start email service
+node simple-zepto-server.cjs
+
+# Terminal 2: Start development server
+npm run dev
+
+# Then open: http://localhost:5173
+```
+
+>>>>>>> origin/main
 **Time to Complete**: ~15 minutes
 **Difficulty**: Easy (mostly configuration)
 **Risk Level**: Low (all code is tested)

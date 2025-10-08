@@ -2,18 +2,93 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+    <meta name="format-detection" content="telephone=no, date=no, email=no, address=no" />
+    <meta name="color-scheme" content="light dark" />
+    
+    <!-- Security Headers -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: https:; font-src 'self' https:; connect-src 'self' https:; media-src 'self' https:; object-src 'none'; base-uri 'self'; form-action 'self';" />
+    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+    <meta http-equiv="X-Frame-Options" content="DENY" />
+    <meta http-equiv="X-XSS-Protection" content="1; mode=block" />
+    <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
+    <meta http-equiv="Permissions-Policy" content="camera=(), microphone=(), geolocation=(), payment=()" />
+    
+    <!-- PWA Meta Tags -->
+    <meta name="application-name" content="TestingVala" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="TestingVala" />
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="msapplication-config" content="/browserconfig.xml" />
+    <meta name="msapplication-TileColor" content="#FF6600" />
+    <meta name="msapplication-tap-highlight" content="no" />
+    <meta name="theme-color" content="#FF6600" />
+    
+    <!-- SEO & Social Meta -->
+    <meta name="description" content="Professional Software Testing Community - Join QA experts, participate in contests, and advance your testing career with TestingVala." />
+    <meta name="keywords" content="software testing, QA, quality assurance, testing community, automation, manual testing, career" />
+    <meta name="author" content="TestingVala" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="TestingVala - Professional Software Testing Community" />
+    <meta property="og:description" content="Join the leading QA community. Participate in contests, share expertise, and build your testing career." />
+    <meta property="og:site_name" content="TestingVala" />
+    <meta property="og:url" content="https://testingvala.com" />
+    <meta property="og:image" content="/testingvala-logo.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="TestingVala - Professional Software Testing Community" />
+    <meta name="twitter:description" content="Join the leading QA community. Participate in contests, share expertise, and build your testing career." />
+    <meta name="twitter:image" content="/testingvala-logo.png" />
+    
+    <!-- Icons -->
     <link rel="icon" type="image/svg+xml" href="/testingvala-symbol.svg" />
     <link rel="apple-touch-icon" href="/testingvala-symbol.svg" />
-    <meta name="theme-color" content="#ffffff" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="mask-icon" href="/testingvala-symbol.svg" color="#FF6600" />
+    
+    <!-- Performance Optimizations -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="dns-prefetch" href="https://api.supabase.co" />
+    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net" />
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'" />
+    <link rel="preload" href="/testingvala-symbol.svg" as="image" type="image/svg+xml" />
+    <link rel="modulepreload" href="data:text/jsx;base64,aW1wb3J0IFJlYWN0IGZyb20gJ3JlYWN0JwppbXBvcnQgUmVhY3RET00gZnJvbSAncmVhY3QtZG9tL2NsaWVudCcKaW1wb3J0IEFwcCBmcm9tICcuL0FwcC5qc3gnCmltcG9ydCAnLi9pbmRleC5jc3MnCmltcG9ydCAnLi91dGlscy9lbWVyZ2VuY3lTdG9yYWdlRml4LmpzJwoKUmVhY3RET00uY3JlYXRlUm9vdChkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgncm9vdCcpKS5yZW5kZXIoCiAgPFJlYWN0LlN0cmljdE1vZGU+CiAgICA8QXBwIC8+CiAgPC9SZWFjdC5TdHJpY3RNb2RlPiwKKQ==" />
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" /></noscript>
+    
+    <!-- Resource Hints -->
+    <link rel="prefetch" href="/manifest.json" />
+    <link rel="prefetch" href="/sw.js" />
+    
+    <!-- Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "TestingVala",
+      "url": "https://testingvala.com",
+      "logo": "https://testingvala.com/testingvala-logo.png",
+      "description": "Professional Software Testing Community Platform",
+      "sameAs": [
+        "https://www.instagram.com/testingvala",
+        "https://www.youtube.com/@TestingvalaOfficial",
+        "https://twitter.com/testingvala",
+        "https://www.linkedin.com/company/testingvala"
+      ]
+    }
+    </script>
+    
     <title>TestingVala - Professional Software Testing Community</title>
+<<<<<<< HEAD
     <script type="module" crossorigin src="/assets/index-9A87etfC.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-BkmUTtHB.css">
+=======
+    <script type="module" crossorigin src="/assets/index-D00n9y7L.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-BJ2j31kC.css">
+>>>>>>> origin/main
   </head>
   <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
     <div id="root"></div>
   </body>
 </html>

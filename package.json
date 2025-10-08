@@ -16,6 +16,13 @@
     "db:migrate": "node scripts/safe-migrate.js",
     "db:deploy": "node scripts/deploy-prod.js",
     "db:backup": "node scripts/backup-prod.js",
+<<<<<<< HEAD
+=======
+    "db:backup-api": "node scripts/api-backup.js",
+    "db:backup-quick": "node scripts/quick-backup.js",
+    "db:backup-working": "node scripts/working-backup.js",
+    "db:backup-interactive": "node scripts/interactive-backup.js",
+>>>>>>> origin/main
     "db:backup-simple": "node scripts/simple-backup.js",
     "db:seed": "supabase seed --local",
     "db:diff": "supabase db diff -f",
@@ -28,6 +35,7 @@
     "env:check": "node scripts/check-environment.js",
     "setup": "chmod +x supabase-setup.sh && ./supabase-setup.sh",
     "build:prod": "node scripts/production-build.js",
+<<<<<<< HEAD
     "security:check": "npm audit --audit-level moderate",
     "security:scan": "grep -r 'eyJ\\|sk_\\|pk_' --include='*.js' --include='*.jsx' src/ || echo 'No hardcoded secrets found'",
     "security:test": "vitest run src/tests/security.test.js",
@@ -43,6 +51,17 @@
     "react-hot-toast": "^2.6.0",
     "react-router-dom": "^6.30.1",
     "zod": "^4.1.12"
+=======
+    "security:check": "npm audit --audit-level moderate"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.58.0",
+    "lucide-react": "^0.263.1",
+    "node-fetch": "^2.7.0",
+    "nodemailer": "^7.0.6",
+    "react-hot-toast": "^2.6.0",
+    "react-router-dom": "^6.30.1"
+>>>>>>> origin/main
   },
   "devDependencies": {
     "@types/react": "^18.2.43",

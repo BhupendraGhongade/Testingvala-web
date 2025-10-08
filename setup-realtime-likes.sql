@@ -48,6 +48,7 @@ CREATE POLICY "Anonymous users can manage guest likes" ON post_likes
   );
 
 -- Enable real-time for post_likes table
+<<<<<<< HEAD
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -57,6 +58,18 @@ BEGIN
   END IF;
 END;
 $$;
+=======
+ALTER PUBLICATION supabase_realtime ADD TABLE post_likes;
+
+-- Create function to update updated_at timestamp
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+>>>>>>> origin/main
 
 -- Create trigger for updated_at
 DROP TRIGGER IF EXISTS update_post_likes_updated_at ON post_likes;
