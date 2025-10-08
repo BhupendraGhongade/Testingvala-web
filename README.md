@@ -180,6 +180,7 @@ Open [http://localhost:5173](http://localhost:5173) to view the website.
 ## 🔧 Admin Panel Access
 
 - **Password**: `Golu@2205` (change this in `src/components/AdminPanel.jsx`)
+- **Password**: This is configured via the `VITE_ADMIN_PASSWORD` environment variable for security. Do NOT hardcode it.
 - **Access**: Click the settings icon in the bottom-right corner
 - **Features**: Edit contest details, hero section, winners, about, and contact info
 

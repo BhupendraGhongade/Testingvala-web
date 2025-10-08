@@ -104,7 +104,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 10. Trigger to Update updated_at timestamp
+-- 10. Master Trigger to Update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -121,5 +121,9 @@ CREATE TRIGGER update_payment_config_updated_at
   BEFORE UPDATE ON payment_config 
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- Success Message
-SELECT 'Premium Resume Builder tables and functions created successfully!' as status;
+CREATE TRIGGER update_user_profiles_updated_at
+    BEFORE UPDATE ON user_profiles
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Note: Other triggers are defined in their respective setup files.

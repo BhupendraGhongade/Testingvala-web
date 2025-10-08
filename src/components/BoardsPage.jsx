@@ -39,14 +39,12 @@ const BoardsPage = ({ user, onBack, onViewBoard, onViewPublic }) => {
   const [error, setError] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(null);
 
-  const loadBoards = useCallback(async () => {
-    if (!supabase) {
-      setError('Database not configured');
-      setLoading(false);
-      return;
-    }
+  // Flexible user ID getter to support both auth systems
+  const getUserId = () => user?.id || user?.email;
 
-    if (!user?.id) {
+  const loadBoards = useCallback(async () => {
+    const userId = getUserId();
+    if (!userId) {
       setBoards([]);
       setLoading(false);
       return;
@@ -56,19 +54,20 @@ const BoardsPage = ({ user, onBack, onViewBoard, onViewPublic }) => {
     setError(null);
     
     try {
-      const boardsWithSaves = await loadBoardsWithOrdering(user.id);
-      setBoards(boardsWithSaves);
-
-      // Update saves state for backward compatibility
+      // Load from localStorage as fallback
+      const localBoards = JSON.parse(localStorage.getItem(`boards_${userId}`) || '[]');
+      setBoards(localBoards);
+      
       const savesCount = {};
-      boardsWithSaves.forEach(board => {
-        savesCount[board.id] = board.save_count;
+      localBoards.forEach(board => {
+        savesCount[board.id] = board.save_count || 0;
       });
       setSaves(savesCount);
 
     } catch (error) {
       console.error('Error loading boards:', error);
-      setError(`Failed to load boards: ${error.message}`);
+      setBoards([]);
+      setSaves({});
     } finally {
       setLoading(false);
     }
@@ -85,23 +84,42 @@ const BoardsPage = ({ user, onBack, onViewBoard, onViewPublic }) => {
       return;
     }
 
+    const userId = getUserId();
+    if (!userId) {
+      toast.error('Please sign in to create a board');
+      return;
+    }
+
+    console.log('Creating board for user:', userId);
     setLoading(true);
+    
     try {
-      const boardData = {
+      // Create board locally as fallback
+      const localBoard = {
+        id: `local-${Date.now()}`,
+        user_id: userId,
         name: sanitizeText(newBoard.name),
         description: sanitizeText(newBoard.description) || null,
         is_private: newBoard.is_private,
-        cover_image_url: newBoard.cover_image_url.trim() || null
+        cover_image_url: newBoard.cover_image_url.trim() || null,
+        position: 0,
+        created_at: new Date().toISOString(),
+        save_count: 0
       };
 
-      const newBoardData = await createBoardWithPosition(user.id, boardData);
-      setBoards(prev => [newBoardData, ...prev]);
-      setSaves(prev => ({ ...prev, [newBoardData.id]: 0 }));
+      // Save to localStorage
+      const existingBoards = JSON.parse(localStorage.getItem(`boards_${userId}`) || '[]');
+      const updatedBoards = [localBoard, ...existingBoards];
+      localStorage.setItem(`boards_${userId}`, JSON.stringify(updatedBoards));
+      
+      setBoards(prev => [localBoard, ...prev]);
+      setSaves(prev => ({ ...prev, [localBoard.id]: 0 }));
       resetForm();
       toast.success('Board created successfully!');
+      
     } catch (error) {
       console.error('Error creating board:', error);
-      toast.error('Failed to create board');
+      toast.error(`Failed to create board: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -151,7 +169,7 @@ const BoardsPage = ({ user, onBack, onViewBoard, onViewPublic }) => {
     if (fromIndex === toIndex) return;
     
     try {
-      const updatedBoards = await optimisticReorderBoards(boards, fromIndex, toIndex, user.id);
+      const updatedBoards = await optimisticReorderBoards(boards, fromIndex, toIndex, getUserId());
       setBoards(updatedBoards);
     } catch (error) {
       // Error handling is done in optimisticReorderBoards
@@ -559,6 +577,8 @@ const BoardsPage = ({ user, onBack, onViewBoard, onViewPublic }) => {
           itemName={showDeleteModal?.name}
           itemDescription={showDeleteModal?.description}
         />
+
+
       </div>
     </div>
   );

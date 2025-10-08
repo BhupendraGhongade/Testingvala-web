@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useGlobalData } from '../contexts/GlobalDataContext';
 import AuthModal from './AuthModal';
 import CategoryDropdown from './CategoryDropdown';
+import { createPostSchema, validateAndSanitize } from '../utils/validation';
 
 const CreatePostModal = ({ isOpen, onClose, onPostCreated }) => {
   const { user, isVerified, loading: authLoading } = useAuth();
@@ -135,29 +136,32 @@ const CreatePostModal = ({ isOpen, onClose, onPostCreated }) => {
       return;
     }
 
-    if (!formData.title.trim() || !formData.content.trim() || !formData.category_id) {
-      toast.error('Please fill in all required fields including category');
+    // Validate and sanitize form data
+    const validation = validateAndSanitize(createPostSchema, formData);
+    if (!validation.success) {
+      validation.errors.forEach(error => toast.error(error.message));
       return;
     }
 
     setLoading(true);
     try {
-      const displayName = formData.is_anonymous ? 'Anonymous' : 
-                         (formData.author_name.trim() || user.email?.split('@')[0] || 'Anonymous');
+      const sanitizedData = validation.data;
+      const displayName = sanitizedData.is_anonymous ? 'Anonymous' : 
+                         (sanitizedData.author_name || user.email?.split('@')[0] || 'Anonymous');
       
-      const selectedCategory = categories.find(cat => cat.id === formData.category_id);
+      const selectedCategory = categories.find(cat => cat.id === sanitizedData.category_id);
       
       const newPost = {
-        title: formData.title.trim(),
-        content: formData.content.trim(),
-        category_id: formData.category_id,
+        title: sanitizedData.title,
+        content: sanitizedData.content,
+        category_id: sanitizedData.category_id,
         category_name: selectedCategory?.name || 'General Discussion',
-        image_url: formData.image_url || null,
+        image_url: sanitizedData.image_url || null,
         user_id: user.id,
         author_name: displayName,
-        experience_years: formData.experience_years || null,
-        is_anonymous: formData.is_anonymous,
-        visibility: formData.visibility,
+        experience_years: sanitizedData.experience_years || null,
+        is_anonymous: sanitizedData.is_anonymous,
+        visibility: sanitizedData.visibility,
         likes_count: 0,
         replies_count: 0,
         status: 'active',

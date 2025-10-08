@@ -8,13 +8,13 @@ Go to: **Vercel Dashboard → Your Project → Settings → Environment Variable
 
 | Variable Name | Correct Value | Status |
 |---------------|---------------|---------|
-| `VITE_SUPABASE_URL` | `https://qxsardezvxsquvejvsso.supabase.co` | ⚠️ **FIX THIS** |
-| `VITE_SUPABASE_ANON_KEY` | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF4c2FyZGV6dnhzcXV2ZWp2c3NvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU0NDc2OTMsImV4cCI6MjA3MTAyMzY5M30.ZQhcxebPR4kvAAwCIJr7WlugVwoZivTDN9ID3p_aC04` | ❓ **CHECK** |
-| `VITE_APP_ENV` | `production` | ❓ **ADD** |
-| `SUPABASE_SERVICE_KEY` | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF4c2FyZGV6dnhzcXV2ZWp2c3NvIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NTQ0NzY5MywiZXhwIjoyMDcxMDIzNjkzfQ.fWpQKMLUQ-U1zrxKCtNrMD1BtEvLy3HJxVoeGlK_HnQ` | ❓ **ADD** |
-| `ZEPTO_API_KEY` | `Zoho-enczapikey PHtE6r0LEeHu3jUs9RcF5fW5Ecb1Yd9/9eM0fVUWuYcQXPBVHE1d/d15ljezo08vVqYXEvGdy9losbrOseqDdDu7NWdEVWqyqK3sx/VYSPOZsbq6x00ZslgYdUPVVoXpdtBp1iTWvtiX` | ❓ **ADD** |
-| `ZEPTO_FROM_EMAIL` | `info@testingvala.com` | ❓ **ADD** |
-| `ZEPTO_FROM_NAME` | `TestingVala` | ❓ **ADD** |
+| `VITE_SUPABASE_URL` | `https://qxsardezvxsquvejvsso.supabase.co` | 🚨 **MUST BE THIS VALUE** |
+| `VITE_SUPABASE_ANON_KEY` | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF4c2FyZGV6dnhzcXV2ZWp2c3NvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU0NDc2OTMsImV4cCI6MjA3MTAyMzY5M30.ZQhcxebPR4kvAAwCIJr7WlugVwoZivTDN9ID3p_aC04` | ✅ **VERIFY THIS** |
+| `VITE_APP_ENV` | `production` | ✅ **ADD THIS** |
+| `SUPABASE_SERVICE_KEY` | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF4c2FyZGV6dnhzcXV2ZWp2c3NvIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NTQ0NzY5MywiZXhwIjoyMDcxMDIzNjkzfQ.fWpQKMLUQ-U1zrxKCtNrMD1BtEvLy3HJxVoeGlK_HnQ` | ✅ **ADD THIS (Server-side only)** |
+| `ZEPTO_API_KEY` | `Zoho-enczapikey PHtE6r0LEeHu3jUs9RcF5fW5Ecb1Yd9/9eM0fVUWuYcQXPBVHE1d/d15ljezo08vVqYXEvGdy9losbrOseqDdDu7NWdEVWqyqK3sx/VYSPOZsbq6x00ZslgYdUPVVoXpdtBp1iTWvtiX` | ✅ **ADD THIS** |
+| `ZEPTO_FROM_EMAIL` | `info@testingvala.com` | ✅ **ADD THIS** |
+| `ZEPTO_FROM_NAME` | `TestingVala` | ✅ **ADD THIS** |
 
 ## 🚨 CRITICAL ISSUES FOUND
 
@@ -24,7 +24,7 @@ Go to: **Vercel Dashboard → Your Project → Settings → Environment Variable
 - **Impact**: Website will completely fail to load data
 
 ### 2. **MISSING VARIABLES** ⚠️
-You likely need to add 5 more variables to Vercel.
+You are missing up to 5 critical variables required for authentication, emails, and environment separation.
 
 ## 🔧 STEP-BY-STEP FIX
 

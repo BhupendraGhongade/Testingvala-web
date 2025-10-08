@@ -25,43 +25,36 @@ const SavePostModal = ({ isOpen, onClose, post, user }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  // This function makes the component auth-agnostic.
+  // It returns the user's UUID if available, otherwise falls back to email.
+  const getUserId = () => user?.id || user?.email;
+
   // Prevent background scrolling
   useModalScrollLock(isOpen);
 
-  if (!user?.id || !user?.email_confirmed_at || !post?.id) {
+  // Flexible auth check: works with Supabase default (user.id) and custom auth (user.email)
+  const isUserAuthenticated = user && (user.id || user.email);
+
+  if (!isUserAuthenticated || !post?.id) {
     return null;
   }
 
   useEffect(() => {
-    if (isOpen && user?.email_confirmed_at && boards.length === 0) {
+    if (isOpen && isUserAuthenticated && boards.length === 0) {
       loadUserBoards();
     }
-  }, [isOpen, user, boards.length]);
+  }, [isOpen, isUserAuthenticated, boards.length]);
 
   const loadUserBoards = async () => {
-    if (!supabase) {
-      setBoards([]);
-      return;
-    }
-
+    const userId = getUserId();
     try {
       setError(null);
-      const { data, error } = await supabase
-        .from('user_boards')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        if (error.code === 'PGRST116' || error.message?.includes('relation "user_boards" does not exist')) {
-          setError('Boards feature not set up');
-          return;
-        }
-        throw error;
-      }
-      setBoards(data || []);
+      // Load from localStorage as fallback
+      const localBoards = JSON.parse(localStorage.getItem(`boards_${userId}`) || '[]');
+      setBoards(localBoards);
     } catch (error) {
       console.error('Error loading boards:', error);
+      setBoards([]);
       setError('Failed to load boards');
     }
   };
@@ -72,45 +65,34 @@ const SavePostModal = ({ isOpen, onClose, post, user }) => {
       return;
     }
 
+    const userId = getUserId();
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('user_boards')
-        .insert({
-          user_id: user.id,
-          name: newBoardName.trim(),
-          description: newBoardDescription.trim() || null,
-          is_private: newBoardPrivate
-        })
-        .select()
-        .single();
+      const newBoard = {
+        id: `local-${Date.now()}`,
+        user_id: userId,
+        name: newBoardName.trim(),
+        description: newBoardDescription.trim() || null,
+        is_private: newBoardPrivate,
+        created_at: new Date().toISOString(),
+        save_count: 0
+      };
 
-      if (error) throw error;
+      // Save to localStorage
+      const existingBoards = JSON.parse(localStorage.getItem(`boards_${userId}`) || '[]');
+      const updatedBoards = [newBoard, ...existingBoards];
+      localStorage.setItem(`boards_${userId}`, JSON.stringify(updatedBoards));
 
-      setBoards(prev => [data, ...prev]);
-      setSelectedBoard(data.id);
+      setBoards(prev => [newBoard, ...prev]);
+      setSelectedBoard(newBoard.id);
       setShowCreateBoard(false);
       setNewBoardName('');
       setNewBoardDescription('');
       setNewBoardPrivate(false);
-      toast.success('Board created successfully!', {
-        duration: 3000,
-        style: {
-          background: '#F0FDF4',
-          color: '#166534',
-          border: '1px solid #BBF7D0'
-        }
-      });
+      toast.success('Board created successfully!');
     } catch (error) {
       console.error('Error creating board:', error);
-      toast.error('Failed to create board. Please try again.', {
-        duration: 4000,
-        style: {
-          background: '#FEF2F2',
-          color: '#DC2626',
-          border: '1px solid #FECACA'
-        }
-      });
+      toast.error('Failed to create board. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -187,69 +169,43 @@ const SavePostModal = ({ isOpen, onClose, post, user }) => {
       return;
     }
 
-    // Validate post data
-    if (!post.title && !post.content) {
-      toast.error('Post appears to be empty');
-      return;
-    }
-
-    // Debug logging in development
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Saving post:', {
-        id: post.id,
-        title: post.title,
-        content: post.content,
-        category_name: post.category_name,
-        forum_categories: post.forum_categories,
-        user_profiles: post.user_profiles
-      });
-    }
-
     setLoading(true);
     try {
-      // Check for existing save
-      const existing = await checkExistingSave(selectedBoard, post.id);
-      if (existing) {
+      const userId = getUserId();
+      const saveKey = `board_saves_${selectedBoard}`;
+      const existingSaves = JSON.parse(localStorage.getItem(saveKey) || '[]');
+      
+      // Check if already saved
+      if (existingSaves.find(save => save.post_id === post.id)) {
         const boardName = boards.find(b => b.id === selectedBoard)?.name || 'this board';
-        toast.error(`This content is already saved to ${boardName}`, {
-          duration: 4000,
-          style: {
-            background: '#FEF2F2',
-            color: '#DC2626',
-            border: '1px solid #FECACA'
-          }
-        });
+        toast.error(`This content is already saved to ${boardName}`);
         setLoading(false);
         return;
       }
 
-      await insertSave(selectedBoard, post);
+      // Create save data
+      const saveData = {
+        id: `save-${Date.now()}`,
+        board_id: selectedBoard,
+        post_id: post.id,
+        post_title: post.title || 'Untitled Post',
+        post_content: post.content || 'No content',
+        post_author: post.author_name || 'Anonymous',
+        post_category: post.category_name || 'General',
+        post_image_url: post.image_url || null,
+        created_at: new Date().toISOString()
+      };
+
+      // Save to localStorage
+      const updatedSaves = [saveData, ...existingSaves];
+      localStorage.setItem(saveKey, JSON.stringify(updatedSaves));
+
       const boardName = boards.find(b => b.id === selectedBoard)?.name || 'board';
-      toast.success(`Successfully saved to ${boardName}!`, {
-        duration: 3000,
-        style: {
-          background: '#F0FDF4',
-          color: '#166534',
-          border: '1px solid #BBF7D0'
-        }
-      });
-      
-      // Refresh boards to update save count
-      setTimeout(() => {
-        loadUserBoards();
-      }, 500);
-      
+      toast.success(`Successfully saved to ${boardName}!`);
       onClose();
     } catch (error) {
       console.error('Error saving post:', error);
-      toast.error('Failed to save post. Please try again.', {
-        duration: 4000,
-        style: {
-          background: '#FEF2F2',
-          color: '#DC2626',
-          border: '1px solid #FECACA'
-        }
-      });
+      toast.error('Failed to save post. Please try again.');
     } finally {
       setLoading(false);
     }

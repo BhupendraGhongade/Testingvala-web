@@ -1,57 +1,345 @@
-<!-- TestingVala Magic Link Email Template -->
-<!-- Copy this into Supabase Dashboard > Authentication > Settings > Email Templates > Magic Link -->
+<!--
+MAGIC LINK EMAIL TEMPLATE - PRODUCTION READY
+Compatible with: ZeptoEmail, Supabase Auth, Gmail, Outlook, Apple Mail
 
-Subject: Welcome to TestingVala - Verify Your Email
+CUSTOMIZATION GUIDE:
+1. Replace {{magic_link}} with your actual magic link URL
+2. Replace {{username}} with user's name or email
+3. Update logo src with your brand logo URL
+4. Update support email: support@testingvala.com
+5. Update social media links in footer
+6. Adjust brand colors in CSS variables section
+
+THEME VARIABLES:
+- Primary Color: #2563eb (blue)
+- Background: #f9fafb (light gray)
+- Text: #1f2937 (dark gray)
+- Button Radius: 8px
+- Font: Inter, system-ui, sans-serif
+-->
 
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <meta charset="utf-8">
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Welcome to TestingVala</title>
+    <meta name="color-scheme" content="light dark">
+    <meta name="supported-color-schemes" content="light dark">
+    <title>Sign in to TestingVala</title>
     <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
-        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
-        .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
-        .button { display: inline-block; background: #667eea; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; font-weight: bold; }
-        .footer { text-align: center; margin-top: 30px; color: #666; font-size: 14px; }
-        .logo { font-size: 24px; font-weight: bold; margin-bottom: 10px; }
+        /* CSS Variables for easy theming */
+        :root {
+            --primary-color: #2563eb;
+            --primary-hover: #1d4ed8;
+            --background: #f9fafb;
+            --card-background: #ffffff;
+            --text-primary: #1f2937;
+            --text-secondary: #6b7280;
+            --border-color: #e5e7eb;
+            --button-radius: 8px;
+        }
+
+        /* Dark mode support */
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --background: #111827;
+                --card-background: #1f2937;
+                --text-primary: #f9fafb;
+                --text-secondary: #d1d5db;
+                --border-color: #374151;
+            }
+        }
+
+        /* Reset and base styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: var(--text-primary);
+            background-color: var(--background);
+            -webkit-text-size-adjust: 100%;
+            -ms-text-size-adjust: 100%;
+        }
+
+        /* Container */
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: var(--background);
+            padding: 40px 20px;
+        }
+
+        /* Card */
+        .email-card {
+            background-color: var(--card-background);
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+        }
+
+        /* Header */
+        .email-header {
+            text-align: center;
+            padding: 40px 40px 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .logo {
+            width: 48px;
+            height: 48px;
+            margin: 0 auto 16px;
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            font-size: 20px;
+        }
+
+        .brand-name {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .tagline {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        /* Body */
+        .email-body {
+            padding: 40px;
+        }
+
+        .greeting {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 16px;
+        }
+
+        .message {
+            font-size: 16px;
+            color: var(--text-secondary);
+            margin-bottom: 32px;
+            line-height: 1.5;
+        }
+
+        /* CTA Button */
+        .cta-container {
+            text-align: center;
+            margin: 32px 0;
+        }
+
+        .cta-button {
+            display: inline-block;
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
+            color: #ffffff !important;
+            text-decoration: none;
+            padding: 16px 32px;
+            border-radius: var(--button-radius);
+            font-weight: 600;
+            font-size: 16px;
+            box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
+            transition: all 0.2s ease;
+            border: none;
+            cursor: pointer;
+        }
+
+        .cta-button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(37, 99, 235, 0.3);
+        }
+
+        /* Expiry notice */
+        .expiry-notice {
+            text-align: center;
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-top: 16px;
+        }
+
+        /* Fallback link */
+        .fallback-link {
+            margin-top: 24px;
+            padding: 16px;
+            background-color: var(--background);
+            border-radius: var(--button-radius);
+            border: 1px solid var(--border-color);
+        }
+
+        .fallback-text {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+
+        .fallback-url {
+            font-size: 12px;
+            color: var(--primary-color);
+            word-break: break-all;
+            text-decoration: none;
+        }
+
+        /* Footer */
+        .email-footer {
+            padding: 32px 40px;
+            border-top: 1px solid var(--border-color);
+            text-align: center;
+        }
+
+        .support-text {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: 24px;
+        }
+
+        .support-link {
+            color: var(--primary-color);
+            text-decoration: none;
+        }
+
+        /* Social Icons */
+        .social-icons {
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .social-icon {
+            width: 24px;
+            height: 24px;
+            opacity: 0.7;
+            transition: opacity 0.2s ease;
+        }
+
+        .social-icon:hover {
+            opacity: 1;
+        }
+
+        .copyright {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        /* Mobile responsive */
+        @media only screen and (max-width: 600px) {
+            .email-container {
+                padding: 20px 16px;
+            }
+
+            .email-header,
+            .email-body,
+            .email-footer {
+                padding: 24px 20px;
+            }
+
+            .greeting {
+                font-size: 18px;
+            }
+
+            .message {
+                font-size: 15px;
+            }
+
+            .cta-button {
+                padding: 14px 28px;
+                font-size: 15px;
+            }
+
+            .social-icons {
+                gap: 12px;
+            }
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <div class="logo">🚀 TestingVala</div>
-            <h1>Welcome to the QA Community!</h1>
-            <p>Join thousands of QA professionals worldwide</p>
-        </div>
-        <div class="content">
-            <h2>Verify Your Email Address</h2>
-            <p>Hi there!</p>
-            <p>Welcome to TestingVala, the premier platform for QA professionals to showcase skills, participate in contests, and connect with the global testing community.</p>
-            <p>Click the button below to verify your email and start participating:</p>
-            <a href="{{ .ConfirmationURL }}" class="button">Verify Email & Join Community</a>
-            <p>Or copy and paste this link in your browser:</p>
-            <p style="word-break: break-all; background: #eee; padding: 10px; border-radius: 5px; font-size: 12px;">{{ .ConfirmationURL }}</p>
-            <p><strong>What you can do after verification:</strong></p>
-            <ul>
-                <li>💬 Comment on community posts</li>
-                <li>❤️ Like and save posts to your boards</li>
-                <li>🏆 Participate in monthly QA contests</li>
-                <li>📝 Share your testing expertise</li>
-                <li>🎯 Build your professional network</li>
-            </ul>
-        </div>
-        <div class="footer">
-            <p>This link will expire in 24 hours for security reasons.</p>
-            <p>If you didn't request this, you can safely ignore this email.</p>
-            <p>© 2025 TestingVala - Empowering QA Professionals Worldwide</p>
-            <p>
-                <a href="https://testingvala.com">Website</a> | 
-                <a href="https://instagram.com/testingvala">Instagram</a> | 
-                <a href="https://youtube.com/@TestingvalaOfficial">YouTube</a>
-            </p>
+    <div class="email-container">
+        <div class="email-card">
+            <!-- Header -->
+            <div class="email-header">
+                <div class="logo">TV</div>
+                <div class="brand-name">TestingVala</div>
+                <div class="tagline">Your QA Community Platform</div>
+            </div>
+
+            <!-- Body -->
+            <div class="email-body">
+                <div class="greeting">Hello {{username}}, welcome back!</div>
+                
+                <div class="message">
+                    Click the button below to securely sign in to your TestingVala account. This magic link is valid for 15 minutes and can only be used once for your security.
+                </div>
+
+                <!-- CTA Button -->
+                <div class="cta-container">
+                    <a href="{{magic_link}}" class="cta-button">Sign In Securely</a>
+                </div>
+
+                <div class="expiry-notice">
+                    This link expires in 15 minutes for your security
+                </div>
+
+                <!-- Fallback Link -->
+                <div class="fallback-link">
+                    <div class="fallback-text">Having trouble with the button? Copy and paste this link:</div>
+                    <a href="{{magic_link}}" class="fallback-url">{{magic_link}}</a>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="email-footer">
+                <div class="support-text">
+                    Having trouble signing in? Contact us at 
+                    <a href="mailto:support@testingvala.com" class="support-link">support@testingvala.com</a>
+                </div>
+
+                <!-- Social Icons -->
+                <div class="social-icons">
+                    <!-- Instagram -->
+                    <a href="https://instagram.com/testingvala" target="_blank">
+                        <svg class="social-icon" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                        </svg>
+                    </a>
+
+                    <!-- YouTube -->
+                    <a href="https://youtube.com/@TestingvalaOfficial" target="_blank">
+                        <svg class="social-icon" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                        </svg>
+                    </a>
+
+                    <!-- Twitter/X -->
+                    <a href="https://twitter.com/testingvala" target="_blank">
+                        <svg class="social-icon" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                        </svg>
+                    </a>
+
+                    <!-- LinkedIn -->
+                    <a href="https://linkedin.com/company/testingvala" target="_blank">
+                        <svg class="social-icon" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                        </svg>
+                    </a>
+                </div>
+
+                <div class="copyright">
+                    © 2025 TestingVala. All rights reserved.
+                </div>
+            </div>
         </div>
     </div>
 </body>

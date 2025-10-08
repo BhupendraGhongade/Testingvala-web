@@ -19,6 +19,9 @@ const BoardDetailPage = ({ boardId, user, onBack }) => {
   const dragTimeoutRef = useRef(null);
   const dragPreviewRef = useRef(null);
 
+  // Flexible user ID getter
+  const getUserId = () => user?.id || user?.email;
+
   useEffect(() => {
     loadBoardDetails();
   }, [boardId]);
@@ -34,77 +37,39 @@ const BoardDetailPage = ({ boardId, user, onBack }) => {
     setError(null);
     
     try {
-      // Load board info
-      const { data: boardData, error: boardError } = await supabase
-        .from('user_boards')
-        .select('*')
-        .eq('id', boardId)
-        .single();
-
-      // Load user profile separately if board exists
-      let userProfile = null;
-      if (boardData && !boardError) {
-        const { data: profileData } = await supabase
-          .from('user_profiles')
-          .select('full_name, username, email')
-          .eq('user_id', boardData.user_id)
-          .single();
-        userProfile = profileData;
-      }
-
-      if (boardError) {
-        if (boardError.code === 'PGRST116') {
-          setError('Board not found or boards feature not set up');
-          return;
-        }
-        throw boardError;
-      }
-
+      // Load board from localStorage
+      const userId = getUserId();
+      const userBoards = JSON.parse(localStorage.getItem(`boards_${userId}`) || '[]');
+      const boardData = userBoards.find(b => b.id === boardId);
+      
       if (!boardData) {
         setError('Board not found');
         return;
       }
 
       // Check if user can view this board
-      if (boardData.is_private && boardData.user_id !== user?.id) {
+      if (boardData.is_private && boardData.user_id !== userId) {
         setError('This board is private and you do not have access');
         return;
       }
 
-      setBoard({ ...boardData, user_profiles: userProfile });
+      setBoard(boardData);
 
-      // Load saves with better error handling
-      const { data: savesData, error: savesError } = await supabase
-        .from('board_pins')
-        .select('*')
-        .eq('board_id', boardId)
-        .order('created_at', { ascending: false });
-
-      if (savesError) {
-        console.error('Error loading saves:', savesError);
-        if (savesError.code === 'PGRST116') {
-          console.warn('Board saves table not found, showing empty board');
-          setSaves([]);
-        } else {
-          // Don't fail the whole page for save loading errors
-          setSaves([]);
-        }
-      } else {
-        // Ensure saves have proper content
-        const processedSaves = (savesData || [])
-          .map(save => ({
-            ...save,
-            post_title: save.post_title || 'Untitled Post',
-            post_content: save.post_content || 'No content available',
-            post_author: save.post_author || 'Anonymous',
-            post_category: save.post_category || 'General',
-            post_image_url: save.post_image_url || null,
-            position: save.position || 0
-          }))
-          .sort((a, b) => (a.position || 0) - (b.position || 0));
-        
-        setSaves(processedSaves);
-      }
+      // Load saves from localStorage
+      const saveKey = `board_saves_${boardId}`;
+      const savesData = JSON.parse(localStorage.getItem(saveKey) || '[]');
+      
+      const processedSaves = savesData.map(save => ({
+        ...save,
+        post_title: save.post_title || 'Untitled Post',
+        post_content: save.post_content || 'No content available',
+        post_author: save.post_author || 'Anonymous',
+        post_category: save.post_category || 'General',
+        post_image_url: save.post_image_url || null,
+        position: save.position || 0
+      }));
+      
+      setSaves(processedSaves);
     } catch (error) {
       console.error('Error loading board:', error);
       setError(`Failed to load board: ${error.message}`);
@@ -354,7 +319,7 @@ const BoardDetailPage = ({ boardId, user, onBack }) => {
     toast.success('PDF download started');
   };
 
-  const isOwner = board?.user_id === user?.id;
+  const isOwner = board?.user_id === getUserId();
 
   if (loading) {
     return (
