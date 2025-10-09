@@ -1,0 +1,134 @@
+[
+  {
+    "id": 1,
+    "content": {
+      "hero": {
+        "stats": {
+          "prizes": "$2,000+",
+          "support": "24/7",
+          "participants": "500+"
+        },
+        "headline": "TestingVala.com Presents 🎁 ",
+        "subtitle": "A professional platform for software testers to learn, share, and grow through real-world insights, contests, and community collaboration."
+      },
+      "about": {
+        "stats": {},
+        "features": [],
+        "description": ""
+      },
+      "footer": {
+        "brand": {
+          "name": "TestingVala",
+          "tagline": "QA Excellence Platform",
+          "logoLetter": "T"
+        },
+        "contact": {
+          "email": "info@testingvala.com",
+          "phone": "+1 (555) 123-4567",
+          "website": "https://www.testingvala.com"
+        },
+        "copyright": "© 2025 TestingVala. All rights reserved.",
+        "resources": [
+          {
+            "href": "/resources/tips",
+            "label": "QA Tips & Tricks"
+          },
+          {
+            "href": "/resources/interview",
+            "label": "Interview Preparation"
+          },
+          {
+            "href": "/privacy",
+            "label": "Privacy Policy"
+          }
+        ],
+        "quickLinks": [
+          {
+            "href": "#home",
+            "label": "Home"
+          },
+          {
+            "href": "#events",
+            "label": "Events"
+          },
+          {
+            "href": "#winners",
+            "label": "Winners"
+          },
+          {
+            "href": "#community",
+            "label": "Community"
+          },
+          {
+            "href": "#about",
+            "label": "About"
+          },
+          {
+            "href": "#contact",
+            "label": "Contact"
+          }
+        ],
+        "description": "Empowering QA professionals worldwide through knowledge sharing, skill development, and competitive excellence.",
+        "socialMedia": {
+          "twitter": "",
+          "youtube": "",
+          "linkedin": "",
+          "instagram": ""
+        }
+      },
+      "contact": {
+        "email": "info@testingvala.com",
+        "website": "www.testingvala.com",
+        "location": "Global QA Community",
+        "socialMedia": {}
+      },
+      "contest": {
+        "stats": {
+          "winners": "3+",
+          "countries": "4+",
+          "submissions": "1,00+",
+          "participants": "2,50+"
+        },
+        "theme": "Testing Hacks & Smart Techniques",
+        "title": "January 2025 QA Contest",
+        "prizes": "",
+        "status": "Active",
+        "deadline": "",
+        "submission": ""
+      },
+      "winners": [
+        {
+          "name": "TBD",
+          "title": "Contest Winner",
+          "trick": "Winner to be announced soon!",
+          "avatar": "👑"
+        },
+        {
+          "name": "TBD",
+          "title": "Contest Winner",
+          "trick": "Winner to be announced soon!",
+          "avatar": "🥈"
+        },
+        {
+          "name": "TBD",
+          "title": "Contest Winner",
+          "trick": "Winner to be announced soon!",
+          "avatar": "🥉"
+        }
+      ],
+      "messages": [
+        {
+          "id": 1758395810842,
+          "name": "whdushd",
+          "read": false,
+          "email": "nsjdns@gmail.com",
+          "message": "sdjsnd",
+          "subject": "sdjhsudjh",
+          "created_at": "2025-09-20T19:16:50.842Z"
+        }
+      ]
+    },
+    "created_at": "2025-08-17T16:53:55.546356+00:00",
+    "updated_at": "2025-09-20T20:23:25.742088+00:00"
+  }
+]
