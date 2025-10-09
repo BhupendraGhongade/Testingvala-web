@@ -15,6 +15,8 @@ export const useAuth = () => {
         isVerified: false,
         loading: false,
         authStatus: null,
+        userRole: null,
+        isAdmin: false,
         signOut: () => {}
       };
     }
@@ -26,6 +28,8 @@ export const useAuth = () => {
       isVerified: false,
       loading: false,
       authStatus: null,
+      userRole: null,
+      isAdmin: false,
       signOut: () => {}
     };
   }
@@ -41,6 +45,7 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [authStatus, setAuthStatus] = useState(null);
+  const [userRole, setUserRole] = useState(null);
 
   useEffect(() => {
     let mounted = true;
@@ -56,8 +61,10 @@ export const AuthProvider = ({ children }) => {
     // Listen for auth state changes (from development auth)
     const handleAuthStateChange = (event) => {
       if (event.detail?.user) {
-        // console.log('✅ Auth state change detected:', event.detail.user.email);
-        setUser(event.detail.user);
+        console.log('✅ Auth state change detected:', event.detail.user.email);
+        const userData = event.detail.user;
+        setUser(userData);
+        setUserRole(determineUserRole(userData.email));
         setLoading(false);
         
         // Force re-render by updating a timestamp
@@ -94,8 +101,9 @@ export const AuthProvider = ({ children }) => {
       if (devUser && !user) {
         try {
           const parsedUser = JSON.parse(devUser);
-          // console.log('✅ Dev auth detected in interval check:', parsedUser.email);
+          console.log('✅ Dev auth detected in interval check:', parsedUser.email);
           setUser(parsedUser);
+          setUserRole(determineUserRole(parsedUser.email));
           setLoading(false);
           return;
         } catch (error) {
@@ -123,6 +131,22 @@ export const AuthProvider = ({ children }) => {
     };
   }, []); // Remove dependency to prevent re-initialization
   
+  const determineUserRole = (email) => {
+    if (!email) return 'user';
+    
+    // Admin role determination
+    const adminEmails = [
+      'admin@testingvala.com',
+      import.meta.env.VITE_DEV_ADMIN_EMAIL
+    ].filter(Boolean);
+    
+    const isAdmin = adminEmails.includes(email.toLowerCase()) || 
+                   email.toLowerCase().includes('admin@testingvala') ||
+                   email.toLowerCase().startsWith('admin@');
+    
+    return isAdmin ? 'admin' : 'user';
+  };
+  
   const initializeAuth = async () => {
     try {
       // Check for development auth first
@@ -130,8 +154,9 @@ export const AuthProvider = ({ children }) => {
       if (devUser) {
         try {
           const parsedUser = JSON.parse(devUser);
-          // console.log('✅ Development auth session found:', parsedUser.email);
+          console.log('✅ Development auth session found:', parsedUser.email);
           setUser(parsedUser);
+          setUserRole(determineUserRole(parsedUser.email));
           setLoading(false);
           return;
         } catch (error) {
@@ -144,7 +169,7 @@ export const AuthProvider = ({ children }) => {
       const customAuthStatus = authService.getAuthStatus();
       
       if (customAuthStatus.isAuthenticated) {
-        // console.log('✅ Custom auth session found:', customAuthStatus.email);
+        console.log('✅ Custom auth session found:', customAuthStatus.email);
         setAuthStatus(customAuthStatus);
         updateUserState(customAuthStatus);
         // Track login event
@@ -157,12 +182,13 @@ export const AuthProvider = ({ children }) => {
         return;
       }
       
-      // Fallback to Supabase auth if available
+      // Fallback to Supabase auth if available (for data storage only)
       if (supabase) {
         const { data: { user: supabaseUser } } = await supabase.auth.getUser();
         if (supabaseUser) {
-          // console.log('✅ Supabase auth session found:', supabaseUser.email);
+          console.log('✅ Supabase auth session found:', supabaseUser.email);
           setUser(supabaseUser);
+          setUserRole(determineUserRole(supabaseUser.email));
           await createUserProfile(supabaseUser);
           // Track login event
           try {
@@ -181,6 +207,7 @@ export const AuthProvider = ({ children }) => {
       // Set safe defaults on error
       setUser(null);
       setAuthStatus(null);
+      setUserRole(null);
     } finally {
       setLoading(false);
     }
@@ -189,22 +216,38 @@ export const AuthProvider = ({ children }) => {
   const updateUserState = (status) => {
     try {
       if (status.isAuthenticated && status.email) {
+        const role = determineUserRole(status.email);
+        
         // Create a user object compatible with existing code
         const mockUser = {
           id: status.deviceId || 'custom_auth_user',
           email: status.email,
           email_confirmed_at: status.isAuthenticated ? new Date().toISOString() : null,
           user_metadata: {
-            name: status.email.split('@')[0]
-          }
+            name: status.email.split('@')[0],
+            role: role
+          },
+          role: role
         };
+        
         setUser(mockUser);
+        setUserRole(role);
+        
+        // Store role in session for persistence
+        const session = authService.getSession();
+        if (session) {
+          session.role = role;
+          localStorage.setItem('auth_session', JSON.stringify(session));
+        }
+        
       } else {
         setUser(null);
+        setUserRole(null);
       }
     } catch (error) {
       console.error('Error updating user state:', error);
       setUser(null);
+      setUserRole(null);
     }
   };
 
@@ -212,12 +255,15 @@ export const AuthProvider = ({ children }) => {
     try {
       if (!supabase) return;
       
+      const role = determineUserRole(authUser.email);
+      
       const { error } = await supabase
         .from('users')
         .upsert({
           id: authUser.id,
           email: authUser.email,
           name: authUser.user_metadata?.name || authUser.email.split('@')[0],
+          role: role,
           is_verified: !!authUser.email_confirmed_at,
           updated_at: new Date().toISOString()
         }, {
@@ -227,7 +273,7 @@ export const AuthProvider = ({ children }) => {
       if (error) {
         console.warn('Error creating user profile:', error);
       } else {
-        // console.log('✅ User profile created/updated:', authUser.email);
+        console.log(`✅ User profile created/updated: ${authUser.email} (${role})`);
       }
     } catch (error) {
       console.warn('Error in createUserProfile:', error);
@@ -245,7 +291,6 @@ export const AuthProvider = ({ children }) => {
         }
       }
       
-
       // Clear development auth
       localStorage.removeItem('dev_auth_user');
       
@@ -259,19 +304,23 @@ export const AuthProvider = ({ children }) => {
       
       setUser(null);
       setAuthStatus(null);
-      // console.log('🔓 User signed out successfully');
+      setUserRole(null);
+      console.log('🔓 User signed out successfully');
     } catch (error) {
       console.error('Sign out error:', error);
     }
   };
 
   const isVerified = user?.email_confirmed_at != null || authStatus?.isAuthenticated;
+  const isAdmin = userRole === 'admin';
 
   const value = {
     user,
     isVerified,
     loading,
     authStatus,
+    userRole,
+    isAdmin,
     signOut
   };
 

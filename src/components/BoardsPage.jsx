@@ -39,23 +39,12 @@ const BoardsPage = ({ user, onBack, onViewBoard, onViewPublic }) => {
   const [error, setError] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(null);
 
-<<<<<<< HEAD
   // Flexible user ID getter to support both auth systems
   const getUserId = () => user?.id || user?.email;
 
   const loadBoards = useCallback(async () => {
     const userId = getUserId();
     if (!userId) {
-=======
-  const loadBoards = useCallback(async () => {
-    if (!supabase) {
-      setError('Database not configured');
-      setLoading(false);
-      return;
-    }
-
-    if (!user?.id) {
->>>>>>> origin/main
       setBoards([]);
       setLoading(false);
       return;
@@ -65,17 +54,10 @@ const BoardsPage = ({ user, onBack, onViewBoard, onViewPublic }) => {
     setError(null);
     
     try {
-<<<<<<< HEAD
       // Load from localStorage as fallback
       const localBoards = JSON.parse(localStorage.getItem(`boards_${userId}`) || '[]');
       setBoards(localBoards);
       
-=======
-      const boardsWithSaves = await loadBoardsWithOrdering(user.id);
-      setBoards(boardsWithSaves);
-
-      // Update saves state for backward compatibility
->>>>>>> origin/main
       const savesCount = {};
       localBoards.forEach(board => {
         savesCount[board.id] = board.save_count || 0;
@@ -112,7 +94,6 @@ const BoardsPage = ({ user, onBack, onViewBoard, onViewPublic }) => {
     setLoading(true);
     
     try {
-<<<<<<< HEAD
       // Create board locally as fallback
       const localBoard = {
         id: `local-${Date.now()}`,
@@ -133,18 +114,6 @@ const BoardsPage = ({ user, onBack, onViewBoard, onViewPublic }) => {
       
       setBoards(prev => [localBoard, ...prev]);
       setSaves(prev => ({ ...prev, [localBoard.id]: 0 }));
-=======
-      const boardData = {
-        name: sanitizeText(newBoard.name),
-        description: sanitizeText(newBoard.description) || null,
-        is_private: newBoard.is_private,
-        cover_image_url: newBoard.cover_image_url.trim() || null
-      };
-
-      const newBoardData = await createBoardWithPosition(user.id, boardData);
-      setBoards(prev => [newBoardData, ...prev]);
-      setSaves(prev => ({ ...prev, [newBoardData.id]: 0 }));
->>>>>>> origin/main
       resetForm();
       toast.success('Board created successfully!');
       
@@ -200,11 +169,7 @@ const BoardsPage = ({ user, onBack, onViewBoard, onViewPublic }) => {
     if (fromIndex === toIndex) return;
     
     try {
-<<<<<<< HEAD
       const updatedBoards = await optimisticReorderBoards(boards, fromIndex, toIndex, getUserId());
-=======
-      const updatedBoards = await optimisticReorderBoards(boards, fromIndex, toIndex, user.id);
->>>>>>> origin/main
       setBoards(updatedBoards);
     } catch (error) {
       // Error handling is done in optimisticReorderBoards
@@ -612,11 +577,8 @@ const BoardsPage = ({ user, onBack, onViewBoard, onViewPublic }) => {
           itemName={showDeleteModal?.name}
           itemDescription={showDeleteModal?.description}
         />
-<<<<<<< HEAD
 
 
-=======
->>>>>>> origin/main
       </div>
     </div>
   );

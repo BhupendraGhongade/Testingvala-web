@@ -85,89 +85,11 @@ HTML Template:
 -- This ensures proper security for authentication flows
 
 -- Enable RLS on auth.users (usually already enabled)
-<<<<<<< HEAD
 
 -- 6. Update existing users table to ensure compatibility
 -- The `user_profiles` table is now the single source of truth for user data.
 
 -- 7. RLS policies for user_profiles are defined in `setup-boards-schema.sql`
-=======
--- ALTER TABLE auth.users ENABLE ROW LEVEL SECURITY;
-
--- 4. Create a function to handle post-authentication user creation
--- This function will be triggered after successful email verification
-
-CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER AS $$
-BEGIN
-  -- Insert user into public.users table after successful auth
-  INSERT INTO public.users (id, email, name, created_at, updated_at)
-  VALUES (
-    NEW.id,
-    NEW.email,
-    COALESCE(NEW.raw_user_meta_data->>'name', split_part(NEW.email, '@', 1)),
-    NOW(),
-    NOW()
-  )
-  ON CONFLICT (id) DO UPDATE SET
-    email = EXCLUDED.email,
-    updated_at = NOW();
-  
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- 5. Create trigger to automatically create user profile after email verification
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-CREATE TRIGGER on_auth_user_created
-  AFTER INSERT ON auth.users
-  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
-
--- 6. Update existing users table to ensure compatibility
--- Add any missing columns if they don't exist
-
-DO $$ 
-BEGIN
-  -- Check if users table exists, if not create it
-  IF NOT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'users') THEN
-    CREATE TABLE users (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      email TEXT UNIQUE NOT NULL,
-      name TEXT,
-      company TEXT,
-      role TEXT,
-      avatar_url TEXT,
-      is_verified BOOLEAN DEFAULT false,
-      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-      updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-    );
-  END IF;
-
-  -- Add missing columns if they don't exist
-  IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'avatar_url') THEN
-    ALTER TABLE users ADD COLUMN avatar_url TEXT;
-  END IF;
-
-  IF NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'is_verified') THEN
-    ALTER TABLE users ADD COLUMN is_verified BOOLEAN DEFAULT false;
-  END IF;
-END $$;
-
--- 7. Create RLS policies for users table
-ALTER TABLE users ENABLE ROW LEVEL SECURITY;
-
--- Allow users to read their own profile
-CREATE POLICY "Users can view own profile" ON users
-  FOR SELECT USING (auth.uid() = id);
-
--- Allow users to update their own profile
-CREATE POLICY "Users can update own profile" ON users
-  FOR UPDATE USING (auth.uid() = id);
-
--- Allow authenticated users to view other users' basic info (for community features)
-CREATE POLICY "Authenticated users can view basic user info" ON users
-  FOR SELECT USING (auth.role() = 'authenticated');
->>>>>>> origin/main
 
 -- 8. Create a function to check if user is verified
 CREATE OR REPLACE FUNCTION public.is_user_verified(user_email TEXT)
@@ -185,11 +107,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE OR REPLACE FUNCTION public.sync_user_verification()
 RETURNS VOID AS $$
 BEGIN
-<<<<<<< HEAD
   UPDATE user_profiles 
-=======
-  UPDATE users 
->>>>>>> origin/main
   SET is_verified = true, updated_at = NOW()
   WHERE email IN (
     SELECT email FROM auth.users 

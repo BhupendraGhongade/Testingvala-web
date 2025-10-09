@@ -1,71 +1,72 @@
-#!/usr/bin/env node
-/**
- * Simple Data Backup Script using Supabase Client
- */
 import { createClient } from '@supabase/supabase-js';
 import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
 
-const supabaseUrl = 'https://qxsardezvxsquvejvsso.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF4c2FyZGV6dnhzcXV2ZWp2c3NvIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NTQ0NzY5MywiZXhwIjoyMDcxMDIzNjkzfQ.fWpQKMLUQ-U1zrxKCtNrMD1BtEvLy3HJxVoeGlK_HnQ';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Load environment variables manually
+const loadEnv = () => {
+  try {
+    const envContent = fs.readFileSync('.env.production', 'utf8');
+    envContent.split('\n').forEach(line => {
+      const [key, value] = line.split('=');
+      if (key && value) {
+        process.env[key] = value;
+      }
+    });
+  } catch (err) {
+    console.log('Using default env');
+  }
+};
+loadEnv();
+
+const supabaseUrl = process.env.VITE_SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseKey) {
+  console.error('❌ Missing Supabase credentials');
+  process.exit(1);
+}
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-const backupDir = `backups/${timestamp}`;
-
-console.log('💾 Creating data backup...');
-
 async function backupData() {
-  try {
-    // Create backup directory
-    if (!fs.existsSync('backups')) {
-      fs.mkdirSync('backups');
-    }
-    fs.mkdirSync(backupDir);
-
-    // Backup website_content
-    console.log('📋 Backing up website content...');
-    const { data: content } = await supabase
-      .from('website_content')
-      .select('*');
-    
-    fs.writeFileSync(`${backupDir}/website_content.json`, JSON.stringify(content, null, 2));
-
-    // Backup users
-    console.log('👥 Backing up users...');
-    const { data: users } = await supabase
-      .from('users')
-      .select('*');
-    
-    fs.writeFileSync(`${backupDir}/users.json`, JSON.stringify(users, null, 2));
-
-    // Backup contest_submissions
-    console.log('📝 Backing up contest submissions...');
-    const { data: submissions } = await supabase
-      .from('contest_submissions')
-      .select('*');
-    
-    fs.writeFileSync(`${backupDir}/contest_submissions.json`, JSON.stringify(submissions, null, 2));
-
-    // Backup admin_sessions
-    console.log('🔐 Backing up admin sessions...');
-    const { data: sessions } = await supabase
-      .from('admin_sessions')
-      .select('*');
-    
-    fs.writeFileSync(`${backupDir}/admin_sessions.json`, JSON.stringify(sessions, null, 2));
-
-    console.log(`✅ Backup completed: ${backupDir}`);
-    console.log('📁 Files created:');
-    console.log(`   - ${backupDir}/website_content.json`);
-    console.log(`   - ${backupDir}/users.json`);
-    console.log(`   - ${backupDir}/contest_submissions.json`);
-    console.log(`   - ${backupDir}/admin_sessions.json`);
-
-  } catch (error) {
-    console.error('❌ Backup failed:', error.message);
-    process.exit(1);
+  console.log('💾 Starting simple backup...');
+  
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const backupDir = path.join(__dirname, '..', 'backups', timestamp);
+  
+  if (!fs.existsSync(backupDir)) {
+    fs.mkdirSync(backupDir, { recursive: true });
   }
+
+  const tables = ['website_content', 'forum_posts', 'user_boards', 'board_posts'];
+  
+  for (const table of tables) {
+    try {
+      console.log(`📋 Backing up ${table}...`);
+      const { data, error } = await supabase.from(table).select('*');
+      
+      if (error) {
+        console.warn(`⚠️ Could not backup ${table}:`, error.message);
+        continue;
+      }
+      
+      fs.writeFileSync(
+        path.join(backupDir, `${table}.json`),
+        JSON.stringify(data, null, 2)
+      );
+      
+      console.log(`✅ ${table}: ${data?.length || 0} records`);
+    } catch (err) {
+      console.warn(`⚠️ Error backing up ${table}:`, err.message);
+    }
+  }
+  
+  console.log(`✅ Backup completed: ${backupDir}`);
 }
 
-backupData();
+backupData().catch(console.error);

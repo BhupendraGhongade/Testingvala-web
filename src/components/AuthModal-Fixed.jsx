@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { X, Mail, Lock, User, AlertCircle, CheckCircle, Clock, Shield } from 'lucide-react';
-import { supabase } from '../lib/supabase';
 import { useModalScrollLock } from '../hooks/useModalScrollLock';
 import toast from 'react-hot-toast';
 
@@ -16,20 +15,23 @@ const AuthModal = ({ isOpen, onClose, onSuccess, action = 'comment' }) => {
 
   // Check authentication status on mount
   useEffect(() => {
-    const checkAuth = async () => {
-      if (isOpen && supabase) {
+    const checkAuth = () => {
+      if (isOpen) {
         try {
-          // Check Supabase auth
-          const { data: { user } } = await supabase.auth.getUser();
-          if (user) {
-            // console.log('✅ User already authenticated:', user.email);
+          // Check for existing auth session
+          const authSession = localStorage.getItem('auth_session');
+          const devUser = localStorage.getItem('dev_auth_user');
+          
+          if (authSession || devUser) {
+            const user = devUser ? JSON.parse(devUser) : JSON.parse(authSession);
+            console.log('✅ User already authenticated:', user.email);
             toast.success('Welcome back! You\'re already signed in.');
             onClose();
             if (onSuccess) onSuccess();
           }
         } catch (error) {
           console.warn('Auth check failed:', error);
-          // Don't show error to user, just continue with normal flow
+          // Continue with normal flow
         }
       }
     };
@@ -38,9 +40,7 @@ const AuthModal = ({ isOpen, onClose, onSuccess, action = 'comment' }) => {
 
   if (!isOpen) return null;
 
-  // Error boundary for the component
-  try {
-    const handleEmailSubmit = async (e) => {
+  const handleEmailSubmit = async (e) => {
     e.preventDefault();
     const trimmedEmail = email.trim().toLowerCase();
     
@@ -57,66 +57,72 @@ const AuthModal = ({ isOpen, onClose, onSuccess, action = 'comment' }) => {
     }
 
     setLoading(true);
+    const currentRequestId = Math.random().toString(36).substring(2, 15);
+    setRequestId(currentRequestId);
+
     try {
-      // Check if Supabase is available
-      if (!supabase) {
-        // Fallback for development - simulate magic link
-        // console.log('🚀 Development mode: Simulating magic link for', trimmedEmail);
+      // Development mode check
+      const isDevelopment = import.meta.env.DEV || 
+                           window.location.hostname === 'localhost' || 
+                           window.location.hostname === '127.0.0.1';
+
+      if (isDevelopment && import.meta.env.VITE_DEV_AUTH_BYPASS === 'true') {
+        console.log('🚀 Development mode: Simulating ZeptoEmail magic link for', trimmedEmail);
         
         // Store email for verification
         sessionStorage.setItem('pending_auth_email', trimmedEmail);
         
-        // Simulate delay
+        // Simulate API call delay
         await new Promise(resolve => setTimeout(resolve, 1000));
         
         setStep('verify');
-        toast.success(`✅ Development mode: Magic link simulated for ${trimmedEmail}`);
+        toast.success(`✅ Development: Magic link sent via ZeptoEmail simulation`);
         
         // Auto-verify after 3 seconds in development
         setTimeout(() => {
-          const mockUser = {
-            id: `dev-${Date.now()}`,
-            email: trimmedEmail,
-            email_confirmed_at: new Date().toISOString(),
-            user_metadata: {
-              full_name: trimmedEmail.split('@')[0]
-            }
-          };
-          
-          // Store in localStorage for AuthContext
-          localStorage.setItem('dev_auth_user', JSON.stringify(mockUser));
-          
-          toast.success('🚀 Development: Auto-verified! You can now create posts.');
-          onClose();
-          if (onSuccess) onSuccess();
-          
-          // Trigger auth state change
-          window.dispatchEvent(new CustomEvent('auth-state-change', {
-            detail: { user: mockUser, session: { user: mockUser } }
-          }));
+          handleDevAutoVerify(trimmedEmail);
         }, 3000);
         
         return;
       }
+
+      // Production: Use ZeptoEmail API endpoint
+      console.log(`📧 Sending magic link via ZeptoEmail API for: ${trimmedEmail}`);
       
-      // Send magic link via Supabase
-      const { error } = await supabase.auth.signInWithOtp({
-        email: trimmedEmail,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`
-        }
+      const response = await fetch('/api/send-magic-link', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+          'X-Request-ID': currentRequestId
+        },
+        body: JSON.stringify({
+          email: trimmedEmail,
+          deviceId: generateDeviceId(),
+          requestId: currentRequestId
+        })
       });
-      
-      if (error) {
-        // Handle specific Supabase errors
-        if (error.message.includes('fetch')) {
-          throw new Error('Unable to connect to authentication service. Please check your internet connection and try again.');
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        // Handle specific error cases
+        if (response.status === 429) {
+          setRateLimitInfo({ 
+            message: result.error || 'Rate limit exceeded',
+            retryAfter: result.retryAfter 
+          });
+          setStep('rate_limited');
+          return;
         }
-        throw error;
+        
+        throw new Error(result.error || `Server error: ${response.status}`);
       }
-      
+
+      // Success - email sent via ZeptoEmail
+      console.log('✅ Magic link sent successfully:', result.messageId);
       setStep('verify');
-      toast.success(`✅ Verification email sent to ${trimmedEmail}`);
+      toast.success(`✅ Verification email sent to ${trimmedEmail} via ZeptoEmail`);
       
     } catch (error) {
       console.error('❌ Magic link failed:', error);
@@ -129,8 +135,6 @@ const AuthModal = ({ isOpen, onClose, onSuccess, action = 'comment' }) => {
         setRateLimitInfo({ message: error.message });
         setStep('rate_limited');
         return;
-      } else if (error.message.includes('not available')) {
-        errorMessage = error.message;
       } else if (error.message) {
         errorMessage = error.message;
       }
@@ -139,6 +143,56 @@ const AuthModal = ({ isOpen, onClose, onSuccess, action = 'comment' }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDevAutoVerify = (email) => {
+    // Determine user role based on email
+    const isAdmin = email === 'admin@testingvala.com' || 
+                   email.includes('admin@') ||
+                   email === import.meta.env.VITE_DEV_ADMIN_EMAIL;
+
+    const mockUser = {
+      id: `dev-${Date.now()}`,
+      email: email,
+      email_confirmed_at: new Date().toISOString(),
+      user_metadata: {
+        full_name: email.split('@')[0],
+        role: isAdmin ? 'admin' : 'user'
+      },
+      role: isAdmin ? 'admin' : 'user'
+    };
+    
+    // Store in localStorage for AuthContext
+    localStorage.setItem('dev_auth_user', JSON.stringify(mockUser));
+    
+    // Create auth session
+    const authSession = {
+      email: email,
+      verified: true,
+      role: isAdmin ? 'admin' : 'user',
+      deviceId: generateDeviceId(),
+      loginTime: Date.now(),
+      expiresAt: Date.now() + (30 * 24 * 60 * 60 * 1000) // 30 days
+    };
+    localStorage.setItem('auth_session', JSON.stringify(authSession));
+    
+    toast.success(`🚀 Development: Auto-verified as ${isAdmin ? 'Admin' : 'User'}!`);
+    onClose();
+    if (onSuccess) onSuccess();
+    
+    // Trigger auth state change
+    window.dispatchEvent(new CustomEvent('auth-state-change', {
+      detail: { user: mockUser, session: { user: mockUser } }
+    }));
+  };
+
+  const generateDeviceId = () => {
+    let deviceId = localStorage.getItem('device_id');
+    if (!deviceId) {
+      deviceId = Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
+      localStorage.setItem('device_id', deviceId);
+    }
+    return deviceId;
   };
 
   const actionText = {
@@ -150,8 +204,8 @@ const AuthModal = ({ isOpen, onClose, onSuccess, action = 'comment' }) => {
     resume: 'create your resume'
   };
 
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[999999] p-4">
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[999999] p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[calc(90vh-80px)] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-100">
@@ -220,7 +274,7 @@ const AuthModal = ({ isOpen, onClose, onSuccess, action = 'comment' }) => {
                   <User className="w-8 h-8 text-white" />
                 </div>
                 <p className="text-gray-600">
-                  To {actionText[action]}, please verify your email address. We'll send you a magic link for instant access.
+                  To {actionText[action]}, please verify your email address. We'll send you a magic link via ZeptoEmail for instant access.
                 </p>
               </div>
 
@@ -250,7 +304,7 @@ const AuthModal = ({ isOpen, onClose, onSuccess, action = 'comment' }) => {
                   {loading ? (
                     <>
                       <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                      Sending Magic Link...
+                      Sending via ZeptoEmail...
                     </>
                   ) : (
                     <>
@@ -264,7 +318,7 @@ const AuthModal = ({ isOpen, onClose, onSuccess, action = 'comment' }) => {
               <div className="mt-6 text-center">
                 <p className="text-xs text-gray-500">
                   By continuing, you agree to our Terms of Service and Privacy Policy. 
-                  No spam, just community updates.
+                  Magic links are sent via ZeptoEmail for security.
                 </p>
               </div>
             </>
@@ -278,7 +332,7 @@ const AuthModal = ({ isOpen, onClose, onSuccess, action = 'comment' }) => {
                   Check Your Email
                 </h3>
                 <p className="text-gray-600 mb-6">
-                  We've sent a secure verification link to <strong>{email}</strong>. 
+                  We've sent a secure verification link to <strong>{email}</strong> via ZeptoEmail. 
                   Click the link in your email to complete authentication.
                 </p>
 
@@ -290,10 +344,11 @@ const AuthModal = ({ isOpen, onClose, onSuccess, action = 'comment' }) => {
                       <ul className="space-y-1 text-xs">
                         <li>• Check your email inbox (and spam folder)</li>
                         <li>• Click the "Verify Account" button in the email</li>
-                        <li>• You'll be automatically signed in</li>
+                        <li>• You'll be automatically signed in with proper role</li>
                         {requestId && <li>• Request ID: {requestId}</li>}
+                        <li>• Email sent via ZeptoEmail service</li>
                         {window.location.hostname === 'localhost' && (
-                          <li style={{color: '#059669'}}>• Development: Check browser console for direct link</li>
+                          <li style={{color: '#059669'}}>• Development: Auto-verification in 3 seconds</li>
                         )}
                       </ul>
                     </div>
@@ -319,28 +374,8 @@ const AuthModal = ({ isOpen, onClose, onSuccess, action = 'comment' }) => {
           )}
         </div>
       </div>
-      </div>
-    );
-  } catch (error) {
-    console.error('AuthModal render error:', error);
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[999999] p-4">
-        <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 text-center">
-          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <AlertCircle className="w-8 h-8 text-red-600" />
-          </div>
-          <h3 className="text-xl font-bold text-gray-900 mb-2">Authentication Error</h3>
-          <p className="text-gray-600 mb-4">There was an issue with the authentication system.</p>
-          <button
-            onClick={onClose}
-            className="bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            Close
-          </button>
-        </div>
-      </div>
-    );
-  }
+    </div>
+  );
 };
 
 export default AuthModal;

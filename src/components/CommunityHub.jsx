@@ -1,10 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { MessageSquare, TrendingUp, Plus, Search, Filter, Heart, MoreHorizontal, Edit2, Trash2, Share2, X, Bookmark, Pin, Zap, Clipboard, Briefcase, BookOpen, Code, Layers, Calendar, Clock, Trophy, Check, Download, Linkedin, MessageCircle, Star, MapPin, Users, DollarSign, ExternalLink, RefreshCw } from 'lucide-react';
 import LoadingSkeleton from './LoadingSkeleton';
-<<<<<<< HEAD
 import { bulletproofPostStore } from '../utils/bulletproofPostStore';
-=======
->>>>>>> origin/main
 import StickyActionBar from './StickyActionBar';
 import { smartCache } from '../utils/smartCacheManager';
 import { StorageCleanup } from '../utils/storageCleanup';
@@ -961,15 +958,9 @@ const CommunityHub = () => {
   // Separate effect for filtering when posts or filters change
   // Create post index map for O(1) lookup
   const filteredPosts = useMemo(() => {
-<<<<<<< HEAD
     if (!mergedPosts || mergedPosts.length === 0) return [];
     return getFilteredAndSortedPosts(mergedPosts);
   }, [mergedPosts, selectedCategory, filterType, searchQuery, authUser]);
-=======
-    if (!posts || posts.length === 0) return [];
-    return getFilteredAndSortedPosts(posts);
-  }, [posts, selectedCategory, filterType, searchQuery, authUser]);
->>>>>>> origin/main
 
   // Update post index map when filtered posts change
   useEffect(() => {

@@ -25,7 +25,6 @@ const SavePostModal = ({ isOpen, onClose, post, user }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-<<<<<<< HEAD
   // This function makes the component auth-agnostic.
   // It returns the user's UUID if available, otherwise falls back to email.
   const getUserId = () => user?.id || user?.email;
@@ -37,12 +36,6 @@ const SavePostModal = ({ isOpen, onClose, post, user }) => {
   const isUserAuthenticated = user && (user.id || user.email);
 
   if (!isUserAuthenticated || !post?.id) {
-=======
-  // Prevent background scrolling
-  useModalScrollLock(isOpen);
-
-  if (!user?.id || !user?.email_confirmed_at || !post?.id) {
->>>>>>> origin/main
     return null;
   }
 
