@@ -102,11 +102,11 @@ class AuthService {
     const requestId = Math.random().toString(36).substring(2, 15);
     
     // console.log(`🚀 [${requestId}] Magic Link Request Started`, {
-      email,
-      timestamp: new Date().toISOString(),
-      deviceId: this.getDeviceId(),
-      userAgent: navigator.userAgent
-    });
+    //   email,
+    //   timestamp: new Date().toISOString(),
+    //   deviceId: this.getDeviceId(),
+    //   userAgent: navigator.userAgent
+    // });
 
     try {
       // Check rate limiting
@@ -127,10 +127,10 @@ class AuthService {
       setCSRFToken(csrfToken);
 
       // console.log(`📧 [${requestId}] Sending email request`, {
-        email,
-        remaining: rateCheck.remaining,
-        csrfToken
-      });
+      //   email,
+      //   remaining: rateCheck.remaining,
+      //   csrfToken
+      // });
 
       // Send request with timeout
       const controller = new AbortController();
@@ -166,11 +166,11 @@ class AuthService {
       
       const duration = Date.now() - startTime;
       // console.log(`✅ [${requestId}] Magic Link Sent Successfully`, {
-        email,
-        messageId: result.messageId,
-        duration: `${duration}ms`,
-        remaining: rateCheck.remaining - 1
-      });
+      //   email,
+      //   messageId: result.messageId,
+      //   duration: `${duration}ms`,
+      //   remaining: rateCheck.remaining - 1
+      // });
 
       return {
         success: true,
@@ -206,10 +206,10 @@ class AuthService {
     const requestId = Math.random().toString(36).substring(2, 15);
     
     // console.log(`🔐 [${requestId}] Token Verification Started`, {
-      email,
-      token: token.substring(0, 8) + '...',
-      timestamp: new Date().toISOString()
-    });
+    //   email,
+    //   token: token.substring(0, 8) + '...',
+    //   timestamp: new Date().toISOString()
+    // });
 
     try {
       // Validate inputs
@@ -243,9 +243,9 @@ class AuthService {
       localStorage.setItem('user_verified', 'true');
 
       // console.log(`✅ [${requestId}] Token Verified Successfully`, {
-        email,
-        sessionDuration: '30 days'
-      });
+      //   email,
+      //   sessionDuration: '30 days'
+      // });
 
       return { success: true, session };
 
