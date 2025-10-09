@@ -1,9 +1,4 @@
 {
-  "functions": {
-    "app/**/*.{js,ts}": {
-      "runtime": "@vercel/static"
-    }
-  },
   "rewrites": [
     {
       "source": "/(.*)",
